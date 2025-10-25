@@ -191,20 +191,18 @@
 
         // FrequencyScanner
         class FrequencyScanner {
-            // Автоматизация констант на основе параметров и данных
-            static F_MIN = 0.0;
-            static F_MAX = Math.min(400, MathJitterSampler.FS / 10);
-            static F_STEP = Math.max(0.1, FrequencyScanner.F_MAX / 800);
+            // Автоматизация констант на основе параметров и данных, масштабируемость
             static FS = MathJitterSampler.FS;
             static N = MathJitterSampler.N;
+            static F_MIN = 0.0;
+            static F_MAX = Math.max(20, Math.min(400, MathJitterSampler.FS / 10)); // максимум 400 Гц или 1/10 от частоты дискретизации, минимум 20 Гц
+            static F_STEP = Math.max(0.05, FrequencyScanner.F_MAX / Math.min(800, FrequencyScanner.F_MAX * 4)); // шаг: не менее 0.05 Гц, максимум 800 точек, но не более 4 точек на Гц
             static DT_WIN = FrequencyScanner.N / FrequencyScanner.FS;
             static EPSILON = Number.EPSILON;
-            static K_VCO = Math.max(0.05, 0.5 / FrequencyScanner.F_MAX);
-
-            // Автоматизация порога и коэффициентов инерции
-            static INERTIA_THRESHOLD = Math.max(0.05, 0.2 - 0.1 * (FrequencyScanner.F_MAX / 400)); // Чем ниже F_MAX, тем ниже порог
-            static INERTIA_GAIN = Math.min(1.0, 0.5 / FrequencyScanner.INERTIA_THRESHOLD); // Чем ниже порог, тем больше прирост
-            static INERTIA_LOSS = Math.max(0.005, FrequencyScanner.INERTIA_THRESHOLD / 10); // Чем ниже порог, тем меньше потеря
+            static K_VCO = Math.max(0.01, 0.5 / FrequencyScanner.F_MAX); // коэффициент управления VCO, не менее 0.01
+            static INERTIA_THRESHOLD = Math.max(0.03, 0.2 - 0.1 * (FrequencyScanner.F_MAX / 400)); // Чем ниже F_MAX, тем ниже порог, минимум 0.03
+            static INERTIA_GAIN = Math.min(1.0, 0.5 / FrequencyScanner.INERTIA_THRESHOLD); // Чем ниже порог, тем больше прирост, максимум 1.0
+            static INERTIA_LOSS = Math.max(0.002, FrequencyScanner.INERTIA_THRESHOLD / 10); // Чем ниже порог, тем меньше потеря, минимум 0.002
 
             constructor(sampler) {
                 this.sampler = sampler;
