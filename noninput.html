@@ -222,28 +222,36 @@
                 let bestF = this.vcoFrequency;
                 let maxMag = -1.0;
                 let bestRes = null;
+                let sumMag = 0;
+                let count = 0;
                 for (let f = this.constructor.F_MIN; f <= this.constructor.F_MAX; f += this.constructor.F_STEP) {
                     let resF = this.evalAt(f);
+                    sumMag += resF.mag;
+                    count++;
                     if (resF.mag > maxMag) {
                         maxMag = resF.mag;
                         bestF = f;
                         bestRes = resF;
                     }
                 }
+                let avgMag = sumMag / count;
                 this.vcoFrequency = bestF;
                 let res = bestRes || this.evalAt(this.vcoFrequency);
                 let measuredPhase = res.ph;
                 let currentMag = res.mag;
 
-                // Улучшенная формула: локальная сумма энергий в окне ±2 шага
+                // Локальная энергия ±2 шага
                 let localEnergy = this.constructor.EPSILON;
                 for (let df = -2; df <= 2; ++df) {
                     localEnergy += this.evalAt(this.vcoFrequency + df * this.constructor.F_STEP).mag;
                 }
                 let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
 
-                // Инерция по аналогии с C++
-                if (conf > 0.3) {
+                // Новый критерий: превышение над средним
+                let peakness = (avgMag > 0) ? currentMag / avgMag : 0;
+
+                // Более чувствительный порог и быстрый прирост
+                if (conf > 0.1 || peakness > 1.2) {
                     this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
                 } else {
                     this.inertia -= this.constructor.INERTIA_LOSS * this.inertia;
