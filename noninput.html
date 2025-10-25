@@ -287,6 +287,7 @@
         const sampler = new MathJitterSampler();
         const scanner = new FrequencyScanner(sampler);
         let running = true;
+        let firstDraw = true;
 
         // Автоматическое повышение нагрузки до стабилизации частоты
         let adaptiveSamples = 20;
