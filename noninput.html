@@ -56,8 +56,6 @@
                 }
                 this.ema_iterations = (1.0 - this.alpha) * this.ema_iterations + this.alpha * iterations;
                 let jitter = iterations - this.ema_iterations;
-                // Добавляем искусственный шум
-                jitter += (Math.random() - 0.5) * 2;
                 this.rb[(this.widx++ & this.constructor.MASK)] = jitter;
             }
         }
@@ -149,8 +147,8 @@
 
         // FrequencyScanner
         class FrequencyScanner {
-            static F_MIN = 0.0;           // Минимальная частота поиска
-            static F_MAX = 1000000000.0;         // Максимальная частота поиска
+            static F_MIN = 50.0;
+            static F_MAX = 120.0;
             static F_STEP = 0.25;
             static FS = MathJitterSampler.FS;
             static N = MathJitterSampler.N;
@@ -163,11 +161,11 @@
             constructor(sampler) {
                 this.sampler = sampler;
                 this.loopFilter = new KalmanFilter(0.0, 0.0, 0.001, 0.01);
-                this.vcoFrequency = 0.0; // Начальная частота 0
+                this.vcoFrequency = 50.0;
                 this.internalPhase = 0.0;
                 this.inertia = 0.0;
                 this.currentState = 'SEARCHING';
-                this.out_freqHz = 0.0;
+                this.out_freqHz = 50.0;
                 this.out_conf = 0.0;
                 this.out_inertia = 0.0;
                 this.out_state = 'SEARCHING';
@@ -206,52 +204,31 @@
 
             processOnce() {
                 if (!this.grabBlock()) return;
-
-                // Поиск максимальной энергии (анализ флуктуаций)
                 let bestF = this.vcoFrequency;
                 let maxMag = -1.0;
-                let bestRes = null;
+                // Автоматический поиск максимальной энергии в диапазоне
                 for (let f = this.constructor.F_MIN; f <= this.constructor.F_MAX; f += this.constructor.F_STEP) {
-                    let resF = this.evalAt(f);
-                    if (resF.mag > maxMag) {
-                        maxMag = resF.mag;
+                    let res = this.evalAt(f);
+                    if (res.mag > maxMag) {
+                        maxMag = res.mag;
                         bestF = f;
-                        bestRes = resF;
                     }
                 }
                 this.vcoFrequency = bestF;
-                let res = bestRes || this.evalAt(this.vcoFrequency);
+                let res = this.evalAt(this.vcoFrequency);
                 let measuredPhase = res.ph;
                 let currentMag = res.mag;
-
-                // Анализ локальной энергии вокруг максимума
                 let localEnergy = this.constructor.EPSILON + currentMag;
                 localEnergy += this.evalAt(this.vcoFrequency - this.constructor.F_STEP).mag;
                 localEnergy += this.evalAt(this.vcoFrequency + this.constructor.F_STEP).mag;
-                let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
+                let conf = Math.max(0.0, Math.min(1.0, currentMag / (localEnergy + 1e-6)));
 
-                // Инерция по аналогии с C++
-                if (conf > 0.3) {
-                    this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
-                } else {
-                    this.inertia -= this.constructor.INERTIA_LOSS * this.inertia;
-                }
-                this.inertia = Math.max(0.0, Math.min(1.0, this.inertia));
+                // Автоматическая инерция: зависит от отношения энергии к максимуму
+                this.inertia = Math.max(0.0, Math.min(1.0, currentMag / (maxMag + this.constructor.EPSILON)));
 
-                // Переключение состояния
-                if (this.inertia < 0.1 && this.currentState === 'TRACKING') {
-                    this.currentState = 'SEARCHING';
-                } else if (this.inertia > 0.5 && this.currentState === 'SEARCHING') {
-                    this.currentState = 'TRACKING';
-                    // При переходе в TRACKING частота уже выбрана по максимуму
-                    this.loopFilter.reset(0.0, 0.0);
-                }
-
-                // Калман-фильтр и синхронизация
-                let phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
                 this.loopFilter.predict(this.constructor.DT_WIN);
                 let measurementNoise = 0.05 + (1.0 - conf) * 5.0 + this.inertia * 20.0;
-                this.loopFilter.update(phaseError, measurementNoise);
+                this.loopFilter.update(measuredPhase - this.internalPhase, measurementNoise);
                 let controlOutput = this.loopFilter.getValue();
                 this.vcoFrequency += this.constructor.K_VCO * controlOutput;
                 this.vcoFrequency = Math.max(this.constructor.F_MIN, Math.min(this.constructor.F_MAX, this.vcoFrequency));
@@ -260,11 +237,10 @@
                 this.out_freqHz = this.vcoFrequency;
                 this.out_conf = conf;
                 this.out_inertia = this.inertia;
-                this.out_state = this.currentState;
+                this.out_state = 'AUTO';
 
                 // Для отладки
                 // console.log('freq:', this.out_freqHz, 'conf:', conf, 'inertia:', this.inertia);
-                // console.log(this.block.slice(0, 10));
             }
         }
 
@@ -284,25 +260,19 @@
                         label: 'Frequency (Hz)',
                         data: [],
                         borderColor: '#007bff',
-                        borderWidth: 2,
-                        fill: false,
-                        pointRadius: 2
+                        fill: false
                     },
                     {
                         label: 'Inertia (%)',
                         data: [],
                         borderColor: '#28a745',
-                        borderWidth: 2,
-                        fill: false,
-                        pointRadius: 2
+                        fill: false
                     },
                     {
                         label: 'Confidence',
                         data: [],
                         borderColor: '#dc3545',
-                        borderWidth: 2,
-                        fill: false,
-                        pointRadius: 2
+                        fill: false
                     }
                 ]
             },
@@ -310,11 +280,6 @@
                 scales: {
                     x: { title: { display: true, text: 'Time' } },
                     y: { title: { display: true, text: 'Value' } }
-                },
-                elements: {
-                    line: {
-                        tension: 0.2 // сглаживание линий, можно убрать для прямых
-                    }
                 }
             }
         });
@@ -323,16 +288,14 @@
         let firstDraw = true;
         function updateChart() {
             if (!running) return;
-            for (let i = 0; i < 20; ++i) sampler.sample();
+            sampler.sample();
             scanner.processOnce();
 
             chart.data.labels.push(new Date().toLocaleTimeString());
             chart.data.datasets[0].data.push(scanner.out_freqHz);
             chart.data.datasets[1].data.push(scanner.out_inertia * 100);
             chart.data.datasets[2].data.push(scanner.out_conf);
-
-            // Ограничение длины графика
-            if (chart.data.labels.length > 100) {
+            if (chart.data.labels.length > 50) {
                 chart.data.labels.shift();
                 chart.data.datasets.forEach(dataset => dataset.data.shift());
             }
@@ -347,7 +310,7 @@
                 firstDraw = false;
             }
 
-            setTimeout(updateChart, 100); // Гарантированный повтор
+            setTimeout(updateChart, 100);
         }
 
         window.Telegram.WebApp.ready();
@@ -357,22 +320,6 @@
                 running = false;
             }
         });
-
-        // Запуск Web Worker для фоновой нагрузки
-        (function(){
-            const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
-            const worker = new Worker(URL.createObjectURL(blob));
-        })();
-    </script>
-    <script id="worker-script" type="javascript/worker">
-        // Фоновая нагрузка для конкуренции за ресурсы
-        setInterval(() => {
-            let x = 1.0001;
-            for (let i = 0; i < 100000; ++i) {
-                x *= 1.00000001;
-                x /= 1.000000009;
-            }
-        }, 10);
     </script>
 </body>
 </html>
