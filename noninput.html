@@ -222,10 +222,11 @@
                 let measuredPhase = res.ph;
                 let currentMag = res.mag;
 
-                // Анализ локальной энергии вокруг максимума
-                let localEnergy = this.constructor.EPSILON + currentMag;
-                localEnergy += this.evalAt(this.vcoFrequency - this.constructor.F_STEP).mag;
-                localEnergy += this.evalAt(this.vcoFrequency + this.constructor.F_STEP).mag;
+                // Улучшенная формула: локальная сумма энергий в окне ±2 шага
+                let localEnergy = this.constructor.EPSILON;
+                for (let df = -2; df <= 2; ++df) {
+                    localEnergy += this.evalAt(this.vcoFrequency + df * this.constructor.F_STEP).mag;
+                }
                 let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
 
                 // Инерция по аналогии с C++
@@ -241,7 +242,6 @@
                     this.currentState = 'SEARCHING';
                 } else if (this.inertia > 0.5 && this.currentState === 'SEARCHING') {
                     this.currentState = 'TRACKING';
-                    // При переходе в TRACKING частота уже выбрана по максимуму
                     this.loopFilter.reset(0.0, 0.0);
                 }
 
