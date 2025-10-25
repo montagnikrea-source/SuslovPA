@@ -1,5 +1,7 @@
+// ...existing code...
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,6 +18,17 @@
     <canvas id="freqChart"></canvas>
     <div id="info"></div>
     <script>
+        // Безопасный fallback для работы вне клиента Telegram
+        const TG = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : (function(){
+            console.warn('Telegram.WebApp not available — running in standalone mode');
+            return {
+                ready: () => { /* noop */ },
+                isExpanded: true,
+                sendData: (d) => { console.log('WebApp.sendData', d); alert('sendData: ' + d); },
+                onEvent: (evt, cb) => { /* noop */ }
+            };
+        })();
+
         // MathJitterSampler
         class MathJitterSampler {
             static FS = 4000.0;
@@ -308,16 +321,17 @@
             setTimeout(updateChart, 100); // Обновление каждые 100 мс
         }
 
-        // Запуск при загрузке Web App
-        window.Telegram.WebApp.ready();
+        // Запуск при загрузке Web App (через TG — безопасно и в браузере)
+        TG.ready();
         updateChart();
 
         // Обработка закрытия Web App
-        window.Telegram.WebApp.onEvent('viewportChanged', () => {
-            if (!window.Telegram.WebApp.isExpanded) {
+        TG.onEvent('viewportChanged', () => {
+            if (!TG.isExpanded) {
                 running = false;
             }
         });
     </script>
 </body>
 </html>
+// ...existing code...
