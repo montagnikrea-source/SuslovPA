@@ -23,7 +23,12 @@
 <body>
     <h1>Frequency Scanner Web App</h1>
     <div id="desc">Веб‑приложение для анализа частоты и инерции на основе jitter-сэмплирования.<br>Шкалы обновляются в реальном времени.</div>
-    <div id="loading">Загрузка данных...</div>
+    <div id="loading">
+        Загрузка данных...
+        <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
+            <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
+        </div>
+    </div>
     <div class="bar-container">
         <div class="bar-label">Частота (Hz): <span id="freqValue">0</span></div>
         <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
@@ -300,11 +305,12 @@
             if (!running) return;
 
             // Накопление сэмплов до заполнения буфера
+            let progress = ((sampler.widx / scanner.constructor.N) * 100);
             while ((sampler.widx - scanner.r) & sampler.constructor.MASK < scanner.constructor.N) {
                 sampler.sample();
-                // Можно добавить прогресс загрузки:
-                document.getElementById('loading').innerText =
-                    `Загрузка данных... ${((sampler.widx / scanner.constructor.N) * 100).toFixed(0)}%`;
+                progress = ((sampler.widx / scanner.constructor.N) * 100);
+                document.getElementById('loading').innerText = 'Загрузка данных...';
+                document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
             }
 
             // После накопления — анализ
@@ -343,7 +349,6 @@
                 document.getElementById('loading').style.display = 'none';
                 firstDraw = false;
             }
-
             setTimeout(updateBars, 100);
         }
 
