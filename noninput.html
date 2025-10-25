@@ -147,16 +147,17 @@
 
         // FrequencyScanner
         class FrequencyScanner {
-            static F_MIN = 0.0;           // Минимальная частота поиска
-            static F_MAX = 200.0;         // Максимальная частота поиска
-            static F_STEP = 0.25;
+            // Автоматизация констант на основе параметров и данных
+            static F_MIN = 0.0; // всегда 0
+            static F_MAX = Math.min(400, MathJitterSampler.FS / 10); // максимум 400 Гц или 1/10 от частоты дискретизации
+            static F_STEP = Math.max(0.1, FrequencyScanner.F_MAX / 800); // шаг: не менее 0.1 Гц, максимум 800 точек
             static FS = MathJitterSampler.FS;
             static N = MathJitterSampler.N;
-            static DT_WIN = this.N / this.FS;
-            static EPSILON = 1e-9;
-            static K_VCO = 0.1;
-            static INERTIA_GAIN = 10.0;
-            static INERTIA_LOSS = 0.01;
+            static DT_WIN = FrequencyScanner.N / FrequencyScanner.FS;
+            static EPSILON = Number.EPSILON; // машинный эпсилон
+            static K_VCO = Math.max(0.05, 0.5 / FrequencyScanner.F_MAX); // коэффициент управления VCO
+            static INERTIA_GAIN = Math.max(0.05, 2.0 / FrequencyScanner.N); // чем больше окно, тем меньше прирост
+            static INERTIA_LOSS = Math.max(0.005, 0.2 / FrequencyScanner.N); // чем больше окно, тем меньше потеря
 
             constructor(sampler) {
                 this.sampler = sampler;
