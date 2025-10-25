@@ -284,19 +284,25 @@
                         label: 'Frequency (Hz)',
                         data: [],
                         borderColor: '#007bff',
-                        fill: false
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 2
                     },
                     {
                         label: 'Inertia (%)',
                         data: [],
                         borderColor: '#28a745',
-                        fill: false
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 2
                     },
                     {
                         label: 'Confidence',
                         data: [],
                         borderColor: '#dc3545',
-                        fill: false
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 2
                     }
                 ]
             },
@@ -304,6 +310,11 @@
                 scales: {
                     x: { title: { display: true, text: 'Time' } },
                     y: { title: { display: true, text: 'Value' } }
+                },
+                elements: {
+                    line: {
+                        tension: 0.2 // сглаживание линий, можно убрать для прямых
+                    }
                 }
             }
         });
