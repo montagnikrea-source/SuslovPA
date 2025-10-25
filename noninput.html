@@ -467,7 +467,7 @@
             document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
 
             document.getElementById('info').innerText =
-                `State: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)} | Samples: ${adaptiveSamples} | Peak: ${ (scanner.out_peakness||0).toFixed(2)} | Iters: ${thermal.workerIters}`;
+                `State: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)} | Time: ${getSyncedTimeString()} | Samples: ${adaptiveSamples} | Peak: ${(scanner.out_peakness||0).toFixed(2)} | Iters: ${thermal.workerIters}`;
 
             if (firstDraw) {
                 document.getElementById('loading').style.display = 'none';
