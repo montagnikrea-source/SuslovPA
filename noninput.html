@@ -68,7 +68,7 @@
     <script>
         // MathJitterSampler
         class MathJitterSampler {
-            static FS = 1000.0; // Целевая частота дискретизации (будет адаптироваться)
+            static FS = 1000.0; // Целевая частота дискретизации
             static N = 1024;
             static RB_SIZE = 16384;
             static MASK = this.RB_SIZE - 1;
@@ -79,10 +79,12 @@
                 this.widx = 0;
                 this.ema_delta = 0;
                 this.alpha = 0.0025;
-                this.fixed_iterations = 100000; // Начальное количество итераций
+                this.fixed_iterations = 10000; // Уменьшено для ускорения
                 this.target_sample_time = 1.0; // Целевое время на сэмпл в мс
                 this.sample_count = 0;
-                this.actual_fs = this.constructor.FS; // Начальное значение
+                this.actual_fs = this.constructor.FS;
+                this.last_widx = 0;
+                this.last_check_time = performance.now();
             }
 
             sample() {
@@ -103,14 +105,24 @@
                 this.timestamps[idx] = startTime;
                 this.sample_count++;
 
-                // Адаптация количества итераций каждые 100 сэмплов
-                if (this.sample_count % 100 === 0) {
+                // Адаптация каждые 10 сэмплов
+                if (this.sample_count % 10 === 0) {
                     let adjustment = this.ema_delta / this.target_sample_time;
-                    this.fixed_iterations = Math.round(this.fixed_iterations * adjustment);
-                    this.fixed_iterations = Math.max(10000, Math.min(1000000, this.fixed_iterations));
-                    // Обновление actual_fs
+                    this.fixed_iterations = Math.round(this.fixed_iterations / adjustment);
+                    this.fixed_iterations = Math.max(1000, Math.min(100000, this.fixed_iterations));
                     this.actual_fs = 1000.0 / this.ema_delta;
+                    console.log(`Sample time: ${this.ema_delta.toFixed(2)}ms, iters: ${this.fixed_iterations}, fs: ${this.actual_fs.toFixed(1)}Hz`);
                 }
+            }
+
+            checkStall() {
+                let now = performance.now();
+                if (now - this.last_check_time > 5000 && this.widx === this.last_widx) {
+                    return true;
+                }
+                this.last_check_time = now;
+                this.last_widx = this.widx;
+                return false;
             }
         }
 
@@ -202,11 +214,11 @@
         // FrequencyScanner
         class FrequencyScanner {
             static F_MIN = 0.0;
-            static F_MAX = 100.0; // Снижено для оптимизации
-            static F_STEP = 0.1; // Мелкий шаг для лучшей точности
+            static F_MAX = 50.0; // Половина Nyquist для fs~100 Гц
+            static F_STEP = 0.05; // Уменьшено для точности
             static EPSILON = Number.EPSILON;
-            static K_VCO_P = 0.01; // Пропорциональный коэффициент
-            static K_VCO_V = 0.001; // Интегральный коэффициент (для x_vel)
+            static K_VCO_P = 0.05; // Увеличено для быстрого трекинга
+            static K_VCO_V = 0.005; // Интегральный коэффициент
             static INERTIA_THRESHOLD = 0.1;
             static INERTIA_GAIN = 0.5;
             static INERTIA_LOSS = 0.01;
@@ -241,9 +253,8 @@
                     this.block[i] = this.sampler.rb[idx] * this.win[i];
                     this.block_timestamps[i] = this.sampler.timestamps[idx];
                 }
-                // Вычисление фактической DT_WIN
                 let total_time = this.block_timestamps[MathJitterSampler.N - 1] - this.block_timestamps[0];
-                this.dt_win = total_time / 1000.0 / (MathJitterSampler.N - 1); // в секундах
+                this.dt_win = total_time / 1000.0 / (MathJitterSampler.N - 1);
                 this.actual_fs = 1.0 / this.dt_win;
                 this.r = (this.r + MathJitterSampler.N) & this.sampler.constructor.MASK;
                 return true;
@@ -276,10 +287,9 @@
                 let f_step = this.constructor.F_STEP;
 
                 if (this.currentState === 'TRACKING') {
-                    // Fine scan around vco for tracking
-                    f_min = Math.max(this.constructor.F_MIN, this.vcoFrequency - 2.0);
-                    f_max = Math.min(this.constructor.F_MAX, this.vcoFrequency + 2.0);
-                    f_step = 0.01; // Finer step in tracking
+                    f_min = Math.max(this.constructor.F_MIN, this.vcoFrequency - 1.0);
+                    f_max = Math.min(this.constructor.F_MAX, this.vcoFrequency + 1.0);
+                    f_step = 0.01;
                 }
 
                 for (let f = f_min; f <= f_max; f += f_step) {
@@ -297,7 +307,6 @@
                 let measuredPhase = res.ph;
                 let currentMag = res.mag;
 
-                // Local energy ±2 steps (using current step)
                 let localEnergy = this.constructor.EPSILON;
                 for (let df = -2; df <= 2; ++df) {
                     localEnergy += this.evalAt(this.vcoFrequency + df * f_step).mag;
@@ -309,7 +318,6 @@
                 this.out_peakness = peakness;
                 this.out_localEnergy = localEnergy;
 
-                // Update inertia
                 if (conf > this.constructor.INERTIA_THRESHOLD || peakness > 1.2) {
                     this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
                 } else {
@@ -317,7 +325,6 @@
                 }
                 this.inertia = Math.max(0.0, Math.min(1.0, this.inertia));
 
-                // State switching
                 if (this.inertia < 0.1 && this.currentState === 'TRACKING') {
                     this.currentState = 'SEARCHING';
                 } else if (this.inertia > 0.5 && this.currentState === 'SEARCHING') {
@@ -325,14 +332,12 @@
                     this.loopFilter.reset(0.0, 0.0);
                 }
 
-                // In TRACKING, avoid snapping to grid if possible
                 if (this.currentState === 'TRACKING') {
-                    bestF = this.vcoFrequency; // Keep current, fine adjust only
+                    bestF = this.vcoFrequency;
                 }
 
                 this.vcoFrequency = bestF;
 
-                // Kalman filter and synchronization
                 let phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
                 this.loopFilter.predict(this.dt_win);
                 let measurementNoise = 0.05 + (1.0 - conf) * 5.0 + (1.0 - this.inertia) * 20.0;
@@ -355,24 +360,23 @@
         let running = true;
         let firstDraw = true;
 
-        // Автоматическое повышение нагрузки до стабилизации частоты
         let stableCounter = 0;
         let lastFreq = 0;
-        const STABLE_THRESHOLD = 0.5; // Гц
-        const STABLE_COUNT_REQUIRED = 30; // сколько циклов подряд должна быть стабильная частота
+        const STABLE_THRESHOLD = 0.5;
+        const STABLE_COUNT_REQUIRED = 30;
 
-        // Термостабилизация: простой PI‑контроллер по peakness
+        // Термостабилизация
         class ThermalController {
             constructor(worker) {
                 this.worker = worker;
-                this.kp = 25.0;    // Пропорциональная часть (настройка)
-                this.ki = 0.5;     // Интегральная часть (настройка)
+                this.kp = 25.0;
+                this.ki = 0.5;
                 this.integral = 0.0;
-                this.targetPeak = 1.5; // желательное отношение peak/current/avg
-                this.minIter = 10000;
-                this.maxIter = 400000;
+                this.targetPeak = 1.5;
+                this.minIter = 1000;
+                this.maxIter = 200000;
                 this.lastAdjust = Date.now();
-                this.adjustIntervalMs = 200; // не чаще
+                this.adjustIntervalMs = 200;
                 this.workerIters = 100000;
             }
 
@@ -385,18 +389,16 @@
                 this.integral += error * (this.adjustIntervalMs / 1000.0);
                 let control = this.kp * error + this.ki * this.integral;
 
-                // Adjust worker iterations
-                let deltaIters = Math.round(control * -2000);
+                let deltaIters = Math.round(control * -1000);
                 this.workerIters = Math.max(this.minIter, Math.min(this.maxIter, this.workerIters + deltaIters));
                 try { this.worker.postMessage({ iters: this.workerIters }); } catch (e) {}
             }
         }
 
-        // Создаём воркер с управляемой нагрузкой
+        // Воркер
     </script>
     <script id="worker-script" type="javascript/worker">
-        // worker: выполняет вычислительную нагрузку по запросу из main
-        let iters = 500000;
+        let iters = 100000;
         let tickMs = 10;
         let timer = null;
 
@@ -419,10 +421,9 @@
                 tickMs = Math.max(1, e.data.tickMs|0);
             }
             start();
-            postMessage({ status: 'running', iters }); // Сообщаем статус
+            postMessage({ status: 'running', iters });
         };
 
-        // стартовые параметры
         start();
     </script>
     <script>
@@ -430,63 +431,63 @@
         const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
         const worker = new Worker(URL.createObjectURL(blob));
 
-        // Обработчик сообщений от воркера
         worker.onmessage = (e) => {
             console.log('Worker status:', e.data);
         };
 
-        // Создаём контроллер термостабилизации
         const thermal = new ThermalController(worker);
-
-        // отправим начальные параметры воркеру
         worker.postMessage({ iters: thermal.workerIters, tickMs: 10 });
 
         // Асинхронный цикл сэмплирования
         function samplerLoop() {
             if (running) {
                 sampler.sample();
-                requestAnimationFrame(samplerLoop);
+                setTimeout(samplerLoop, 1); // 1 мс для целевой fs=1000
             }
         }
         samplerLoop();
 
-        // Определение getSyncedTimeString
         function getSyncedTimeString() {
             return new Date().toLocaleTimeString('ru-RU');
         }
 
-        // Обновление шкал и термоконтроллер в основном цикле
+        // Обновление шкал
         let statusText = "Загрузка данных...";
 
         function updateBars() {
             if (!running) return;
 
             try {
-                let progress = ((sampler.widx / scanner.constructor.N) * 100) % 100; // Поскольку непрерывно, mod для индикации
+                let progress = ((sampler.widx / scanner.constructor.N) * 100) % 100;
                 let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < scanner.constructor.N;
+
+                // Проверка зависания
+                if (sampler.checkStall()) {
+                    statusText = "Зависание сэмплирования! Попробуйте перезагрузить страницу.";
+                    document.getElementById('loading').innerText = statusText;
+                    document.getElementById('info').innerText = statusText;
+                    return;
+                }
+
                 if (needSamples) {
                     console.log(`Progress: ${progress.toFixed(0)}%, widx: ${sampler.widx}, need: ${scanner.constructor.N}`);
                     statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${scanner.constructor.N})`;
                     document.getElementById('loading').innerText = statusText;
                     document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
-                    setTimeout(updateBars, 100);
+                    setTimeout(updateBars, 200);
                     return;
                 }
 
-                // Анализ
                 scanner.processOnce();
 
-                // Если значения нулевые — предупреждение
                 if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
                     statusText = "Недостаточно фоновой активности, попробуйте загрузить процессор!";
                 } else {
                     statusText = "Анализируется...";
                 }
 
-                // Термо-стабилизация
                 thermal.update(scanner.out_peakness || 0);
 
-                // Проверка стабильности частоты
                 if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
                     stableCounter++;
                 } else {
@@ -494,7 +495,6 @@
                 }
                 lastFreq = scanner.out_freqHz;
 
-                // Обновление значений и ширины шкал
                 const freqMax = FrequencyScanner.F_MAX;
                 document.getElementById('freqValue').innerText = scanner.out_freqHz.toFixed(2);
                 document.getElementById('freqBar').style.width = Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%";
@@ -513,7 +513,7 @@
                     firstDraw = false;
                 }
 
-                setTimeout(updateBars, 100);
+                setTimeout(updateBars, 200);
             } catch (e) {
                 console.error('Error in updateBars:', e);
                 document.getElementById('info').innerText = "Ошибка обработки данных!";
