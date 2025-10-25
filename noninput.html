@@ -262,6 +262,7 @@
 
                 // Для отладки
                 // console.log('freq:', this.out_freqHz, 'conf:', conf, 'inertia:', this.inertia);
+                // console.log(this.block.slice(0, 10));
             }
         }
 
@@ -309,7 +310,8 @@
         let firstDraw = true;
         function updateChart() {
             if (!running) return;
-            sampler.sample();
+            // Сэмплируем jitter чаще
+            for (let i = 0; i < 10; ++i) sampler.sample();
             scanner.processOnce();
 
             chart.data.labels.push(new Date().toLocaleTimeString());
