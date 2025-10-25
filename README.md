@@ -1,2 +1,0 @@
-# SuslovPA
-noninputlag
