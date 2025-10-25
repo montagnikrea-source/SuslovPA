@@ -299,7 +299,15 @@
         function updateBars() {
             if (!running) return;
 
-            // Повышаем нагрузку, если частота нестабильна
+            // Накопление сэмплов до заполнения буфера
+            while ((sampler.widx - scanner.r) & sampler.constructor.MASK < scanner.constructor.N) {
+                sampler.sample();
+                // Можно добавить прогресс загрузки:
+                document.getElementById('loading').innerText =
+                    `Загрузка данных... ${((sampler.widx / scanner.constructor.N) * 100).toFixed(0)}%`;
+            }
+
+            // После накопления — анализ
             for (let i = 0; i < adaptiveSamples; ++i) sampler.sample();
             scanner.processOnce();
 
