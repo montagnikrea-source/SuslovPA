@@ -210,19 +210,21 @@
                 let localEnergy = this.constructor.EPSILON + currentMag;
                 localEnergy += this.evalAt(this.vcoFrequency - this.constructor.F_STEP).mag;
                 localEnergy += this.evalAt(this.vcoFrequency + this.constructor.F_STEP).mag;
-                let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
-                let phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
 
-                if (conf > 0.3) {
+                // Добавим небольшое смещение для чувствительности
+                let conf = Math.max(0.0, Math.min(1.0, currentMag / (localEnergy + 1e-6)));
+
+                // Снизим порог для инерции
+                if (conf > 0.05) {
                     this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
                 } else {
                     this.inertia -= this.constructor.INERTIA_LOSS * this.inertia;
                 }
                 this.inertia = Math.max(0.0, Math.min(1.0, this.inertia));
 
-                if (this.inertia < 0.1 && this.currentState === 'TRACKING') {
+                if (this.inertia < 0.05 && this.currentState === 'TRACKING') {
                     this.currentState = 'SEARCHING';
-                } else if (this.inertia > 0.5 && this.currentState === 'SEARCHING') {
+                } else if (this.inertia > 0.2 && this.currentState === 'SEARCHING') {
                     this.currentState = 'TRACKING';
                     let bestF = this.constructor.F_MIN;
                     let maxMag = -1.0;
@@ -239,7 +241,7 @@
 
                 this.loopFilter.predict(this.constructor.DT_WIN);
                 let measurementNoise = 0.05 + (1.0 - conf) * 5.0 + this.inertia * 20.0;
-                this.loopFilter.update(phaseError, measurementNoise);
+                this.loopFilter.update(measuredPhase - this.internalPhase, measurementNoise);
                 let controlOutput = this.loopFilter.getValue();
                 this.vcoFrequency += this.constructor.K_VCO * controlOutput;
                 this.vcoFrequency = Math.max(this.constructor.F_MIN, Math.min(this.constructor.F_MAX, this.vcoFrequency));
@@ -249,6 +251,8 @@
                 this.out_conf = conf;
                 this.out_inertia = this.inertia;
                 this.out_state = this.currentState;
+
+                console.log('freq:', this.out_freqHz, 'conf:', conf, 'inertia:', this.inertia);
             }
         }
 
