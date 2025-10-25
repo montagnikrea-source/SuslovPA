@@ -1,35 +1,333 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noninput Page</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Frequency Scanner Web App</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f0f0; }
+        h1 { margin-bottom: 10px; }
+        #desc { margin-bottom: 20px; color: #555; }
+        #loading { color: #888; margin-bottom: 10px; }
+        canvas { max-width: 100%; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #ccc; min-height: 300px; }
+        #info { margin-top: 20px; font-size: 16px; }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Добро пожаловать на страницу Noninput</h1>
-    </header>
-    <main>
-        <section>
-            <h2>Описание</h2>
-            <p>Эта страница содержит информацию, связанную с проектом.</p>
-        </section>
-        <section>
-            <h2>Изображения</h2>
-            <img src="image.jpg" alt="Пример изображения">
-        </section>
-        <section>
-            <h2>Ссылки</h2>
-            <p>Вы можете узнать больше о проекте по следующим ссылкам:</p>
-            <ul>
-                <li><a href="https://github.com/montagnikrea-source/SuslovPA">GitHub репозиторий</a></li>
-                <li><a href="index.html">Главная страница</a></li>
-            </ul>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2023 SuslovPA. Все права защищены.</p>
-    </footer>
+    <h1>Frequency Scanner Web App</h1>
+    <div id="desc">Веб‑приложение для анализа частоты и инерции на основе jitter-сэмплирования.<br>График появится через несколько секунд.</div>
+    <div id="loading">Загрузка данных...</div>
+    <canvas id="freqChart"></canvas>
+    <div id="info"></div>
+    <script>
+        // MathJitterSampler
+        class MathJitterSampler {
+            static FS = 4000.0;
+            static N = 2048;
+            static RB_SIZE = 16384;
+            static MASK = this.RB_SIZE - 1;
+
+            constructor() {
+                this.rb = new Array(this.constructor.RB_SIZE).fill(0);
+                this.widx = 0;
+                this.ema_iterations = 0;
+                this.alpha = 0.0025;
+                this.run_benchmark(performance.now() + 0.25);
+            }
+
+            run_benchmark(endTime) {
+                let count = 0;
+                let x = 1.0001;
+                while (performance.now() < endTime) {
+                    x *= 1.00000001;
+                    x /= 1.000000009;
+                    count++;
+                }
+                return count;
+            }
+
+            sample() {
+                let endTime = performance.now() + 0.25;
+                let iterations = this.run_benchmark(endTime);
+                if (this.ema_iterations === 0) {
+                    this.ema_iterations = iterations;
+                }
+                this.ema_iterations = (1.0 - this.alpha) * this.ema_iterations + this.alpha * iterations;
+                let jitter = iterations - this.ema_iterations;
+                this.rb[(this.widx++ & this.constructor.MASK)] = jitter;
+            }
+        }
+
+        // Goertzel
+        class Goertzel {
+            constructor() {
+                this.N = 0;
+                this.cw = 0;
+                this.sw = 0;
+                this.s1 = 0;
+                this.s2 = 0;
+            }
+
+            init(n, fs, f) {
+                this.N = n;
+                let k = Math.floor(0.5 + n * f / fs);
+                let w = 2.0 * Math.PI * k / n;
+                this.cw = Math.cos(w);
+                this.sw = Math.sin(w);
+                this.s1 = 0;
+                this.s2 = 0;
+            }
+
+            push(x) {
+                let s = x + 2.0 * this.cw * this.s1 - this.s2;
+                this.s2 = this.s1;
+                this.s1 = s;
+            }
+
+            result() {
+                let re = this.s1 - this.s2 * this.cw;
+                let im = this.s2 * this.sw;
+                let denom = this.N > 1 ? this.N / 2.0 : 1.0;
+                let m2 = re * re + im * im;
+                let mag = Math.sqrt(m2 < 0 ? 0 : m2) / denom;
+                let ph = Math.atan2(im, re);
+                this.s1 = 0;
+                this.s2 = 0;
+                return { re, im, mag, ph };
+            }
+        }
+
+        // KalmanFilter
+        class KalmanFilter {
+            constructor(initialValue, initialVelocity, processNoisePos, processNoiseVel) {
+                this.q_pos = processNoisePos;
+                this.q_vel = processNoiseVel;
+                this.reset(initialValue, initialVelocity);
+            }
+
+            reset(value, velocity) {
+                this.x_hat = value;
+                this.x_vel = velocity;
+                this.p_00 = 1.0;
+                this.p_01 = 0.0;
+                this.p_10 = 0.0;
+                this.p_11 = 1.0;
+            }
+
+            predict(dt) {
+                this.x_hat += this.x_vel * dt;
+                this.p_00 += dt * (this.p_10 + this.p_01) + dt * dt * this.p_11;
+                this.p_01 += dt * this.p_11;
+                this.p_10 += dt * this.p_11;
+                this.p_00 += this.q_pos;
+                this.p_11 += this.q_vel;
+            }
+
+            update(z_meas, r_meas_noise) {
+                let y = z_meas - this.x_hat;
+                let s = this.p_00 + r_meas_noise;
+                if (Math.abs(s) < 1e-9) return;
+                let k_0 = this.p_00 / s;
+                let k_1 = this.p_10 / s;
+                this.x_hat += k_0 * y;
+                this.x_vel += k_1 * y;
+                let p_00_temp = this.p_00, p_01_temp = this.p_01;
+                this.p_00 -= k_0 * p_00_temp;
+                this.p_01 -= k_0 * p_01_temp;
+                this.p_10 -= k_1 * p_00_temp;
+                this.p_11 -= k_1 * p_01_temp;
+            }
+
+            getValue() {
+                return this.x_hat;
+            }
+        }
+
+        // FrequencyScanner
+        class FrequencyScanner {
+            static F_MIN = 50.0;
+            static F_MAX = 120.0;
+            static F_STEP = 0.25;
+            static FS = MathJitterSampler.FS;
+            static N = MathJitterSampler.N;
+            static DT_WIN = this.N / this.FS;
+            static EPSILON = 1e-9;
+            static K_VCO = 0.1;
+            static INERTIA_GAIN = 0.1;
+            static INERTIA_LOSS = 0.05;
+
+            constructor(sampler) {
+                this.sampler = sampler;
+                this.loopFilter = new KalmanFilter(0.0, 0.0, 0.001, 0.01);
+                this.vcoFrequency = 50.0;
+                this.internalPhase = 0.0;
+                this.inertia = 0.0;
+                this.currentState = 'SEARCHING';
+                this.out_freqHz = 50.0;
+                this.out_conf = 0.0;
+                this.out_inertia = 0.0;
+                this.out_state = 'SEARCHING';
+                this.win = new Array(this.constructor.N).fill(0);
+                this.block = new Array(this.constructor.N).fill(0);
+                this.r = 0;
+
+                for (let n = 0; n < this.constructor.N; ++n) {
+                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (this.constructor.N - 1)));
+                }
+            }
+
+            grabBlock() {
+                let w = this.sampler.widx;
+                let avail = (w - this.r) & this.sampler.constructor.MASK;
+                if (avail < this.constructor.N) return false;
+                for (let i = 0; i < this.constructor.N; ++i) {
+                    this.block[i] = this.sampler.rb[(this.r + i) & this.sampler.constructor.MASK] * this.win[i];
+                }
+                this.r = (this.r + this.constructor.N) & this.sampler.constructor.MASK;
+                return true;
+            }
+
+            evalAt(f) {
+                let g = new Goertzel();
+                g.init(this.constructor.N, this.constructor.FS, f);
+                for (let v of this.block) g.push(v);
+                let res = g.result();
+                if (!isFinite(res.mag)) res.mag = 0;
+                return res;
+            }
+
+            wrapAngle(angle) {
+                return Math.atan2(Math.sin(angle), Math.cos(angle));
+            }
+
+            processOnce() {
+                if (!this.grabBlock()) return;
+                let res = this.evalAt(this.vcoFrequency);
+                let measuredPhase = res.ph;
+                let currentMag = res.mag;
+                let localEnergy = this.constructor.EPSILON + currentMag;
+                localEnergy += this.evalAt(this.vcoFrequency - this.constructor.F_STEP).mag;
+                localEnergy += this.evalAt(this.vcoFrequency + this.constructor.F_STEP).mag;
+                let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
+                let phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
+
+                if (conf > 0.3) {
+                    this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
+                } else {
+                    this.inertia -= this.constructor.INERTIA_LOSS * this.inertia;
+                }
+                this.inertia = Math.max(0.0, Math.min(1.0, this.inertia));
+
+                if (this.inertia < 0.1 && this.currentState === 'TRACKING') {
+                    this.currentState = 'SEARCHING';
+                } else if (this.inertia > 0.5 && this.currentState === 'SEARCHING') {
+                    this.currentState = 'TRACKING';
+                    let bestF = this.constructor.F_MIN;
+                    let maxMag = -1.0;
+                    for (let f = this.constructor.F_MIN; f <= this.constructor.F_MAX; f += this.constructor.F_STEP * 2) {
+                        let res = this.evalAt(f);
+                        if (res.mag > maxMag) {
+                            maxMag = res.mag;
+                            bestF = f;
+                        }
+                    }
+                    this.vcoFrequency = bestF;
+                    this.loopFilter.reset(0.0, 0.0);
+                }
+
+                this.loopFilter.predict(this.constructor.DT_WIN);
+                let measurementNoise = 0.05 + (1.0 - conf) * 5.0 + this.inertia * 20.0;
+                this.loopFilter.update(phaseError, measurementNoise);
+                let controlOutput = this.loopFilter.getValue();
+                this.vcoFrequency += this.constructor.K_VCO * controlOutput;
+                this.vcoFrequency = Math.max(this.constructor.F_MIN, Math.min(this.constructor.F_MAX, this.vcoFrequency));
+                this.internalPhase = this.wrapAngle(this.internalPhase + 2.0 * Math.PI * this.vcoFrequency * this.constructor.DT_WIN);
+
+                this.out_freqHz = this.vcoFrequency;
+                this.out_conf = conf;
+                this.out_inertia = this.inertia;
+                this.out_state = this.currentState;
+            }
+        }
+
+        // Инициализация алгоритма
+        const sampler = new MathJitterSampler();
+        const scanner = new FrequencyScanner(sampler);
+        let running = true;
+
+        // Инициализация графика
+        const ctx = document.getElementById('freqChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Frequency (Hz)',
+                        data: [],
+                        borderColor: '#007bff',
+                        fill: false
+                    },
+                    {
+                        label: 'Inertia (%)',
+                        data: [],
+                        borderColor: '#28a745',
+                        fill: false
+                    },
+                    {
+                        label: 'Confidence',
+                        data: [],
+                        borderColor: '#dc3545',
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'Value' } }
+                }
+            }
+        });
+
+        // Функция обновления графика
+        let firstDraw = true;
+        function updateChart() {
+            if (!running) return;
+            sampler.sample();
+            scanner.processOnce();
+
+            chart.data.labels.push(new Date().toLocaleTimeString());
+            chart.data.datasets[0].data.push(scanner.out_freqHz);
+            chart.data.datasets[1].data.push(scanner.out_inertia * 100);
+            chart.data.datasets[2].data.push(scanner.out_conf);
+            if (chart.data.labels.length > 50) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+            chart.update();
+
+            document.getElementById('info').innerText =
+                `State: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)}`;
+
+            // Скрыть индикатор загрузки после первого обновления
+            if (firstDraw) {
+                document.getElementById('loading').style.display = 'none';
+                firstDraw = false;
+            }
+
+            setTimeout(updateChart, 100);
+        }
+
+        window.Telegram.WebApp.ready();
+        updateChart();
+        window.Telegram.WebApp.onEvent('viewportChanged', () => {
+            if (!window.Telegram.WebApp.isExpanded) {
+                running = false;
+            }
+        });
+    </script>
 </body>
 </html>
