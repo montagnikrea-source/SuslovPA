@@ -310,8 +310,8 @@
         let firstDraw = true;
         function updateChart() {
             if (!running) return;
-            // Сэмплируем jitter чаще
-            for (let i = 0; i < 10; ++i) sampler.sample();
+            // Увеличиваем количество сэмплов
+            for (let i = 0; i < 20; ++i) sampler.sample();
             scanner.processOnce();
 
             chart.data.labels.push(new Date().toLocaleTimeString());
@@ -343,6 +343,22 @@
                 running = false;
             }
         });
+
+        // Запуск Web Worker для фоновой нагрузки
+        (function(){
+            const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
+            const worker = new Worker(URL.createObjectURL(blob));
+        })();
+    </script>
+    <script id="worker-script" type="javascript/worker">
+        // Фоновая нагрузка для конкуренции за ресурсы
+        setInterval(() => {
+            let x = 1.0001;
+            for (let i = 0; i < 100000; ++i) {
+                x *= 1.00000001;
+                x /= 1.000000009;
+            }
+        }, 10);
     </script>
 </body>
 </html>
