@@ -149,8 +149,8 @@
 
         // FrequencyScanner
         class FrequencyScanner {
-            static F_MIN = 50.0;
-            static F_MAX = 120.0;
+            static F_MIN = 0.0;           // Минимальная частота поиска
+            static F_MAX = 1000000000.0;         // Максимальная частота поиска
             static F_STEP = 0.25;
             static FS = MathJitterSampler.FS;
             static N = MathJitterSampler.N;
@@ -163,33 +163,21 @@
             constructor(sampler) {
                 this.sampler = sampler;
                 this.loopFilter = new KalmanFilter(0.0, 0.0, 0.001, 0.01);
-                this.win = new Array(this.constructor.N).fill(0);
-                this.block = new Array(this.constructor.N).fill(0);
-                this.r = 0;
-                for (let n = 0; n < this.constructor.N; ++n) {
-                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (this.constructor.N - 1)));
-                }
-                // Сразу набираем jitter для анализа
-                for (let i = 0; i < 500; ++i) sampler.sample();
-                // Автоматический анализ флуктуаций для начальной частоты
-                let maxMag = -1.0, bestF = this.constructor.F_MIN;
-                for (let f = this.constructor.F_MIN; f <= this.constructor.F_MAX; f += this.constructor.F_STEP) {
-                    if (this.grabBlock()) {
-                        let res = this.evalAt(f);
-                        if (res.mag > maxMag) {
-                            maxMag = res.mag;
-                            bestF = f;
-                        }
-                    }
-                }
-                this.vcoFrequency = bestF;
+                this.vcoFrequency = 0.0; // Начальная частота 0
                 this.internalPhase = 0.0;
                 this.inertia = 0.0;
                 this.currentState = 'SEARCHING';
-                this.out_freqHz = bestF;
+                this.out_freqHz = 0.0;
                 this.out_conf = 0.0;
                 this.out_inertia = 0.0;
                 this.out_state = 'SEARCHING';
+                this.win = new Array(this.constructor.N).fill(0);
+                this.block = new Array(this.constructor.N).fill(0);
+                this.r = 0;
+
+                for (let n = 0; n < this.constructor.N; ++n) {
+                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (this.constructor.N - 1)));
+                }
             }
 
             grabBlock() {
