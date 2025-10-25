@@ -84,7 +84,8 @@
             run_benchmark(endTime) {
                 let count = 0;
                 let x = 1.0001;
-                while (performance.now() < endTime) {
+                const maxLoops = 1e6;
+                while (performance.now() < endTime && count < maxLoops) {
                     x *= 1.00000001;
                     x /= 1.000000009;
                     count++;
@@ -377,7 +378,7 @@
     </script>
     <script id="worker-script" type="javascript/worker">
         // worker: выполняет вычислительную нагрузку по запросу из main
-        let iters = 100000;
+        let iters = 500000;
         let tickMs = 10;
         let timer = null;
 
@@ -400,6 +401,7 @@
                 tickMs = Math.max(1, e.data.tickMs|0);
             }
             start();
+            postMessage({ status: 'running', iters }); // Сообщаем статус
         };
 
         // стартовые параметры
@@ -409,6 +411,11 @@
     (function(){
         const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
         const worker = new Worker(URL.createObjectURL(blob));
+
+        // Обработчик сообщений от воркера
+        worker.onmessage = (e) => {
+            console.log('Worker status:', e.data);
+        };
 
         // Создаём контроллер термостабилизации
         const thermal = new ThermalController(worker);
@@ -422,74 +429,79 @@
         function updateBars() {
             if (!running) return;
 
-            // Быстрое накопление сэмплов
-            let progress = ((sampler.widx / scanner.constructor.N) * 100);
-            let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < scanner.constructor.N;
-            if (needSamples) {
-                for (let i = 0; i < 200; ++i) sampler.sample(); // ускоряем старт
-                progress = ((sampler.widx / scanner.constructor.N) * 100);
-                document.getElementById('loading').innerText = statusText;
-                document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
-                if (progress < 100) {
-                    statusText = `Загрузка данных... ${progress.toFixed(0)}%`;
+            try {
+                let progress = ((sampler.widx / scanner.constructor.N) * 100);
+                let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < scanner.constructor.N;
+                if (needSamples) {
+                    console.log(`Progress: ${progress.toFixed(0)}%, widx: ${sampler.widx}`);
+                    for (let i = 0; i < 50; ++i) sampler.sample();
+                    progress = ((sampler.widx / scanner.constructor.N) * 100);
+                    document.getElementById('loading').innerText = `Загрузка данных... ${progress.toFixed(0)}%`;
+                    document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
+                    if (progress < 100) {
+                        statusText = `Загрузка данных... ${progress.toFixed(0)}%`;
+                    } else {
+                        statusText = "Анализируется...";
+                    }
+                    setTimeout(updateBars, 100);
+                    return;
+                }
+
+                // После накопления — анализ
+                for (let i = 0; i < adaptiveSamples; ++i) sampler.sample();
+                scanner.processOnce();
+
+                // Если значения долго нулевые — предупреждение
+                if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
+                    statusText = "Недостаточно фоновой активности, попробуйте загрузить процессор!";
                 } else {
                     statusText = "Анализируется...";
                 }
-                setTimeout(updateBars, 50);
-                return;
+
+                // Термо-стабилизация: корректируем adaptiveSamples на основе peakness
+                const delta = thermal.update(scanner.out_peakness || 0);
+                if (delta !== 0) {
+                    adaptiveSamples = Math.max(thermal.minSamples, Math.min(thermal.maxSamples, adaptiveSamples + delta));
+                }
+
+                // Проверка стабильности частоты
+                if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
+                    stableCounter++;
+                } else {
+                    stableCounter = 0;
+                    adaptiveSamples = Math.min(adaptiveSamples + 10, 200); // аварийное увеличение
+                }
+                lastFreq = scanner.out_freqHz;
+
+                // Если частота стабилизировалась, уменьшаем нагрузку
+                if (stableCounter > STABLE_COUNT_REQUIRED) {
+                    adaptiveSamples = Math.max(adaptiveSamples - 5, 20); // возвращаем к минимальному значению
+                }
+
+                // Обновление значений и ширины шкал
+                const freqMax = FrequencyScanner.F_MAX;
+                document.getElementById('freqValue').innerText = scanner.out_freqHz.toFixed(2);
+                document.getElementById('freqBar').style.width = Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%";
+
+                document.getElementById('inertiaValue').innerText = (scanner.out_inertia * 100).toFixed(0);
+                document.getElementById('inertiaBar').style.width = Math.min(100, scanner.out_inertia * 100) + "%";
+
+                document.getElementById('confValue').innerText = scanner.out_conf.toFixed(2);
+                document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
+
+                document.getElementById('info').innerText =
+                    `${statusText}\nState: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)} | Time: ${getSyncedTimeString()} | Samples: ${adaptiveSamples} | Peak: ${(scanner.out_peakness||0).toFixed(2)} | Iters: ${thermal.workerIters}`;
+
+                if (firstDraw) {
+                    document.getElementById('loading').style.display = 'none';
+                    firstDraw = false;
+                }
+
+                setTimeout(updateBars, 100);
+            } catch (e) {
+                console.error('Error in updateBars:', e);
+                document.getElementById('info').innerText = "Ошибка обработки данных!";
             }
-
-            // После накопления — анализ
-            for (let i = 0; i < adaptiveSamples; ++i) sampler.sample();
-            scanner.processOnce();
-
-            // Если значения долго нулевые — предупреждение
-            if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
-                statusText = "Недостаточно фоновой активности, попробуйте загрузить процессор!";
-            } else {
-                statusText = "Анализируется...";
-            }
-
-            // Термо-стабилизация: корректируем adaptiveSamples на основе peakness
-            const delta = thermal.update(scanner.out_peakness || 0);
-            if (delta !== 0) {
-                adaptiveSamples = Math.max(thermal.minSamples, Math.min(thermal.maxSamples, adaptiveSamples + delta));
-            }
-
-            // Проверка стабильности частоты
-            if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
-                stableCounter++;
-            } else {
-                stableCounter = 0;
-                adaptiveSamples = Math.min(adaptiveSamples + 10, 200); // аварийное увеличение
-            }
-            lastFreq = scanner.out_freqHz;
-
-            // Если частота стабилизировалась, уменьшаем нагрузку
-            if (stableCounter > STABLE_COUNT_REQUIRED) {
-                adaptiveSamples = Math.max(adaptiveSamples - 5, 20); // возвращаем к минимальному значению
-            }
-
-            // Обновление значений и ширины шкал
-            const freqMax = FrequencyScanner.F_MAX;
-            document.getElementById('freqValue').innerText = scanner.out_freqHz.toFixed(2);
-            document.getElementById('freqBar').style.width = Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%";
-
-            document.getElementById('inertiaValue').innerText = (scanner.out_inertia * 100).toFixed(0);
-            document.getElementById('inertiaBar').style.width = Math.min(100, scanner.out_inertia * 100) + "%";
-
-            document.getElementById('confValue').innerText = scanner.out_conf.toFixed(2);
-            document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
-
-            document.getElementById('info').innerText =
-                `${statusText}\nState: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)} | Time: ${getSyncedTimeString()} | Samples: ${adaptiveSamples} | Peak: ${(scanner.out_peakness||0).toFixed(2)} | Iters: ${thermal.workerIters}`;
-
-            if (firstDraw) {
-                document.getElementById('loading').style.display = 'none';
-                firstDraw = false;
-            }
-
-            setTimeout(updateBars, 100);
         }
 
         window.Telegram.WebApp.ready();
