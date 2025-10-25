@@ -160,16 +160,19 @@
         // FrequencyScanner
         class FrequencyScanner {
             // Автоматизация констант на основе параметров и данных
-            static F_MIN = 0.0; // всегда 0
-            static F_MAX = Math.min(400, MathJitterSampler.FS / 10); // максимум 400 Гц или 1/10 от частоты дискретизации
-            static F_STEP = Math.max(0.1, FrequencyScanner.F_MAX / 800); // шаг: не менее 0.1 Гц, максимум 800 точек
+            static F_MIN = 0.0;
+            static F_MAX = Math.min(400, MathJitterSampler.FS / 10);
+            static F_STEP = Math.max(0.1, FrequencyScanner.F_MAX / 800);
             static FS = MathJitterSampler.FS;
             static N = MathJitterSampler.N;
             static DT_WIN = FrequencyScanner.N / FrequencyScanner.FS;
-            static EPSILON = Number.EPSILON; // машинный эпсилон
-            static K_VCO = Math.max(0.05, 0.5 / FrequencyScanner.F_MAX); // коэффициент управления VCO
-            static INERTIA_GAIN = Math.max(0.05, 2.0 / FrequencyScanner.N); // чем больше окно, тем меньше прирост
-            static INERTIA_LOSS = Math.max(0.005, 0.2 / FrequencyScanner.N); // чем больше окно, тем меньше потеря
+            static EPSILON = Number.EPSILON;
+            static K_VCO = Math.max(0.05, 0.5 / FrequencyScanner.F_MAX);
+
+            // Автоматизация порога и коэффициентов инерции
+            static INERTIA_THRESHOLD = Math.max(0.05, 0.2 - 0.1 * (FrequencyScanner.F_MAX / 400)); // Чем ниже F_MAX, тем ниже порог
+            static INERTIA_GAIN = Math.min(1.0, 0.5 / FrequencyScanner.INERTIA_THRESHOLD); // Чем ниже порог, тем больше прирост
+            static INERTIA_LOSS = Math.max(0.005, FrequencyScanner.INERTIA_THRESHOLD / 10); // Чем ниже порог, тем меньше потеря
 
             constructor(sampler) {
                 this.sampler = sampler;
@@ -218,7 +221,6 @@
             processOnce() {
                 if (!this.grabBlock()) return;
 
-                // Поиск максимальной энергии (анализ флуктуаций)
                 let bestF = this.vcoFrequency;
                 let maxMag = -1.0;
                 let bestRes = null;
@@ -246,12 +248,10 @@
                     localEnergy += this.evalAt(this.vcoFrequency + df * this.constructor.F_STEP).mag;
                 }
                 let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
-
-                // Новый критерий: превышение над средним
                 let peakness = (avgMag > 0) ? currentMag / avgMag : 0;
 
-                // Более чувствительный порог и быстрый прирост
-                if (conf > 0.1 || peakness > 1.2) {
+                // Автоматизированный порог и коэффициенты
+                if (conf > this.constructor.INERTIA_THRESHOLD || peakness > 1.2) {
                     this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
                 } else {
                     this.inertia -= this.constructor.INERTIA_LOSS * this.inertia;
