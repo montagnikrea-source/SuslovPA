@@ -148,15 +148,15 @@
         // FrequencyScanner
         class FrequencyScanner {
             static F_MIN = 0.0;           // Минимальная частота поиска
-            static F_MAX = 100000000.0;         // Максимальная частота поиска
+            static F_MAX = 200.0;         // Максимальная частота поиска
             static F_STEP = 0.25;
             static FS = MathJitterSampler.FS;
             static N = MathJitterSampler.N;
             static DT_WIN = this.N / this.FS;
             static EPSILON = 1e-9;
             static K_VCO = 0.1;
-            static INERTIA_GAIN = 1.0;
-            static INERTIA_LOSS = 0.00;
+            static INERTIA_GAIN = 10.0;
+            static INERTIA_LOSS = 0.01;
 
             constructor(sampler) {
                 this.sampler = sampler;
