@@ -319,7 +319,9 @@
             chart.data.datasets[0].data.push(scanner.out_freqHz);
             chart.data.datasets[1].data.push(scanner.out_inertia * 100);
             chart.data.datasets[2].data.push(scanner.out_conf);
-            if (chart.data.labels.length > 50) {
+
+            // Ограничение длины графика
+            if (chart.data.labels.length > 100) {
                 chart.data.labels.shift();
                 chart.data.datasets.forEach(dataset => dataset.data.shift());
             }
@@ -334,7 +336,7 @@
                 firstDraw = false;
             }
 
-            setTimeout(updateChart, 100);
+            setTimeout(updateChart, 100); // Гарантированный повтор
         }
 
         window.Telegram.WebApp.ready();
