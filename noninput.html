@@ -288,12 +288,33 @@
         const scanner = new FrequencyScanner(sampler);
         let running = true;
 
-        // Функция обновления шкал
-        let firstDraw = true;
+        // Автоматическое повышение нагрузки до стабилизации частоты
+        let adaptiveSamples = 20;
+        let stableCounter = 0;
+        let lastFreq = 0;
+        const STABLE_THRESHOLD = 0.5; // Гц
+        const STABLE_COUNT_REQUIRED = 30; // сколько циклов подряд должна быть стабильная частота
+
         function updateBars() {
             if (!running) return;
-            for (let i = 0; i < 20; ++i) sampler.sample();
+
+            // Повышаем нагрузку, если частота нестабильна
+            for (let i = 0; i < adaptiveSamples; ++i) sampler.sample();
             scanner.processOnce();
+
+            // Проверка стабильности частоты
+            if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
+                stableCounter++;
+            } else {
+                stableCounter = 0;
+                adaptiveSamples = Math.min(adaptiveSamples + 10, 200); // увеличиваем нагрузку до 200
+            }
+            lastFreq = scanner.out_freqHz;
+
+            // Если частота стабилизировалась, уменьшаем нагрузку
+            if (stableCounter > STABLE_COUNT_REQUIRED) {
+                adaptiveSamples = Math.max(adaptiveSamples - 5, 20); // возвращаем к минимальному значению
+            }
 
             // Обновление значений и ширины шкал
             const freqMax = FrequencyScanner.F_MAX;
@@ -307,7 +328,7 @@
             document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
 
             document.getElementById('info').innerText =
-                `State: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)}`;
+                `State: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)} | Samples: ${adaptiveSamples}`;
 
             if (firstDraw) {
                 document.getElementById('loading').style.display = 'none';
