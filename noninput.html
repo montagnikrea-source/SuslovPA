@@ -148,7 +148,7 @@
         // FrequencyScanner
         class FrequencyScanner {
             static F_MIN = 0.0;           // Минимальная частота поиска
-            static F_MAX = 1000000000.0;         // Максимальная частота поиска
+            static F_MAX = 200.0;         // Максимальная частота поиска
             static F_STEP = 0.25;
             static FS = MathJitterSampler.FS;
             static N = MathJitterSampler.N;
@@ -349,7 +349,6 @@
             }
         }, 10);
     </script>
-    // Запуск Web Worker для фоновой нагрузки
     (function(){
         const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
         const worker = new Worker(URL.createObjectURL(blob));
