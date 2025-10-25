@@ -420,15 +420,16 @@
         function updateBars() {
             if (!running) return;
 
-            // Накопление сэмплов до заполнения буфера
+            // Накопление сэмплов до заполнения буфера (ограничено по времени)
             let progress = ((sampler.widx / scanner.constructor.N) * 100);
-            while ((sampler.widx - scanner.r) & sampler.constructor.MASK < scanner.constructor.N) {
-                sampler.sample();
+            let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < scanner.constructor.N;
+            if (needSamples) {
+                for (let i = 0; i < 50; ++i) sampler.sample(); // ограничиваем количество за один вызов
                 progress = ((sampler.widx / scanner.constructor.N) * 100);
                 document.getElementById('loading').innerText = 'Загрузка данных...';
                 document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
-                // позволим UI отобразиться при долгом накоплении
-                if (progress % 5 === 0) break;
+                setTimeout(updateBars, 50); // повторяем через короткое время
+                return;
             }
 
             // После накопления — анализ
