@@ -205,17 +205,30 @@
             processOnce() {
                 if (!this.grabBlock()) return;
 
-                // Анализ текущей частоты
-                let res = this.evalAt(this.vcoFrequency);
+                // Поиск максимальной энергии (анализ флуктуаций)
+                let bestF = this.vcoFrequency;
+                let maxMag = -1.0;
+                let bestRes = null;
+                for (let f = this.constructor.F_MIN; f <= this.constructor.F_MAX; f += this.constructor.F_STEP) {
+                    let resF = this.evalAt(f);
+                    if (resF.mag > maxMag) {
+                        maxMag = resF.mag;
+                        bestF = f;
+                        bestRes = resF;
+                    }
+                }
+                this.vcoFrequency = bestF;
+                let res = bestRes || this.evalAt(this.vcoFrequency);
                 let measuredPhase = res.ph;
                 let currentMag = res.mag;
+
+                // Анализ локальной энергии вокруг максимума
                 let localEnergy = this.constructor.EPSILON + currentMag;
                 localEnergy += this.evalAt(this.vcoFrequency - this.constructor.F_STEP).mag;
                 localEnergy += this.evalAt(this.vcoFrequency + this.constructor.F_STEP).mag;
                 let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
-                let phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
 
-                // Инерция
+                // Инерция по аналогии с C++
                 if (conf > 0.3) {
                     this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
                 } else {
@@ -223,25 +236,17 @@
                 }
                 this.inertia = Math.max(0.0, Math.min(1.0, this.inertia));
 
-                // Смена состояния и автоматический поиск частоты
+                // Переключение состояния
                 if (this.inertia < 0.1 && this.currentState === 'TRACKING') {
                     this.currentState = 'SEARCHING';
                 } else if (this.inertia > 0.5 && this.currentState === 'SEARCHING') {
                     this.currentState = 'TRACKING';
-                    let bestF = this.constructor.F_MIN;
-                    let maxMag = -1.0;
-                    for (let f = this.constructor.F_MIN; f <= this.constructor.F_MAX; f += this.constructor.F_STEP * 2) {
-                        let resF = this.evalAt(f);
-                        if (resF.mag > maxMag) {
-                            maxMag = resF.mag;
-                            bestF = f;
-                        }
-                    }
-                    this.vcoFrequency = bestF;
+                    // При переходе в TRACKING частота уже выбрана по максимуму
                     this.loopFilter.reset(0.0, 0.0);
                 }
 
                 // Калман-фильтр и синхронизация
+                let phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
                 this.loopFilter.predict(this.constructor.DT_WIN);
                 let measurementNoise = 0.05 + (1.0 - conf) * 5.0 + this.inertia * 20.0;
                 this.loopFilter.update(phaseError, measurementNoise);
