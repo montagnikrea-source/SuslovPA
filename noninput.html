@@ -4,22 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frequency Scanner Web App</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f0f0; }
         h1 { margin-bottom: 10px; }
         #desc { margin-bottom: 20px; color: #555; }
         #loading { color: #888; margin-bottom: 10px; }
-        canvas { max-width: 100%; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #ccc; min-height: 300px; }
+        .bar-container { width: 100%; max-width: 600px; margin: 20px auto; }
+        .bar-label { margin-bottom: 5px; font-size: 16px; color: #333; }
+        .bar-bg { width: 100%; height: 32px; background: #eee; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+        .bar-fill { height: 100%; transition: width 0.3s; }
         #info { margin-top: 20px; font-size: 16px; }
+        .freq { background: linear-gradient(90deg, #007bff 60%, #66bfff); }
+        .inertia { background: linear-gradient(90deg, #28a745 60%, #7be88b); }
+        .conf { background: linear-gradient(90deg, #dc3545 60%, #ffb3b3); }
     </style>
 </head>
 <body>
     <h1>Frequency Scanner Web App</h1>
-    <div id="desc">Веб‑приложение для анализа частоты и инерции на основе jitter-сэмплирования.<br>График появится через несколько секунд.</div>
+    <div id="desc">Веб‑приложение для анализа частоты и инерции на основе jitter-сэмплирования.<br>Шкалы обновляются в реальном времени.</div>
     <div id="loading">Загрузка данных...</div>
-    <canvas id="freqChart"></canvas>
+    <div class="bar-container">
+        <div class="bar-label">Частота (Hz): <span id="freqValue">0</span></div>
+        <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
+        <div class="bar-label">Инерция (%): <span id="inertiaValue">0</span></div>
+        <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
+        <div class="bar-label">Достоверность: <span id="confValue">0</span></div>
+        <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
+    </div>
     <div id="info"></div>
     <script>
         // MathJitterSampler
@@ -268,72 +280,37 @@
         const scanner = new FrequencyScanner(sampler);
         let running = true;
 
-        // Инициализация графика
-        const ctx = document.getElementById('freqChart').getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'Frequency (Hz)',
-                        data: [],
-                        borderColor: '#007bff',
-                        fill: false
-                    },
-                    {
-                        label: 'Inertia (%)',
-                        data: [],
-                        borderColor: '#28a745',
-                        fill: false
-                    },
-                    {
-                        label: 'Confidence',
-                        data: [],
-                        borderColor: '#dc3545',
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                scales: {
-                    x: { title: { display: true, text: 'Time' } },
-                    y: { title: { display: true, text: 'Value' } }
-                }
-            }
-        });
-
-        // Функция обновления графика
+        // Функция обновления шкал
         let firstDraw = true;
-        function updateChart() {
+        function updateBars() {
             if (!running) return;
             for (let i = 0; i < 20; ++i) sampler.sample();
             scanner.processOnce();
 
-            chart.data.labels.push(new Date().toLocaleTimeString());
-            chart.data.datasets[0].data.push(scanner.out_freqHz);
-            chart.data.datasets[1].data.push(scanner.out_inertia * 100);
-            chart.data.datasets[2].data.push(scanner.out_conf);
-            if (chart.data.labels.length > 50) {
-                chart.data.labels.shift();
-                chart.data.datasets.forEach(dataset => dataset.data.shift());
-            }
-            chart.update();
+            // Обновление значений и ширины шкал
+            const freqMax = FrequencyScanner.F_MAX;
+            document.getElementById('freqValue').innerText = scanner.out_freqHz.toFixed(2);
+            document.getElementById('freqBar').style.width = Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%";
+
+            document.getElementById('inertiaValue').innerText = (scanner.out_inertia * 100).toFixed(0);
+            document.getElementById('inertiaBar').style.width = Math.min(100, scanner.out_inertia * 100) + "%";
+
+            document.getElementById('confValue').innerText = scanner.out_conf.toFixed(2);
+            document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
 
             document.getElementById('info').innerText =
                 `State: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)}`;
 
-            // Скрыть индикатор загрузки после первого обновления
             if (firstDraw) {
                 document.getElementById('loading').style.display = 'none';
                 firstDraw = false;
             }
 
-            setTimeout(updateChart, 100);
+            setTimeout(updateBars, 100);
         }
 
         window.Telegram.WebApp.ready();
-        updateChart();
+        updateBars();
         window.Telegram.WebApp.onEvent('viewportChanged', () => {
             if (!window.Telegram.WebApp.isExpanded) {
                 running = false;
@@ -341,7 +318,6 @@
         });
     </script>
     <script id="worker-script" type="javascript/worker">
-        // Фоновая нагрузка для конкуренции за ресурсы
         setInterval(() => {
             let x = 1.0001;
             for (let i = 0; i < 100000; ++i) {
