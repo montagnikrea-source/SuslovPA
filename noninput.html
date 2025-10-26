@@ -567,7 +567,7 @@
                 setTimeout(updateBars, 200);
             } catch (e) {
                 console.error('Error in updateBars:', e);
-                document.getElementById('info').innerText = "Ошибка обработки данных!";
+                document.getElementById('info').innerText = "Ошибка обработки данных: " + e.message;
                 setTimeout(updateBars, 500); // пробуем снова через 0.5 сек
             }
         }
