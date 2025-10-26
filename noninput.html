@@ -499,52 +499,35 @@
         const thermal = new ThermalController(worker);
         worker.postMessage({ iters: thermal.workerIters, tickMs: 10 });
 
-        // Асинхронный цикл сэмплирования
-        let lastSampleTime = performance.now();
-        let sampleInterval = 2.0;
-        function samplerLoop() {
-            if (!running) return;
-            let now = performance.now();
-            let delta = now - lastSampleTime;
-            if (delta >= sampleInterval) {
-                sampler.sample();
-                lastSampleTime = now;
-                sampleInterval = Math.max(0.1, Math.min(10, 1.5 * sampler.ema_delta)); // Адаптивный интервал
-            }
-            setTimeout(samplerLoop, sampleInterval);
-        }
-        samplerLoop();
+        // Исправленный цикл накопления сэмплов — не зависает!
+        let running = true;
+        let firstDraw = true;
+        let stableCounter = 0;
+        let lastFreq = 0;
+        const STABLE_THRESHOLD = 0.5;
+        const STABLE_COUNT_REQUIRED = 30;
 
         function getSyncedTimeString() {
-            // Учёт IST (UTC+5:30) для 04:15 AM IST, 26 октября 2025
-            const date = new Date('2025-10-26T04:15:00+05:30');
-            return date.toLocaleTimeString('ru-RU');
+            return new Date().toLocaleTimeString('ru-RU');
         }
 
-        // Обновление шкал
         let statusText = "Загрузка данных...";
 
         function updateBars() {
             if (!running) return;
 
             try {
-                let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
+                // Исправленный безопасный накопитель сэмплов
                 let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
-
-                if (sampler.checkStall()) {
-                    statusText = "Сэмплирование слишком медленное! Попробуйте использовать более мощное устройство или перезагрузить страницу.";
-                    document.getElementById('loading').innerText = statusText;
-                    document.getElementById('info').innerText = statusText;
-                    running = false;
-                    return;
-                }
-
                 if (needSamples) {
-                    console.log(`Progress: ${progress.toFixed(0)}%, widx: ${sampler.widx}, need: ${sampler.dynamic_n}, avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
+                    // Добавляем ограниченное количество сэмплов за один вызов
+                    for (let i = 0; i < 100; ++i) sampler.sample();
+                    let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
                     statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
                     document.getElementById('loading').innerText = statusText;
                     document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
-                    setTimeout(updateBars, 200);
+                    document.getElementById('info').innerText = statusText;
+                    setTimeout(updateBars, 50); // короткий таймаут, чтобы не блокировать интерфейс
                     return;
                 }
 
@@ -589,6 +572,7 @@
             } catch (e) {
                 console.error('Error in updateBars:', e);
                 document.getElementById('info').innerText = "Ошибка обработки данных!";
+                setTimeout(updateBars, 500); // пробуем снова через 0.5 сек
             }
         }
 
