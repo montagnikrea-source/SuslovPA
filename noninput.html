@@ -489,6 +489,7 @@
         start();
     </script>
     <script>
+document.addEventListener('DOMContentLoaded', function() {
     (function(){
         const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
         const worker = new Worker(URL.createObjectURL(blob));
@@ -609,6 +610,7 @@
         }
         updateBars();
     })();
+});
     </script>
 </body>
 </html>
