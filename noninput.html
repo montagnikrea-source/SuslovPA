@@ -545,12 +545,17 @@
 document.addEventListener('DOMContentLoaded', function() {
     (function(){
         let worker = null;
+        let workerSupported = false;
         try {
-            const code = document.getElementById('worker-script').textContent;
-            const blob = new Blob([code], { type: "application/javascript" });
-            worker = new Worker(URL.createObjectURL(blob));
+            workerSupported = !!window.Worker;
+            if (workerSupported) {
+                const code = document.getElementById('worker-script').textContent;
+                const blob = new Blob([code], { type: "application/javascript" });
+                worker = new Worker(URL.createObjectURL(blob));
+            }
         } catch (e) {
-            console.warn('Worker creation failed, falling back to no-worker mode:', e);
+            workerSupported = false;
+            worker = null;
         }
         if (worker) {
             worker.onmessage = (e) => console.log('Worker status:', e.data);
@@ -584,6 +589,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const element = document.getElementById(id);
             if (element && element.style) {
                 element.style[property] = value;
+            }
+        }
+
+        function emulateLoad(iters) {
+            let x = 1.0001;
+            for (let i = 0; i < iters; ++i) {
+                x *= 1.00000001;
+                x /= 1.000000009;
             }
         }
 
