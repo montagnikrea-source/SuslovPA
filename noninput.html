@@ -72,8 +72,7 @@
     <script>
         // MathJitterSampler
         class MathJitterSampler {
-            static FS = 100.0; // Целевая частота дискретизации
-            static N = 512; // Уменьшено для ускорения
+            static FS = 500.0; // Начальная целевая частота
             static RB_SIZE = 16384;
             static MASK = this.RB_SIZE - 1;
 
@@ -83,12 +82,13 @@
                 this.widx = 0;
                 this.ema_delta = 0;
                 this.alpha = 0.0025;
-                this.fixed_iterations = 5000; // Уменьшено для ускорения
-                this.target_sample_time = 2.0; // Целевое время на сэмпл в мс (~500 Гц)
+                this.fixed_iterations = 5000;
+                this.target_sample_time = 2.0; // Целевое время сэмпла (мс)
                 this.sample_count = 0;
                 this.actual_fs = this.constructor.FS;
                 this.last_widx = 0;
                 this.last_check_time = performance.now();
+                this.dynamic_n = Math.ceil(0.5 * this.actual_fs); // Начальное N ~0.5 с данных
             }
 
             sample() {
@@ -109,18 +109,24 @@
                 this.timestamps[idx] = startTime;
                 this.sample_count++;
 
+                // Автонастройка каждые 10 сэмплов
                 if (this.sample_count % 10 === 0) {
                     let adjustment = this.ema_delta / this.target_sample_time;
                     this.fixed_iterations = Math.round(this.fixed_iterations / adjustment);
-                    this.fixed_iterations = Math.max(1000, Math.min(50000, this.fixed_iterations));
+                    // Мягкое ограничение для разумных значений
+                    if (this.fixed_iterations < 100) this.fixed_iterations = 100;
+                    if (this.fixed_iterations > 1e6) this.fixed_iterations = 1e6;
                     this.actual_fs = 1000.0 / this.ema_delta;
-                    console.log(`Sample time: ${this.ema_delta.toFixed(2)}ms, iters: ${this.fixed_iterations}, fs: ${this.actual_fs.toFixed(1)}Hz`);
+                    // Адаптация N: ~0.5 с данных
+                    this.dynamic_n = Math.ceil(0.5 * this.actual_fs);
+                    this.dynamic_n = Math.max(64, Math.min(2048, this.dynamic_n));
+                    console.log(`Sample time: ${this.ema_delta.toFixed(2)}ms, iters: ${this.fixed_iterations}, fs: ${this.actual_fs.toFixed(1)}Hz, N: ${this.dynamic_n}`);
                 }
             }
 
             checkStall() {
                 let now = performance.now();
-                if (now - this.last_check_time > 3000 && this.widx === this.last_widx) {
+                if (now - this.last_check_time > 2000 && this.widx === this.last_widx) {
                     return true;
                 }
                 this.last_check_time = now;
@@ -216,16 +222,6 @@
 
         // FrequencyScanner
         class FrequencyScanner {
-            static F_MIN = 0.0;
-            static F_MAX = 25.0; // Половина Nyquist для fs~50–100 Гц
-            static F_STEP = 0.02; // Уменьшено для точности
-            static EPSILON = Number.EPSILON;
-            static K_VCO_P = 0.1; // Увеличено для быстрого трекинга
-            static K_VCO_V = 0.01; // Интегральный коэффициент
-            static INERTIA_THRESHOLD = 0.1;
-            static INERTIA_GAIN = 0.5;
-            static INERTIA_LOSS = 0.01;
-
             constructor(sampler) {
                 this.sampler = sampler;
                 this.loopFilter = new KalmanFilter(0.0, 0.0, 0.001, 0.01);
@@ -237,35 +233,52 @@
                 this.out_conf = 0.0;
                 this.out_inertia = 0.0;
                 this.out_state = 'SEARCHING';
-                this.win = new Array(MathJitterSampler.N).fill(0);
-                this.block = new Array(MathJitterSampler.N).fill(0);
-                this.block_timestamps = new Array(MathJitterSampler.N).fill(0);
+                this.win = new Array(sampler.dynamic_n).fill(0);
+                this.block = new Array(sampler.dynamic_n).fill(0);
+                this.block_timestamps = new Array(sampler.dynamic_n).fill(0);
                 this.r = 0;
+                this.f_max = 50.0;
+                this.f_step = 0.05;
+                this.k_vco_p = 0.1;
+                this.k_vco_v = 0.01;
 
-                for (let n = 0; n < MathJitterSampler.N; ++n) {
-                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (MathJitterSampler.N - 1)));
+                for (let n = 0; n < sampler.dynamic_n; ++n) {
+                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (sampler.dynamic_n - 1)));
                 }
+            }
+
+            updateParameters() {
+                this.f_max = Math.min(100.0, this.sampler.actual_fs / 2); // Nyquist
+                this.f_step = Math.max(0.005, this.f_max / 1000);
+                this.k_vco_p = 0.1 * (this.sampler.actual_fs / 100);
+                this.k_vco_v = 0.01 * (this.sampler.actual_fs / 100);
             }
 
             grabBlock() {
                 let w = this.sampler.widx;
                 let avail = (w - this.r) & this.sampler.constructor.MASK;
-                if (avail < MathJitterSampler.N) return false;
-                for (let i = 0; i < MathJitterSampler.N; ++i) {
+                if (avail < this.sampler.dynamic_n) return false;
+                this.block = new Array(this.sampler.dynamic_n).fill(0);
+                this.block_timestamps = new Array(this.sampler.dynamic_n).fill(0);
+                this.win = new Array(this.sampler.dynamic_n).fill(0);
+                for (let n = 0; n < this.sampler.dynamic_n; ++n) {
+                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (this.sampler.dynamic_n - 1)));
+                }
+                for (let i = 0; i < this.sampler.dynamic_n; ++i) {
                     let idx = (this.r + i) & this.sampler.constructor.MASK;
                     this.block[i] = this.sampler.rb[idx] * this.win[i];
                     this.block_timestamps[i] = this.sampler.timestamps[idx];
                 }
-                let total_time = this.block_timestamps[MathJitterSampler.N - 1] - this.block_timestamps[0];
-                this.dt_win = total_time / 1000.0 / (MathJitterSampler.N - 1);
+                let total_time = this.block_timestamps[this.sampler.dynamic_n - 1] - this.block_timestamps[0];
+                this.dt_win = total_time / 1000.0 / (this.sampler.dynamic_n - 1);
                 this.actual_fs = 1.0 / this.dt_win;
-                this.r = (this.r + MathJitterSampler.N) & this.sampler.constructor.MASK;
+                this.r = (this.r + this.sampler.dynamic_n) & this.sampler.constructor.MASK;
                 return true;
             }
 
             evalAt(f) {
                 let g = new Goertzel();
-                g.init(MathJitterSampler.N, this.actual_fs, f);
+                g.init(this.sampler.dynamic_n, this.actual_fs, f);
                 for (let v of this.block) g.push(v);
                 let res = g.result();
                 if (!isFinite(res.mag)) res.mag = 0;
@@ -279,20 +292,22 @@
             processOnce() {
                 if (!this.grabBlock()) return;
 
+                this.updateParameters();
+
                 let bestF = this.vcoFrequency;
                 let maxMag = -1.0;
                 let bestRes = null;
                 let sumMag = 0;
                 let count = 0;
 
-                let f_min = this.constructor.F_MIN;
-                let f_max = this.constructor.F_MAX;
-                let f_step = this.constructor.F_STEP;
+                let f_min = 0.0;
+                let f_max = this.f_max;
+                let f_step = this.f_step;
 
                 if (this.currentState === 'TRACKING') {
-                    f_min = Math.max(this.constructor.F_MIN, this.vcoFrequency - 0.5);
-                    f_max = Math.min(this.constructor.F_MAX, this.vcoFrequency + 0.5);
-                    f_step = 0.005;
+                    f_min = Math.max(0.0, this.vcoFrequency - 0.2 * this.f_max);
+                    f_max = Math.min(this.f_max, this.vcoFrequency + 0.2 * this.f_max);
+                    f_step = this.f_step / 5;
                 }
 
                 for (let f = f_min; f <= f_max; f += f_step) {
@@ -310,7 +325,7 @@
                 let measuredPhase = res.ph;
                 let currentMag = res.mag;
 
-                let localEnergy = this.constructor.EPSILON;
+                let localEnergy = Number.EPSILON;
                 for (let df = -2; df <= 2; ++df) {
                     localEnergy += this.evalAt(this.vcoFrequency + df * f_step).mag;
                 }
@@ -321,10 +336,10 @@
                 this.out_peakness = peakness;
                 this.out_localEnergy = localEnergy;
 
-                if (conf > this.constructor.INERTIA_THRESHOLD || peakness > 1.2) {
-                    this.inertia += this.constructor.INERTIA_GAIN * (1.0 - this.inertia);
+                if (conf > 0.1 || peakness > 1.2) {
+                    this.inertia += 0.5 * (1.0 - this.inertia);
                 } else {
-                    this.inertia -= this.constructor.INERTIA_LOSS * this.inertia;
+                    this.inertia -= 0.01 * this.inertia;
                 }
                 this.inertia = Math.max(0.0, Math.min(1.0, this.inertia));
 
@@ -346,8 +361,8 @@
                 let measurementNoise = 0.05 + (1.0 - conf) * 5.0 + (1.0 - this.inertia) * 20.0;
                 this.loopFilter.update(phaseError, measurementNoise);
                 let controlOutput = this.loopFilter.getValue();
-                this.vcoFrequency += this.constructor.K_VCO_P * controlOutput + this.constructor.K_VCO_V * this.loopFilter.x_vel;
-                this.vcoFrequency = Math.max(this.constructor.F_MIN, Math.min(this.constructor.F_MAX, this.vcoFrequency));
+                this.vcoFrequency += this.k_vco_p * controlOutput + this.k_vco_v * this.loopFilter.x_vel;
+                this.vcoFrequency = Math.max(0.0, Math.min(this.f_max, this.vcoFrequency));
                 this.internalPhase = this.wrapAngle(this.internalPhase + 2.0 * Math.PI * this.vcoFrequency * this.dt_win);
 
                 this.out_freqHz = this.vcoFrequency;
@@ -443,20 +458,27 @@
 
         // Асинхронный цикл сэмплирования
         let lastSampleTime = performance.now();
+        let sampleInterval = 2.0;
         function samplerLoop() {
             if (!running) return;
             let now = performance.now();
             let delta = now - lastSampleTime;
-            if (delta >= 2.0) { // Ограничиваем до ~500 Гц
+            if (delta >= sampleInterval) {
                 sampler.sample();
                 lastSampleTime = now;
+                // Адаптация интервала
+                sampleInterval = Math.max(0.1, Math.min(10, sampler.ema_delta));
             }
-            setTimeout(samplerLoop, 1);
+            setTimeout(samplerLoop, sampleInterval);
         }
         samplerLoop();
 
         function getSyncedTimeString() {
-            return new Date().toLocaleTimeString('ru-RU');
+            // Учёт IST (UTC+5:30)
+            const date = new Date();
+            const offset = 5.5 * 60 * 60 * 1000; // IST offset в мс
+            date.setTime(date.getTime() + offset);
+            return date.toLocaleTimeString('ru-RU');
         }
 
         // Обновление шкал
@@ -466,8 +488,8 @@
             if (!running) return;
 
             try {
-                let progress = ((sampler.widx / scanner.constructor.N) * 100) % 100;
-                let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < scanner.constructor.N;
+                let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
+                let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
 
                 if (sampler.checkStall()) {
                     statusText = "Сэмплирование слишком медленное! Попробуйте использовать более мощное устройство или перезагрузить страницу.";
@@ -478,8 +500,8 @@
                 }
 
                 if (needSamples) {
-                    console.log(`Progress: ${progress.toFixed(0)}%, widx: ${sampler.widx}, need: ${scanner.constructor.N}`);
-                    statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${scanner.constructor.N})`;
+                    console.log(`Progress: ${progress.toFixed(0)}%, widx: ${sampler.widx}, need: ${sampler.dynamic_n}`);
+                    statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
                     document.getElementById('loading').innerText = statusText;
                     document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
                     setTimeout(updateBars, 200);
@@ -488,7 +510,9 @@
 
                 scanner.processOnce();
 
-                if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
+                if (sampler.actual_fs < 50) {
+                    statusText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
+                } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
                     statusText = "Недостаточно фоновой активности, откройте другие приложения или вкладки!";
                 } else {
                     statusText = "Анализируется...";
@@ -503,7 +527,7 @@
                 }
                 lastFreq = scanner.out_freqHz;
 
-                const freqMax = FrequencyScanner.F_MAX;
+                const freqMax = scanner.f_max;
                 document.getElementById('freqValue').innerText = scanner.out_freqHz.toFixed(2);
                 document.getElementById('freqBar').style.width = Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%";
 
@@ -514,7 +538,7 @@
                 document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
 
                 document.getElementById('info').innerText =
-                    `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц`;
+                    `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n}`;
 
                 if (firstDraw) {
                     document.getElementById('loading').style.display = 'none';
