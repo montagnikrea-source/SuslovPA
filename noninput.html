@@ -50,7 +50,6 @@
         <h1>Frequency Scanner Web App</h1>
         <div id="desc">Веб-приложение для анализа вариаций времени выполнения вычислений.<br>Шкалы обновляются в реальном времени.</div>
         <div id="loading">
-            <span id="loadingText">Загрузка данных...</span>
             <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
                 <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
             </div>
@@ -535,7 +534,6 @@
                 if (needSamples) {
                     for (let i = 0; i < 100; ++i) sampler.sample();
                     let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
-                    document.getElementById('loadingText').innerText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
                     updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
                     document.getElementById('statusText').innerText = "Ожидание накопления данных...";
                     updateDOM('info', `Загрузка данных... ${progress.toFixed(0)}%`);
