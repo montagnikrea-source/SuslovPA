@@ -53,7 +53,7 @@
             <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
                 <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
             </div>
-            <div id="statusText" style="margin-top:8px;color:#555;">Анализируется...</div>
+            <div id="statusText" style="margin-top:8px;color:#555;">Ожидание накопления данных...</div>
         </div>
         <div class="bar-container">
             <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
@@ -85,7 +85,7 @@
                 <li><b>Решение проблем</b>:
                     <ul>
                         <li>Если отображается "Частота сэмплирования слишком низкая (<50 Гц)", запустите ресурсоемкие приложения (например, игру или видео), чтобы приложение могло лучше оптимизировать производительность.</li>
-                        <li>Если телеметрия не обновляется, обновите страницу или проверьте консоль браузера (F12).</li>
+                        <li>Если телеметрия не обновляется или прогресс зависает, обновите страницу или проверьте консоль браузера (F12).</li>
                         <li>Если приложение не открывается в Telegram, убедитесь, что URL настроен правильно в @BotFather.</li>
                     </ul>
                 </li>
@@ -145,15 +145,14 @@
         class ThermalController {
             constructor(worker) {
                 this.worker = worker;
-                this.workerIters = 10000; // Начальное значение
+                this.workerIters = 1000; // Уменьшено для более быстрого старта
                 this.targetSampleRate = 100; // Целевая частота сэмплирования (Гц)
             }
             update(peakness) {
-                // Адаптивная настройка итераций
                 if (peakness > 1.5) {
-                    this.workerIters = Math.max(1000, this.workerIters * 0.9);
+                    this.workerIters = Math.max(500, this.workerIters * 0.9);
                 } else if (peakness < 1.0) {
-                    this.workerIters = Math.min(100000, this.workerIters * 1.1);
+                    this.workerIters = Math.min(50000, this.workerIters * 1.2);
                 }
                 if (this.worker) {
                     try {
@@ -202,15 +201,16 @@
                 this.timestamps = new Array(this.constructor.RB_SIZE).fill(0);
                 this.widx = 0;
                 this.ema_delta = 0;
-                this.alpha = 0.0025;
-                this.fixed_iterations = 1000;
+                this.alpha = 0.005; // Увеличен для более быстрой адаптации
+                this.fixed_iterations = 500; // Уменьшено для быстрого старта
                 this.target_sample_time = 2.0;
                 this.sample_count = 0;
                 this.actual_fs = 500.0;
                 this.last_widx = 0;
                 this.last_check_time = performance.now();
-                this.dynamic_n = 128;
+                this.dynamic_n = 64; // Уменьшено для ускорения накопления
                 this.slow_count = 0;
+                this.stall_count = 0;
             }
 
             sample() {
@@ -231,16 +231,16 @@
                 this.timestamps[idx] = startTime;
                 this.sample_count++;
 
-                if (this.sample_count % 10 === 0) {
+                if (this.sample_count % 5 === 0) { // Уменьшен интервал проверки
                     let adjustment = this.ema_delta / this.target_sample_time;
                     this.fixed_iterations = Math.round(this.fixed_iterations / adjustment);
-                    this.fixed_iterations = Math.max(100, Math.min(200000, this.fixed_iterations));
+                    this.fixed_iterations = Math.max(100, Math.min(100000, this.fixed_iterations));
                     this.actual_fs = 1000.0 / this.ema_delta;
-                    this.dynamic_n = Math.max(64, Math.min(2048, Math.ceil(0.5 * this.actual_fs)));
+                    this.dynamic_n = Math.max(32, Math.min(1024, Math.ceil(0.5 * this.actual_fs)));
 
                     if (this.ema_delta > 10.0) {
                         this.slow_count++;
-                        if (this.slow_count > 10) {
+                        if (this.slow_count > 5) {
                             this.fixed_iterations = Math.max(100, this.fixed_iterations / 2);
                             this.slow_count = 0;
                             console.log("Слишком медленное сэмплирование, уменьшаю итерации до:", this.fixed_iterations);
@@ -254,11 +254,19 @@
 
             checkStall() {
                 let now = performance.now();
-                if (now - this.last_check_time > 2000 && this.widx === this.last_widx) {
+                if (now - this.last_check_time > 1000 && this.widx === this.last_widx) {
+                    this.stall_count++;
+                    if (this.stall_count > 3) {
+                        console.warn("Обнаружено застревание сэмплирования. Сбрасываю параметры.");
+                        this.fixed_iterations = Math.max(100, this.fixed_iterations / 2);
+                        this.dynamic_n = Math.max(32, this.dynamic_n / 2);
+                        this.stall_count = 0;
+                    }
                     return true;
                 }
                 this.last_check_time = now;
                 this.last_widx = this.widx;
+                this.stall_count = 0;
                 return false;
             }
         }
@@ -369,18 +377,14 @@
                 this.f_step = 0.05;
                 this.k_vco_p = 0.1;
                 this.k_vco_v = 0.01;
-                this.max_points = 500;
-
-                for (let n = 0; n < sampler.dynamic_n; ++n) {
-                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (sampler.dynamic_n - 1)));
-                }
+                this.max_points = 300; // Уменьшено для снижения нагрузки
             }
 
             updateParameters() {
                 this.f_max = Math.min(100.0, this.sampler.actual_fs / 2);
-                this.f_step = Math.max(0.005, this.f_max / 1000);
-                this.k_vco_p = 0.2 * (this.sampler.actual_fs / 100);
-                this.k_vco_v = 0.02 * (this.sampler.actual_fs / 100);
+                this.f_step = Math.max(0.01, this.f_max / 500); // Увеличен шаг для ускорения
+                this.k_vco_p = 0.3 * (this.sampler.actual_fs / 100);
+                this.k_vco_v = 0.03 * (this.sampler.actual_fs / 100);
             }
 
             grabBlock() {
@@ -529,7 +533,7 @@
                 };
                 worker.onerror = (e) => {
                     console.warn("Ошибка воркера:", e.message);
-                    worker = null; // Отключаем воркер при ошибке
+                    worker = null;
                 };
                 try {
                     worker.postMessage({ iters: thermal.workerIters, tickMs: 10 });
@@ -568,26 +572,32 @@
                 try {
                     let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
                     if (needSamples) {
-                        for (let i = 0; i < (isMobile ? 30 : 100); ++i) sampler.sample();
+                        for (let i = 0; i < (isMobile ? 50 : 200); ++i) sampler.sample(); // Увеличено количество сэмплов за цикл
                         if (!worker && isMobile) emulateLoad(thermal.workerIters);
                         let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
                         updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
-                        setTimeout(updateBars, 50);
+                        updateDOM('statusText', `Ожидание накопления данных... (${progress.toFixed(0)}%)`);
+                        updateDOM('info', `Накопление данных: ${progress.toFixed(0)}% | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | Итерации: ${sampler.fixed_iterations} | N: ${sampler.dynamic_n}`);
+                        if (sampler.checkStall()) {
+                            updateDOM('statusText', `Застревание сэмплирования! Уменьшаю нагрузку...`);
+                        }
+                        setTimeout(updateBars, isMobile ? 100 : 50);
                         return;
                     }
                     if (!scanner.grabBlock()) {
-                        setTimeout(updateBars, 50);
+                        updateDOM('statusText', `Ожидание блока данных...`);
+                        setTimeout(updateBars, isMobile ? 100 : 50);
                         return;
                     }
                     scanner.processOnce();
                     if (!worker && isMobile) emulateLoad(thermal.workerIters);
 
                     if (sampler.actual_fs < 50) {
-                        document.getElementById('statusText').innerText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
+                        updateDOM('statusText', "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.");
                     } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
-                        document.getElementById('statusText').innerText = "Недостаточно фоновой активности, откройте другие приложения или вкладки!";
+                        updateDOM('statusText', "Недостаточно фоновой активности, откройте другие приложения или вкладки!");
                     } else {
-                        document.getElementById('statusText').innerText = "Анализируется...";
+                        updateDOM('statusText', "Анализируется...");
                     }
 
                     try { thermal.update(scanner.out_peakness || 0); } catch (e) {
