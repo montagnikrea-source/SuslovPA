@@ -358,7 +358,7 @@
         let bestF = this.vcoFrequency, maxMag = -1, bestRes = null, sumMag = 0, count = 0;
 
         let f_min = 0, f_max = this.f_max, f_step = this.f_step;
-        if (this.currentState === 'TRACKING'){
+        if this.currentState === 'TRACKING'){
           const span = 0.1 * this.f_max;
           f_min = Math.max(0, this.vcoFrequency - span);
           f_max = Math.min(this.f_max, this.vcoFrequency + span);
