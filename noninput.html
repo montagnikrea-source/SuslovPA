@@ -50,10 +50,11 @@
         <h1>Frequency Scanner Web App</h1>
         <div id="desc">Веб-приложение для анализа вариаций времени выполнения вычислений.<br>Шкалы обновляются в реальном времени.</div>
         <div id="loading">
-            Загрузка данных...
+            <span id="loadingText">Загрузка данных...</span>
             <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
                 <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
             </div>
+            <div id="statusText" style="margin-top:8px;color:#555;">Анализируется...</div>
         </div>
         <div class="bar-container">
             <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
@@ -530,13 +531,14 @@
 
             try {
                 // Ensure sampling occurs if needed
-                if (((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n) {
-                    for (let i = 0; i < 100; ++i) sampler.sample(); // Force sampling
+                let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
+                if (needSamples) {
+                    for (let i = 0; i < 100; ++i) sampler.sample();
                     let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
-                    statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
-                    updateDOM('loading', statusText);
+                    document.getElementById('loadingText').innerText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
                     updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
-                    updateDOM('info', statusText);
+                    document.getElementById('statusText').innerText = "Ожидание накопления данных...";
+                    updateDOM('info', `Загрузка данных... ${progress.toFixed(0)}%`);
                     setTimeout(updateBars, 50);
                     return;
                 }
@@ -587,7 +589,7 @@
                 updateDOM('info', `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
 
                 if (firstDraw) {
-                    updateDOMStyle('loading', 'display', 'none');
+                    updateDOMStyle('loading', 'display', 'block');
                     firstDraw = false;
                 }
 
