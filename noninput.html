@@ -129,6 +129,7 @@
                 this.rb[idx] = jitter;
                 this.timestamps[idx] = startTime;
                 this.sample_count++;
+                console.log(`Sampled at widx: ${this.widx}, delta: ${delta.toFixed(2)}ms`); // Debug log
 
                 // Агрессивная адаптация первых 50 сэмплов
                 if (this.sample_count <= 50) {
@@ -491,11 +492,8 @@
     (function(){
         const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
         const worker = new Worker(URL.createObjectURL(blob));
-
-        worker.onmessage = (e) => {
-            console.log('Worker status:', e.data);
-        };
-
+        worker.onmessage = (e) => console.log('Worker status:', e.data);
+        worker.onerror = (e) => console.error('Worker error:', e.message);
         const thermal = new ThermalController(worker);
         worker.postMessage({ iters: thermal.workerIters, tickMs: 10 });
 
@@ -518,10 +516,8 @@
 
             try {
                 // Исправленный безопасный накопитель сэмплов
-                let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
-                if (needSamples) {
-                    // Добавляем ограниченное количество сэмплов за один вызов
-                    for (let i = 0; i < 100; ++i) sampler.sample();
+                if (((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n) {
+                    for (let i = 0; i < 100; ++i) sampler.sample(); // Force sampling
                     let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
                     statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
                     document.getElementById('loading').innerText = statusText;
@@ -576,13 +572,18 @@
             }
         }
 
-        window.Telegram.WebApp.ready();
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.onEvent('viewportChanged', () => {
+                if (!window.Telegram.WebApp.isExpanded) {
+                    running = false;
+                }
+            });
+        } else {
+            console.warn("Running outside Telegram environment, some features may not work.");
+            running = true; // Ensure it runs in non-Telegram context
+        }
         updateBars();
-        window.Telegram.WebApp.onEvent('viewportChanged', () => {
-            if (!window.Telegram.WebApp.isExpanded) {
-                running = false;
-            }
-        });
     })();
     </script>
 </body>
