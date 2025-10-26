@@ -462,7 +462,6 @@
             const progress = Math.min(100, (avail / sampler.dynamic_n) * 100);
             setStyle('loadingBar','width', progress.toFixed(0)+'%');
             setText('statusText', `Ожидание накопления данных... (${progress.toFixed(0)}%)`);
-            setText('info', `Накопление: ${progress.toFixed(0)}% | fs: ${sampler.actual_fs.toFixed(1)} Гц | iters: ${sampler.fixed_iterations} | N: ${sampler.dynamic_n} | RMS jitter: ${Math.sqrt(sampler.jitter_rms).toFixed(3)}ms`);
 
             if (sampler.checkStall()) setText('statusText', 'Застревание сэмплирования! Уменьшаю нагрузку...');
             setTimeout(updateBars, isMobile?100:50);
