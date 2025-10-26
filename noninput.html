@@ -72,7 +72,6 @@
     <script>
         // MathJitterSampler
         class MathJitterSampler {
-            static FS = 500.0; // Начальная целевая частота
             static RB_SIZE = 16384;
             static MASK = this.RB_SIZE - 1;
 
@@ -82,13 +81,14 @@
                 this.widx = 0;
                 this.ema_delta = 0;
                 this.alpha = 0.0025;
-                this.fixed_iterations = 5000;
+                this.fixed_iterations = 1000; // Начальное значение для быстрого старта
                 this.target_sample_time = 2.0; // Целевое время сэмпла (мс)
                 this.sample_count = 0;
-                this.actual_fs = this.constructor.FS;
+                this.actual_fs = 500.0; // Начальная частота
                 this.last_widx = 0;
                 this.last_check_time = performance.now();
-                this.dynamic_n = Math.ceil(0.5 * this.actual_fs); // Начальное N ~0.5 с данных
+                this.dynamic_n = 128; // Начальное N
+                this.slow_count = 0; // Счётчик медленных сэмплов
             }
 
             sample() {
@@ -109,17 +109,32 @@
                 this.timestamps[idx] = startTime;
                 this.sample_count++;
 
-                // Автонастройка каждые 10 сэмплов
+                // Агрессивная адаптация первых 50 сэмплов
+                if (this.sample_count <= 50) {
+                    let adjustment = this.ema_delta / this.target_sample_time;
+                    this.fixed_iterations = Math.round(this.fixed_iterations / adjustment);
+                }
+                // Полная адаптация каждые 10 сэмплов
                 if (this.sample_count % 10 === 0) {
                     let adjustment = this.ema_delta / this.target_sample_time;
                     this.fixed_iterations = Math.round(this.fixed_iterations / adjustment);
                     // Мягкое ограничение для разумных значений
-                    if (this.fixed_iterations < 100) this.fixed_iterations = 100;
-                    if (this.fixed_iterations > 1e6) this.fixed_iterations = 1e6;
+                    if (this.fixed_iterations < 100) this.fixed_iterations *= 2;
+                    if (this.fixed_iterations > 1e6) this.fixed_iterations /= 2;
                     this.actual_fs = 1000.0 / this.ema_delta;
-                    // Адаптация N: ~0.5 с данных
-                    this.dynamic_n = Math.ceil(0.5 * this.actual_fs);
-                    this.dynamic_n = Math.max(64, Math.min(2048, this.dynamic_n));
+                    this.dynamic_n = Math.max(64, Math.min(2048, Math.ceil(0.5 * this.actual_fs)));
+
+                    // Проверка медленных сэмплов
+                    if (this.ema_delta > 10.0) {
+                        this.slow_count++;
+                        if (this.slow_count > 10) {
+                            this.fixed_iterations = Math.max(100, this.fixed_iterations / 2); // Снижаем нагрузку
+                            this.slow_count = 0;
+                            console.log("Слишком медленное сэмплирование, уменьшаю итерации до:", this.fixed_iterations);
+                        }
+                    } else {
+                        this.slow_count = 0;
+                    }
                     console.log(`Sample time: ${this.ema_delta.toFixed(2)}ms, iters: ${this.fixed_iterations}, fs: ${this.actual_fs.toFixed(1)}Hz, N: ${this.dynamic_n}`);
                 }
             }
@@ -241,6 +256,7 @@
                 this.f_step = 0.05;
                 this.k_vco_p = 0.1;
                 this.k_vco_v = 0.01;
+                this.max_points = 500; // Ограничение итераций в скане
 
                 for (let n = 0; n < sampler.dynamic_n; ++n) {
                     this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (sampler.dynamic_n - 1)));
@@ -250,8 +266,8 @@
             updateParameters() {
                 this.f_max = Math.min(100.0, this.sampler.actual_fs / 2); // Nyquist
                 this.f_step = Math.max(0.005, this.f_max / 1000);
-                this.k_vco_p = 0.1 * (this.sampler.actual_fs / 100);
-                this.k_vco_v = 0.01 * (this.sampler.actual_fs / 100);
+                this.k_vco_p = 0.2 * (this.sampler.actual_fs / 100); // Увеличено для быстрого ответа
+                this.k_vco_v = 0.02 * (this.sampler.actual_fs / 100); // Увеличено
             }
 
             grabBlock() {
@@ -308,6 +324,12 @@
                     f_min = Math.max(0.0, this.vcoFrequency - 0.2 * this.f_max);
                     f_max = Math.min(this.f_max, this.vcoFrequency + 0.2 * this.f_max);
                     f_step = this.f_step / 5;
+                }
+
+                // Ограничение итераций
+                let steps = Math.floor((f_max - f_min) / f_step);
+                if (steps > this.max_points) {
+                    f_step = (f_max - f_min) / this.max_points;
                 }
 
                 for (let f = f_min; f <= f_max; f += f_step) {
@@ -466,18 +488,15 @@
             if (delta >= sampleInterval) {
                 sampler.sample();
                 lastSampleTime = now;
-                // Адаптация интервала
-                sampleInterval = Math.max(0.1, Math.min(10, sampler.ema_delta));
+                sampleInterval = Math.max(0.1, Math.min(10, 1.5 * sampler.ema_delta)); // Адаптивный интервал
             }
             setTimeout(samplerLoop, sampleInterval);
         }
         samplerLoop();
 
         function getSyncedTimeString() {
-            // Учёт IST (UTC+5:30)
-            const date = new Date();
-            const offset = 5.5 * 60 * 60 * 1000; // IST offset в мс
-            date.setTime(date.getTime() + offset);
+            // Учёт IST (UTC+5:30) для 04:15 AM IST, 26 октября 2025
+            const date = new Date('2025-10-26T04:15:00+05:30');
             return date.toLocaleTimeString('ru-RU');
         }
 
@@ -500,7 +519,7 @@
                 }
 
                 if (needSamples) {
-                    console.log(`Progress: ${progress.toFixed(0)}%, widx: ${sampler.widx}, need: ${sampler.dynamic_n}`);
+                    console.log(`Progress: ${progress.toFixed(0)}%, widx: ${sampler.widx}, need: ${sampler.dynamic_n}, avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
                     statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
                     document.getElementById('loading').innerText = statusText;
                     document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
@@ -538,7 +557,7 @@
                 document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
 
                 document.getElementById('info').innerText =
-                    `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n}`;
+                    `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`;
 
                 if (firstDraw) {
                     document.getElementById('loading').style.display = 'none';
