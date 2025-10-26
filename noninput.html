@@ -511,24 +511,43 @@
 
         let statusText = "Загрузка данных...";
 
+        // Helper function to safely update DOM text
+        function updateDOM(id, text) {
+            const element = document.getElementById(id);
+            if (element) element.innerText = text;
+        }
+
+        // Helper function to safely update DOM style
+        function updateDOMStyle(id, property, value) {
+            const element = document.getElementById(id);
+            if (element) element.style[property] = value;
+        }
+
         function updateBars() {
             if (!running) return;
 
             try {
-                // Исправленный безопасный накопитель сэмплов
+                // Ensure sampling occurs if needed
                 if (((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n) {
                     for (let i = 0; i < 100; ++i) sampler.sample(); // Force sampling
                     let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
                     statusText = `Загрузка данных... ${progress.toFixed(0)}% (widx: ${sampler.widx}/${sampler.dynamic_n})`;
-                    document.getElementById('loading').innerText = statusText;
-                    document.getElementById('loadingBar').style.width = Math.min(100, progress) + "%";
-                    document.getElementById('info').innerText = statusText;
-                    setTimeout(updateBars, 50); // короткий таймаут, чтобы не блокировать интерфейс
+                    updateDOM('loading', statusText);
+                    updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
+                    updateDOM('info', statusText);
+                    setTimeout(updateBars, 50);
                     return;
                 }
 
-                scanner.processOnce();
+                // Process scanner with error handling
+                try {
+                    scanner.processOnce();
+                } catch (e) {
+                    console.warn('Scanner processing error:', e);
+                    statusText = "Ошибка обработки данных сканером!";
+                }
 
+                // Update status based on conditions
                 if (sampler.actual_fs < 50) {
                     statusText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
                 } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
@@ -537,8 +556,15 @@
                     statusText = "Анализируется...";
                 }
 
-                thermal.update(scanner.out_peakness || 0);
+                // Update thermal controller with fallback
+                try {
+                    thermal.update(scanner.out_peakness || 0);
+                } catch (e) {
+                    console.warn('Thermal update error:', e);
+                    thermal.workerIters = 50000; // Reset to default
+                }
 
+                // Stability check
                 if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
                     stableCounter++;
                 } else {
@@ -546,29 +572,28 @@
                 }
                 lastFreq = scanner.out_freqHz;
 
-                const freqMax = scanner.f_max;
-                document.getElementById('freqValue').innerText = scanner.out_freqHz.toFixed(2);
-                document.getElementById('freqBar').style.width = Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%";
+                const freqMax = scanner.f_max || 50; // Default to 50 if undefined
+                updateDOM('freqValue', scanner.out_freqHz.toFixed(2));
+                updateDOMStyle('freqBar', 'width', Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%");
 
-                document.getElementById('inertiaValue').innerText = (scanner.out_inertia * 100).toFixed(0);
-                document.getElementById('inertiaBar').style.width = Math.min(100, scanner.out_inertia * 100) + "%";
+                updateDOM('inertiaValue', (scanner.out_inertia * 100).toFixed(0));
+                updateDOMStyle('inertiaBar', 'width', Math.min(100, scanner.out_inertia * 100) + "%");
 
-                document.getElementById('confValue').innerText = scanner.out_conf.toFixed(2);
-                document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
+                updateDOM('confValue', scanner.out_conf.toFixed(2));
+                updateDOMStyle('confBar', 'width', Math.min(100, scanner.out_conf * 100) + "%");
 
-                document.getElementById('info').innerText =
-                    `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`;
+                updateDOM('info', `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
 
                 if (firstDraw) {
-                    document.getElementById('loading').style.display = 'none';
+                    updateDOMStyle('loading', 'display', 'none');
                     firstDraw = false;
                 }
 
                 setTimeout(updateBars, 200);
             } catch (e) {
-                console.error('Error in updateBars:', e);
-                document.getElementById('info').innerText = "Ошибка обработки данных: " + e.message;
-                setTimeout(updateBars, 500); // пробуем снова через 0.5 сек
+                console.error('Critical error in updateBars:', e);
+                updateDOM('info', "Критическая ошибка! Пожалуйста, обновите страницу.");
+                setTimeout(updateBars, 1000); // Retry after 1 second
             }
         }
 
