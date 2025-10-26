@@ -167,7 +167,8 @@ class Kalman{
 /* ====================== Частотный сканер ====================== */
 class FrequencyScanner{
   constructor(s){
-    this.s=s; this.kf=new Kalman(0,0,0.0006,0.006); // плотнее
+    this.s=s; this.kf = new Kalman(0,0,0.001,0.008);
+ // плотнее
 
     this.vco=0; this.phi=0; this.inertia=0; this.state='SEARCHING';
 
@@ -183,9 +184,10 @@ class FrequencyScanner{
     this._needWin=true;
 
     // базовые (будут усиливаться по conf)
-    this.kp_base=0.42;
-    this.kv_base=0.060;
-    this.ki_base=0.040;
+   this.kp_base=0.28;
+this.kv_base=0.045;
+this.ki_base=0.032;
+
     this.u_int=0; this.u_int_max=6.0;
 
     this.fmax=60; this.fstep=0.1; this.maxPoints=260;
@@ -246,6 +248,12 @@ class FrequencyScanner{
     this.fstep=Math.max(0.02, this.fmax/300); // более частая сетка
     const sc=this.s.actual_fs/100;
     this.kp=this.kp_base*sc; this.kv=this.kv_base*sc; this.ki=this.ki_base*(this.s.actual_fs/1200);
+    // мягкий адаптивный демпфер по стабильности
+const smoothFactor = 0.85 + 0.15 * Math.pow(this.inertia, 0.5);
+this.kp *= smoothFactor;
+this.kv *= smoothFactor;
+this.ki *= smoothFactor;
+
   }
 
   _refineParabolic(f0, step){
