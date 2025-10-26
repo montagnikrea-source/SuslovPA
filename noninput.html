@@ -530,7 +530,7 @@
             if (!running) return;
 
             try {
-                // Ensure sampling occurs if needed
+                // Обновление строки загрузки
                 let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
                 if (needSamples) {
                     for (let i = 0; i < 100; ++i) sampler.sample();
@@ -543,21 +543,16 @@
                     return;
                 }
 
-                // Process scanner with error handling
-                try {
-                    scanner.processOnce();
-                } catch (e) {
-                    console.warn('Scanner processing error:', e);
-                    statusText = "Ошибка обработки данных сканером!";
-                }
+                // После накопления — анализ
+                scanner.processOnce();
 
-                // Update status based on conditions
+                // Статус всегда отображается под загрузкой
                 if (sampler.actual_fs < 50) {
-                    statusText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
+                    document.getElementById('statusText').innerText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
                 } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
-                    statusText = "Недостаточно фоновой активности, откройте другие приложения или вкладки!";
+                    document.getElementById('statusText').innerText = "Недостаточно фоновой активности, откройте другие приложения или вкладки!";
                 } else {
-                    statusText = "Анализируется...";
+                    document.getElementById('statusText').innerText = "Анализируется...";
                 }
 
                 // Update thermal controller with fallback
