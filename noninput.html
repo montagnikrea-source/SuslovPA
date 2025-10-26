@@ -25,7 +25,7 @@
 </head>
 <body>
     <h1>Frequency Scanner Web App</h1>
-    <div id="desc">Веб‑приложение для анализа частоты и инерции на основе jitter-сэмплирования.<br>Шкалы обновляются в реальном времени.</div>
+    <div id="desc">Веб-приложение для анализа вариаций времени выполнения вычислений.<br>Шкалы обновляются в реальном времени.</div>
     <div id="loading">
         Загрузка данных...
         <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
@@ -33,43 +33,47 @@
         </div>
     </div>
     <div class="bar-container">
-        <div class="bar-label">Частота (Hz): <span id="freqValue">0</span></div>
+        <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
         <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
-        <div class="bar-label">Инерция (%): <span id="inertiaValue">0</span></div>
+        <div class="bar-label">Стабильность (%): <span id="inertiaValue">0</span></div>
         <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
-        <div class="bar-label">Достоверность: <span id="confValue">0</span></div>
+        <div class="bar-label">Уверенность: <span id="confValue">0</span></div>
         <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
     </div>
     <div id="info"></div>
-    <div id="about" style="max-width:600px;margin:40px auto 0 auto;padding:20px;background:#fff;border-radius:12px;box-shadow:0 2px 8px #ccc;font-size:16px;color:#333;">
-        <h2 style="margin-top:0;">Как работает программа?</h2>
+    <div id="about">
+        <h2>Как работает программа?</h2>
         <p>
-            Это приложение анализирует флуктуации производительности процессора (jitter) с помощью математического сэмплирования. 
-            Алгоритм собирает серию измерений времени выполнения простых вычислений, затем оценивает их частотные характеристики с помощью спектрального анализа (метод Гёрцеля).
+            Это приложение анализирует вариации времени выполнения простых вычислений (jitter) на вашем устройстве. 
+            Оно измеряет, сколько времени занимает выполнение фиксированного набора операций, и выявляет периодические флуктуации, вызванные фоновыми процессами, нагрузкой процессора или операционной системы. 
+            Для анализа используется метод Гёрцеля, который определяет частотные характеристики этих вариаций, а фильтр Калмана помогает стабильно отслеживать частоту.
         </p>
         <p>
-            <b>Частота</b> показывает, насколько регулярно происходят флуктуации в вычислениях.<br>
-            <b>Инерция</b> отражает устойчивость обнаруженной частоты: если она стабильна, инерция растёт.<br>
-            <b>Достоверность</b> — насколько выражен максимум частоты среди всех возможных.
+            <b>Частота флуктуаций</b> показывает, с какой периодичностью происходят изменения во времени выполнения вычислений (в герцах).<br>
+            <b>Стабильность</b> отражает, насколько устойчиво обнаружена частота: высокое значение указывает на стабильный сигнал.<br>
+            <b>Уверенность</b> показывает, насколько выделяется основная частота по сравнению с другими (0–1).
+        </p>
+        <p>
+            Для работы требуется достаточная фоновая нагрузка (например, открытые приложения или вкладки браузера). 
+            На слабых устройствах или без нагрузки результаты могут быть менее точными.
         </p>
         <h3>Польза и применение</h3>
         <ul>
-            <li>Диагностика состояния процессора и ОС в реальном времени.</li>
-            <li>Оценка влияния фоновых процессов и нагрузки на вычисления.</li>
-            <li>Проверка стабильности вычислительной среды без специальных датчиков.</li>
-            <li>Возможность использовать для тестирования виртуальных машин, контейнеров и облачных сервисов.</li>
-            <li>Стабилизация передачи данных: приложение позволяет выявлять периоды нестабильности, что помогает оптимизировать работу программ, связанных с обработкой и передачей данных, снижая задержки и потери информации.</li>
+            <li>Мониторинг производительности процессора и операционной системы в реальном времени.</li>
+            <li>Оценка влияния фоновых задач на стабильность вычислений.</li>
+            <li>Тестирование виртуальных машин, контейнеров или облачных сред.</li>
+            <li>Выявление нестабильности для оптимизации программ, связанных с обработкой данных.</li>
         </ul>
         <p>
-            Программа не требует доступа к аппаратуре и работает только на основе анализа времени выполнения математических операций.
-            Благодаря анализу jitter и автоматической адаптации нагрузки, она может использоваться для мониторинга и стабилизации передачи данных между компонентами компьютера, выявляя и компенсируя периоды нестабильности.
+            Программа работает в браузере без доступа к аппаратным датчикам, полагаясь только на измерение времени вычислений. 
+            Она лучше всего работает при наличии фоновой активности, создающей заметные флуктуации.
         </p>
     </div>
     <script>
         // MathJitterSampler
         class MathJitterSampler {
-            static FS = 1000.0; // Целевая частота дискретизации
-            static N = 1024;
+            static FS = 100.0; // Целевая частота дискретизации
+            static N = 512; // Уменьшено для ускорения
             static RB_SIZE = 16384;
             static MASK = this.RB_SIZE - 1;
 
@@ -79,8 +83,8 @@
                 this.widx = 0;
                 this.ema_delta = 0;
                 this.alpha = 0.0025;
-                this.fixed_iterations = 10000; // Уменьшено для ускорения
-                this.target_sample_time = 1.0; // Целевое время на сэмпл в мс
+                this.fixed_iterations = 5000; // Уменьшено для ускорения
+                this.target_sample_time = 2.0; // Целевое время на сэмпл в мс (~500 Гц)
                 this.sample_count = 0;
                 this.actual_fs = this.constructor.FS;
                 this.last_widx = 0;
@@ -105,11 +109,10 @@
                 this.timestamps[idx] = startTime;
                 this.sample_count++;
 
-                // Адаптация каждые 10 сэмплов
                 if (this.sample_count % 10 === 0) {
                     let adjustment = this.ema_delta / this.target_sample_time;
                     this.fixed_iterations = Math.round(this.fixed_iterations / adjustment);
-                    this.fixed_iterations = Math.max(1000, Math.min(100000, this.fixed_iterations));
+                    this.fixed_iterations = Math.max(1000, Math.min(50000, this.fixed_iterations));
                     this.actual_fs = 1000.0 / this.ema_delta;
                     console.log(`Sample time: ${this.ema_delta.toFixed(2)}ms, iters: ${this.fixed_iterations}, fs: ${this.actual_fs.toFixed(1)}Hz`);
                 }
@@ -117,7 +120,7 @@
 
             checkStall() {
                 let now = performance.now();
-                if (now - this.last_check_time > 5000 && this.widx === this.last_widx) {
+                if (now - this.last_check_time > 3000 && this.widx === this.last_widx) {
                     return true;
                 }
                 this.last_check_time = now;
@@ -214,11 +217,11 @@
         // FrequencyScanner
         class FrequencyScanner {
             static F_MIN = 0.0;
-            static F_MAX = 50.0; // Половина Nyquist для fs~100 Гц
-            static F_STEP = 0.05; // Уменьшено для точности
+            static F_MAX = 25.0; // Половина Nyquist для fs~50–100 Гц
+            static F_STEP = 0.02; // Уменьшено для точности
             static EPSILON = Number.EPSILON;
-            static K_VCO_P = 0.05; // Увеличено для быстрого трекинга
-            static K_VCO_V = 0.005; // Интегральный коэффициент
+            static K_VCO_P = 0.1; // Увеличено для быстрого трекинга
+            static K_VCO_V = 0.01; // Интегральный коэффициент
             static INERTIA_THRESHOLD = 0.1;
             static INERTIA_GAIN = 0.5;
             static INERTIA_LOSS = 0.01;
@@ -287,9 +290,9 @@
                 let f_step = this.constructor.F_STEP;
 
                 if (this.currentState === 'TRACKING') {
-                    f_min = Math.max(this.constructor.F_MIN, this.vcoFrequency - 1.0);
-                    f_max = Math.min(this.constructor.F_MAX, this.vcoFrequency + 1.0);
-                    f_step = 0.01;
+                    f_min = Math.max(this.constructor.F_MIN, this.vcoFrequency - 0.5);
+                    f_max = Math.min(this.constructor.F_MAX, this.vcoFrequency + 0.5);
+                    f_step = 0.005;
                 }
 
                 for (let f = f_min; f <= f_max; f += f_step) {
@@ -374,10 +377,10 @@
                 this.integral = 0.0;
                 this.targetPeak = 1.5;
                 this.minIter = 1000;
-                this.maxIter = 200000;
+                this.maxIter = 100000;
                 this.lastAdjust = Date.now();
                 this.adjustIntervalMs = 200;
-                this.workerIters = 100000;
+                this.workerIters = 50000;
             }
 
             update(measuredPeakness) {
@@ -398,7 +401,7 @@
         // Воркер
     </script>
     <script id="worker-script" type="javascript/worker">
-        let iters = 100000;
+        let iters = 50000;
         let tickMs = 10;
         let timer = null;
 
@@ -439,11 +442,16 @@
         worker.postMessage({ iters: thermal.workerIters, tickMs: 10 });
 
         // Асинхронный цикл сэмплирования
+        let lastSampleTime = performance.now();
         function samplerLoop() {
-            if (running) {
+            if (!running) return;
+            let now = performance.now();
+            let delta = now - lastSampleTime;
+            if (delta >= 2.0) { // Ограничиваем до ~500 Гц
                 sampler.sample();
-                setTimeout(samplerLoop, 1); // 1 мс для целевой fs=1000
+                lastSampleTime = now;
             }
+            setTimeout(samplerLoop, 1);
         }
         samplerLoop();
 
@@ -461,11 +469,11 @@
                 let progress = ((sampler.widx / scanner.constructor.N) * 100) % 100;
                 let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < scanner.constructor.N;
 
-                // Проверка зависания
                 if (sampler.checkStall()) {
-                    statusText = "Зависание сэмплирования! Попробуйте перезагрузить страницу.";
+                    statusText = "Сэмплирование слишком медленное! Попробуйте использовать более мощное устройство или перезагрузить страницу.";
                     document.getElementById('loading').innerText = statusText;
                     document.getElementById('info').innerText = statusText;
+                    running = false;
                     return;
                 }
 
@@ -481,7 +489,7 @@
                 scanner.processOnce();
 
                 if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
-                    statusText = "Недостаточно фоновой активности, попробуйте загрузить процессор!";
+                    statusText = "Недостаточно фоновой активности, откройте другие приложения или вкладки!";
                 } else {
                     statusText = "Анализируется...";
                 }
@@ -506,7 +514,7 @@
                 document.getElementById('confBar').style.width = Math.min(100, scanner.out_conf * 100) + "%";
 
                 document.getElementById('info').innerText =
-                    `${statusText}\nState: ${scanner.out_state} | Freq: ${scanner.out_freqHz.toFixed(3)} Hz | Inertia: ${(scanner.out_inertia * 100).toFixed(0)}% | Conf: ${scanner.out_conf.toFixed(2)} | Time: ${getSyncedTimeString()} | Peak: ${(scanner.out_peakness||0).toFixed(2)} | Iters: ${thermal.workerIters} | FS: ${sampler.actual_fs.toFixed(1)}`;
+                    `${statusText}\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц`;
 
                 if (firstDraw) {
                     document.getElementById('loading').style.display = 'none';
