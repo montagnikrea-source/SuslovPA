@@ -6,68 +6,89 @@
     <title>Frequency Scanner Web App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f0f0; }
-        h1 { margin-bottom: 10px; }
+        :root {
+            --main-bg: #f0f0f0;
+            --panel-bg: #fff;
+            --bar-bg: #eee;
+            --bar-radius: 8px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--main-bg);
+        }
+        .embed-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: var(--panel-bg);
+            border-radius: 16px;
+            box-shadow: 0 2px 8px #ccc;
+        }
+        h1 { margin-bottom: 10px; font-size: 1.5em; }
         #desc { margin-bottom: 20px; color: #555; }
         #loading { color: #888; margin-bottom: 10px; }
-        .bar-container { width: 100%; max-width: 600px; margin: 20px auto; }
+        .bar-container { width: 100%; margin: 20px 0; }
         .bar-label { margin-bottom: 5px; font-size: 16px; color: #333; }
-        .bar-bg { width: 100%; height: 32px; background: #eee; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+        .bar-bg { width: 100%; height: 32px; background: var(--bar-bg); border-radius: var(--bar-radius); overflow: hidden; margin-bottom: 20px; }
         .bar-fill { height: 100%; transition: width 0.3s; }
-        #info { margin-top: 20px; font-size: 16px; }
+        #info { margin-top: 20px; font-size: 16px; word-break: break-word; }
         .freq { background: linear-gradient(90deg, #007bff 60%, #66bfff); }
         .inertia { background: linear-gradient(90deg, #28a745 60%, #7be88b); }
         .conf { background: linear-gradient(90deg, #dc3545 60%, #ffb3b3); }
-        #about { max-width: 600px; margin: 40px auto 0 auto; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #ccc; font-size: 16px; color: #333; }
+        #about { margin: 40px 0 0 0; padding: 20px; background: var(--panel-bg); border-radius: 12px; box-shadow: 0 2px 8px #ccc; font-size: 16px; color: #333; }
         #about h2 { margin-top: 0; }
         #about ul { padding-left: 20px; }
+        @media (max-width: 700px) {
+            .embed-wrapper, #about { max-width: 98vw; padding: 10px; }
+        }
     </style>
 </head>
 <body>
-    <h1>Frequency Scanner Web App</h1>
-    <div id="desc">Веб-приложение для анализа вариаций времени выполнения вычислений.<br>Шкалы обновляются в реальном времени.</div>
-    <div id="loading">
-        Загрузка данных...
-        <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
-            <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
+    <div class="embed-wrapper">
+        <h1>Frequency Scanner Web App</h1>
+        <div id="desc">Веб-приложение для анализа вариаций времени выполнения вычислений.<br>Шкалы обновляются в реальном времени.</div>
+        <div id="loading">
+            Загрузка данных...
+            <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
+                <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
+            </div>
         </div>
-    </div>
-    <div class="bar-container">
-        <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
-        <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
-        <div class="bar-label">Стабильность (%): <span id="inertiaValue">0</span></div>
-        <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
-        <div class="bar-label">Уверенность: <span id="confValue">0</span></div>
-        <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
-    </div>
-    <div id="info"></div>
-    <div id="about">
-        <h2>Как работает программа?</h2>
-        <p>
-            Это приложение анализирует вариации времени выполнения простых вычислений (jitter) на вашем устройстве. 
-            Оно измеряет, сколько времени занимает выполнение фиксированного набора операций, и выявляет периодические флуктуации, вызванные фоновыми процессами, нагрузкой процессора или операционной системы. 
-            Для анализа используется метод Гёрцеля, который определяет частотные характеристики этих вариаций, а фильтр Калмана помогает стабильно отслеживать частоту.
-        </p>
-        <p>
-            <b>Частота флуктуаций</b> показывает, с какой периодичностью происходят изменения во времени выполнения вычислений (в герцах).<br>
-            <b>Стабильность</b> отражает, насколько устойчиво обнаружена частота: высокое значение указывает на стабильный сигнал.<br>
-            <b>Уверенность</b> показывает, насколько выделяется основная частота по сравнению с другими (0–1).
-        </p>
-        <p>
-            Для работы требуется достаточная фоновая нагрузка (например, открытые приложения или вкладки браузера). 
-            На слабых устройствах или без нагрузки результаты могут быть менее точными.
-        </p>
-        <h3>Польза и применение</h3>
-        <ul>
-            <li>Мониторинг производительности процессора и операционной системы в реальном времени.</li>
-            <li>Оценка влияния фоновых задач на стабильность вычислений.</li>
-            <li>Тестирование виртуальных машин, контейнеров или облачных сред.</li>
-            <li>Выявление нестабильности для оптимизации программ, связанных с обработкой данных.</li>
-        </ul>
-        <p>
-            Программа работает в браузере без доступа к аппаратным датчикам, полагаясь только на измерение времени вычислений. 
-            Она лучше всего работает при наличии фоновой активности, создающей заметные флуктуации.
-        </p>
+        <div class="bar-container">
+            <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
+            <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
+            <div class="bar-label">Стабильность (%): <span id="inertiaValue">0</span></div>
+            <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
+            <div class="bar-label">Уверенность: <span id="confValue">0</span></div>
+            <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
+        </div>
+        <div id="info"></div>
+        <div id="about">
+            <h2>Как работает программа?</h2>
+            <p>
+                Это приложение анализирует вариации времени выполнения простых вычислений (jitter) на вашем устройстве.
+                Оно измеряет, сколько времени занимает выполнение фиксированного набора операций, и выявляет периодические флуктуации, вызванные фоновыми процессами, нагрузкой процессора или операционной системы.
+                Для анализа используется метод Гёрцеля, который определяет частотные характеристики этих вариаций, а фильтр Калмана помогает стабильно отслеживать частоту.
+            </p>
+            <p>
+                <b>Частота флуктуаций</b> показывает, с какой периодичностью происходят изменения во времени выполнения вычислений (в герцах).<br>
+                <b>Стабильность</b> отражает, насколько устойчиво обнаружена частота: высокое значение указывает на стабильный сигнал.<br>
+                <b>Уверенность</b> показывает, насколько выделяется основная частота по сравнению с другими (0–1).
+            </p>
+            <h3>Польза и применение</h3>
+            <ul>
+                <li>Мониторинг производительности процессора и операционной системы в реальном времени.</li>
+                <li>Оценка влияния фоновых задач на стабильность вычислений.</li>
+                <li>Тестирование виртуальных машин, контейнеров или облачных сред.</li>
+                <li>Выявление нестабильности для оптимизации программ, связанных с обработкой данных.</li>
+                <li>Стабилизация передачи данных: приложение позволяет выявлять периоды нестабильности, что помогает оптимизировать работу программ, связанных с обработкой и передачей данных, снижая задержки и потери информации.</li>
+            </ul>
+            <p>
+                Программа работает в браузере без доступа к аппаратным датчикам, полагаясь только на измерение времени вычислений.
+                Она лучше всего работает при наличии фоновой активности, создающей заметные флуктуации.
+            </p>
+        </div>
     </div>
     <script>
         // MathJitterSampler
