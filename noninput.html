@@ -529,7 +529,7 @@
             if (!running) return;
 
             try {
-                // Обновление строки загрузки
+                // Обновление строки загрузки (без текста "Загрузка данных...")
                 let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
                 if (needSamples) {
                     for (let i = 0; i < 100; ++i) sampler.sample();
@@ -544,7 +544,7 @@
                 // После накопления — анализ
                 scanner.processOnce();
 
-                // Статус всегда отображается под загрузкой
+                // Статус всегда отображается под шкалой
                 if (sampler.actual_fs < 50) {
                     document.getElementById('statusText').innerText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
                 } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
