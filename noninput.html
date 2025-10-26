@@ -572,7 +572,6 @@
                         if (!worker && isMobile) emulateLoad(thermal.workerIters);
                         let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
                         updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
-                        updateDOM('info', `Ожидание накопления данных... (${progress.toFixed(0)}%)`);
                         setTimeout(updateBars, 50);
                         return;
                     }
