@@ -1,648 +1,516 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Frequency Scanner Web App</title>
-    <style>
-        :root {
-            --main-bg: #f0f0f0;
-            --panel-bg: #fff;
-            --bar-bg: #eee;
-            --bar-radius: 8px;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: var(--main-bg);
-        }
-        .embed-wrapper {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background: var(--panel-bg);
-            border-radius: 16px;
-            box-shadow: 0 2px 8px #ccc;
-        }
-        h1 { margin-bottom: 10px; font-size: 1.5em; }
-        #desc { margin-bottom: 20px; color: #555; }
-        #loading { color: #888; margin-bottom: 10px; }
-        .bar-container { width: 100%; margin: 20px 0; }
-        .bar-label { margin-bottom: 5px; font-size: 16px; color: #333; }
-        .bar-bg { width: 100%; height: 32px; background: var(--bar-bg); border-radius: var(--bar-radius); overflow: hidden; margin-bottom: 20px; }
-        .bar-fill { height: 100%; transition: width 0.3s; }
-        #info { margin-top: 20px; font-size: 16px; word-break: break-word; }
-        .freq { background: linear-gradient(90deg, #007bff 60%, #66bfff); }
-        .inertia { background: linear-gradient(90deg, #28a745 60%, #7be88b); }
-        .conf { background: linear-gradient(90deg, #dc3545 60%, #ffb3b3); }
-        #about { margin: 40px 0 0 0; padding: 20px; background: var(--panel-bg); border-radius: 12px; box-shadow: 0 2px 8px #ccc; font-size: 16px; color: #333; }
-        #about h2 { margin-top: 0; }
-        #about ul { padding-left: 20px; }
-        @media (max-width: 700px) {
-            .embed-wrapper, #about { max-width: 98vw; padding: 10px; }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Frequency Scanner Web App</title>
+  <style>
+    :root {
+      --main-bg: #f0f0f0;
+      --panel-bg: #fff;
+      --bar-bg: #eee;
+      --bar-radius: 8px;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--main-bg);
+    }
+    .embed-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background: var(--panel-bg);
+      border-radius: 16px;
+      box-shadow: 0 2px 8px #ccc;
+    }
+    h1 { margin-bottom: 10px; font-size: 1.5em; }
+    #desc { margin-bottom: 20px; color: #555; }
+    #loading { color: #888; margin-bottom: 10px; }
+    .bar-container { width: 100%; margin: 20px 0; }
+    .bar-label { margin-bottom: 5px; font-size: 16px; color: #333; }
+    .bar-bg { width: 100%; height: 32px; background: var(--bar-bg); border-radius: var(--bar-radius); overflow: hidden; margin-bottom: 20px; }
+    .bar-fill { height: 100%; transition: width 0.3s; }
+    #info { margin-top: 20px; font-size: 16px; word-break: break-word; }
+    .freq { background: linear-gradient(90deg, #007bff 60%, #66bfff); }
+    .inertia { background: linear-gradient(90deg, #28a745 60%, #7be88b); }
+    .conf { background: linear-gradient(90deg, #dc3545 60%, #ffb3b3); }
+    #about { margin: 40px 0 0 0; padding: 20px; background: var(--panel-bg); border-radius: 12px; box-shadow: 0 2px 8px #ccc; font-size: 16px; color: #333; }
+    #about h2 { margin-top: 0; }
+    #about ul { padding-left: 20px; }
+    @media (max-width: 700px) {
+      .embed-wrapper, #about { max-width: 98vw; padding: 10px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="embed-wrapper">
-        <h1>Frequency Scanner Web App</h1>
-        <div id="desc">Веб-приложение для анализа вариаций времени выполнения вычислений.<br>Шкалы обновляются в реальном времени.</div>
-        <div id="loading">
-            <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
-                <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
-            </div>
-            <div id="statusText" style="margin-top:8px;color:#555;">Ожидание накопления данных...</div>
-        </div>
-        <div class="bar-container">
-            <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
-            <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
-            <div class="bar-label">Стабильность (%): <span id="inertiaValue">0</span></div>
-            <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
-            <div class="bar-label">Уверенность: <span id="confValue">0</span></div>
-            <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
-        </div>
-        <div id="info"></div>
-        <div id="about">
-            <h2>Как работает приложение?</h2>
-            <p>
-                <b>Frequency Scanner Web App</b> — это инструмент, который улучшает производительность вашего устройства в реальном времени, анализируя и стабилизируя вариации времени выполнения вычислений (jitter). Приложение измеряет время выполнения фиксированного набора операций и использует метод Гёрцеля и фильтр Калмана для выявления и сглаживания периодических флуктуаций, вызванных фоновыми процессами, нагрузкой процессора или операционной системой. Пока страница активна, приложение оптимизирует стабильность вычислений, улучшая работу приложений в таких областях, как игры, звук и вычисления.
-            </p>
-            <h3>Как пользоваться приложением?</h3>
-            <ul>
-                <li><b>Начало работы</b>: При запуске приложение накапливает данные. Под шкалами отображается текст "Ожидание накопления данных..." и прогресс-бар. Дождитесь, пока прогресс достигнет 100%, чтобы начать оптимизацию.</li>
-                <li><b>Мониторинг и оптимизация</b>: После накопления данных приложение в реальном времени стабилизирует вычисления, обновляя следующие показатели:
-                    <ul>
-                        <li><b>Частота флуктуаций (Гц)</b>: Показывает частоту изменений во времени выполнения вычислений, которые приложение сглаживает.</li>
-                        <li><b>Стабильность (%)</b>: Отражает, насколько устойчиво приложение контролирует флуктуации (высокое значение — более плавная работа).</li>
-                        <li><b>Уверенность</b>: Указывает, насколько точно приложение выделяет основную частоту для оптимизации (0–1).</li>
-                    </ul>
-                </li>
-                <li><b>Телеметрия</b>: Под шкалами отображается информация: состояние (SEARCHING или TRACKING), частота, стабильность, уверенность, время, пик, итерации воркера, частота сэмплирования, N и среднее время сэмпла. Эти данные показывают, как приложение улучшает производительность.</li>
-                <li><b>Усиление эффекта</b>: Для максимальной оптимизации создайте фоновую нагрузку, открыв другие приложения, вкладки браузера или видео. Это помогает приложению лучше выявлять и сглаживать флуктуации.</li>
-                <li><b>Отправка результатов</b>: Если настроена основная кнопка Telegram (например, "Поделиться результатами"), нажмите её, чтобы отправить данные оптимизации в чат для дальнейшего анализа.</li>
-                <li><b>Решение проблем</b>:
-                    <ul>
-                        <li>Если отображается "Частота сэмплирования слишком низкая (<50 Гц)", запустите ресурсоемкие приложения (например, игру или видео), чтобы приложение могло лучше оптимизировать производительность.</li>
-                        <li>Если телеметрия не обновляется или прогресс зависает, обновите страницу или проверьте консоль браузера (F12).</li>
-                        <li>Если приложение не открывается в Telegram, убедитесь, что URL настроен правильно в @BotFather.</li>
-                    </ul>
-                </li>
-            </ul>
-            <h3>Как приложение улучшает производительность?</h3>
-            <p>Пока страница приложения активна, оно стабилизирует время выполнения вычислений, минимизируя флуктуации и улучшая работу приложений в следующих областях:</p>
-            <ul>
-                <li><b>Игры</b>:
-                    <ul>
-                        <li><b>Плавный геймплей</b>: Приложение сглаживает флуктуации времени рендеринга кадров, уменьшая лаги и обеспечивая более плавный игровой процесс.</li>
-                        <li><b>Оптимизация игровых движков</b>: Разработчики могут использовать приложение для повышения стабильности игровых движков (Unity, Unreal Engine).</li>
-                        <li><b>Адаптация устройств</b>: Приложение оптимизирует производительность игр на разных устройствах.</li>
-                    </ul>
-                </li>
-                <li><b>Звук</b>:
-                    <ul>
-                        <li><b>Стабильная аудиообработка</b>: Приложение уменьшает задержки и щелчки в аудиопрограммах (например, Ableton Live).</li>
-                        <li><b>MIDI-синхронизация</b>: Обеспечивает точную синхронизацию MIDI-контроллеров.</li>
-                        <li><b>Потоковое аудио</b>: Улучшает воспроизведение в приложениях вроде Spotify.</li>
-                    </ul>
-                </li>
-                <li><b>Вычисления</b>:
-                    <ul>
-                        <li><b>Высокопроизводительные задачи</b>: Оптимизирует производительность серверов и облачных сред.</li>
-                        <li><b>Виртуальные машины и контейнеры</b>: Повышает стабильность вычислений в Docker или VMware.</li>
-                        <li><b>Системы реального времени</b>: Улучшает работу систем с низкой латентностью.</li>
-                    </ul>
-                </li>
-                <li><b>Другие области</b>:
-                    <ul>
-                        <li><b>Передача данных</b>: Стабилизирует потоковое видео или видеоконференции.</li>
-                        <li><b>Браузеры</b>: Оптимизирует выполнение JavaScript.</li>
-                        <li><b>IoT-устройства</b>: Повышает производительность умных устройств.</li>
-                    </ul>
-                </li>
-            </ul>
-            <h3>Рекомендации для максимальной эффективности</h3>
-            <ul>
-                <li><b>Для игр</b>: Запустите приложение во время игры и создайте фоновую нагрузку.</li>
-                <li><b>Для звука</b>: Используйте приложение с аудиопрограммами.</li>
-                <li><b>Для вычислений</b>: Запустите приложение на сервере или в облаке.</li>
-                <li><b>Общее</b>: Держите страницу активной и создавайте умеренную фоновую нагрузку.</li>
-            </ul>
-            <h3>Ограничения</h3>
-            <ul>
-                <li>Приложение работает в браузере без доступа к аппаратным датчикам.</li>
-                <li>На слабых устройствах частота сэмплирования может быть низкой.</li>
-                <li>В Telegram производительность зависит от встроенного браузера.</li>
-            </ul>
-            <p>
-                Для максимального эффекта держите страницу приложения активной.
-            </p>
-        </div>
+  <div class="embed-wrapper">
+    <h1>Frequency Scanner Web App</h1>
+    <div id="desc">
+      Веб-приложение для анализа вариаций времени выполнения вычислений.<br />
+      Шкалы обновляются в реальном времени.
     </div>
-    <script>
-        // Заглушка для ThermalController
-        class ThermalController {
-            constructor(worker) {
-                this.worker = worker;
-                this.workerIters = 1000; // Начальное значение уменьшено
-                this.targetSampleRate = 100; // Целевая частота сэмплирования (Гц)
-                this.maxIters = 20000; // Ограничение итераций
+
+    <div id="loading">
+      <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
+        <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
+      </div>
+      <div id="statusText" style="margin-top:8px;color:#555;">Ожидание накопления данных...</div>
+    </div>
+
+    <div class="bar-container">
+      <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
+      <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
+
+      <div class="bar-label">Стабильность (%): <span id="inertiaValue">0</span></div>
+      <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
+
+      <div class="bar-label">Уверенность: <span id="confValue">0</span></div>
+      <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
+    </div>
+
+    <div id="info"></div>
+
+    <div id="about">
+      <h2>Как работает приложение?</h2>
+      <p>
+        <b>Frequency Scanner Web App</b> — инструмент для анализа и стабилизации
+        вариаций времени выполнения (jitter). Измеряется время выполнения
+        детерминированного набора операций, далее окно данных обрабатывается
+        методом Гёрцеля и фильтром Калмана; отображаются частота флуктуаций,
+        «стабильность» петли слежения и уверенность в выделенной частоте.
+      </p>
+
+      <h3>Как пользоваться?</h3>
+      <ul>
+        <li><b>Старт:</b> дождитесь завершения накопления окна (прогресс-бар).</li>
+        <li><b>Мониторинг:</b> полосы и телеметрия обновляются в реальном времени.</li>
+        <li><b>Если слишком тихо:</b> создайте умеренную фоновую нагрузку (другая вкладка/видео/приложение).</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    /* ========= ThermalController (простейший адаптер «фоновой нагрузки») ========= */
+    class ThermalController {
+      constructor(worker) {
+        this.worker = worker;
+        this.workerIters = 1000;
+        this.maxIters = 20000;
+      }
+      update(peakness) {
+        if (peakness > 1.2) {
+          this.workerIters = Math.max(500, this.workerIters * 0.8);
+        } else if (peakness < 0.8) {
+          this.workerIters = Math.min(this.maxIters, this.workerIters * 1.2);
+        }
+        if (this.worker) {
+          try { this.worker.postMessage({ iters: Math.round(this.workerIters), tickMs: 10 }); }
+          catch(e) { console.warn("Не удалось отправить сообщение воркеру:", e.message); }
+        }
+      }
+    }
+
+    function createWorker() {
+      if (typeof Worker === 'undefined') return null;
+      try {
+        const workerCode = `
+          let iters = 1000, tickMs = 10;
+          self.onmessage = (e) => { iters = e.data.iters||iters; tickMs = e.data.tickMs||tickMs; };
+          function tick(){
+            let x = 1.0001;
+            for (let i=0; i<iters; ++i){ x *= 1.00000001; x /= 1.000000009; }
+            setTimeout(()=>postMessage({done:true}), tickMs);
+          }
+          setInterval(tick, tickMs);
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        return new Worker(URL.createObjectURL(blob));
+      } catch (e) {
+        console.warn("Web Worker не поддерживается/заблокирован:", e.message);
+        return null;
+      }
+    }
+
+    /* ====================== Сэмплер времени выполнения ======================= */
+    class MathJitterSampler {
+      static RB_SIZE = 16384;
+      static MASK = MathJitterSampler.RB_SIZE - 1;
+
+      constructor() {
+        this.rb = new Float64Array(this.constructor.RB_SIZE);
+        this.timestamps = new Float64Array(this.constructor.RB_SIZE);
+        this.widx = 0;
+
+        this.ema_delta = 0;
+        this.alpha = 0.01;
+
+        this.fixed_iterations = 500;
+        this.target_sample_time = 2.0;
+
+        this.sample_count = 0;
+        this.actual_fs = 500.0;
+
+        this.last_widx = 0;
+        this.last_check_time = performance.now();
+
+        this.dynamic_n = 32;
+        this.slow_count = 0;
+        this.stall_count = 0;
+
+        this.jitter_rms = 0;
+      }
+
+      sample() {
+        const t0 = performance.now();
+        let x = 1.0001;
+        for (let i = 0; i < this.fixed_iterations; ++i) { x *= 1.00000001; x /= 1.000000009; }
+        const delta = performance.now() - t0;
+
+        if (this.ema_delta === 0) this.ema_delta = delta;
+        this.ema_delta = (1 - this.alpha) * this.ema_delta + this.alpha * delta;
+
+        const jitter = delta - this.ema_delta;
+
+        const idx = (this.widx++) & this.constructor.MASK;
+        this.rb[idx] = jitter;
+        this.timestamps[idx] = t0;
+        this.sample_count++;
+
+        this.jitter_rms = (1 - this.alpha) * this.jitter_rms + this.alpha * jitter * jitter;
+
+        if (this.sample_count % 200 === 0) { // реже лог
+          // авто-адаптация количества операций
+          const adjust = this.ema_delta / this.target_sample_time;
+          this.fixed_iterations = Math.round(this.fixed_iterations / (adjust || 1));
+          this.fixed_iterations = Math.max(100, Math.min(50000, this.fixed_iterations));
+
+          this.actual_fs = 1000.0 / (this.ema_delta || 1);
+          this.dynamic_n = Math.max(16, Math.min(512, Math.ceil(0.25 * this.actual_fs)));
+
+          if (this.ema_delta > 10.0) {
+            this.slow_count++;
+            if (this.slow_count > 5) {
+              this.fixed_iterations = Math.max(100, this.fixed_iterations >> 1);
+              this.dynamic_n = Math.max(16, this.dynamic_n >> 1);
+              this.slow_count = 0;
+              console.log("Слишком медленно, уменьшаю нагрузку → iters:", this.fixed_iterations, "N:", this.dynamic_n);
             }
-            update(peakness) {
-                if (peakness > 1.2) {
-                    this.workerIters = Math.max(500, this.workerIters * 0.8);
-                } else if (peakness < 0.8) {
-                    this.workerIters = Math.min(this.maxIters, this.workerIters * 1.2);
-                }
-                if (this.worker) {
-                    try {
-                        this.worker.postMessage({ iters: Math.round(this.workerIters), tickMs: 10 });
-                    } catch (e) {
-                        console.warn("Не удалось отправить сообщение воркеру:", e.message);
-                    }
-                }
-            }
+          } else {
+            this.slow_count = 0;
+          }
+        }
+      }
+
+      checkStall() {
+        const now = performance.now();
+        if (now - this.last_check_time > 1000 && this.widx === this.last_widx) {
+          this.stall_count++;
+          if (this.stall_count > 3) {
+            console.warn("Обнаружено застревание сэмплирования — понижаю нагрузку.");
+            this.fixed_iterations = Math.max(100, this.fixed_iterations >> 1);
+            this.dynamic_n = Math.max(16, this.dynamic_n >> 1);
+            this.stall_count = 0;
+          }
+          return true;
+        }
+        this.last_check_time = now;
+        this.last_widx = this.widx;
+        this.stall_count = 0;
+        return false;
+      }
+    }
+
+    /* ============================= Goertzel ============================= */
+    class Goertzel {
+      init(n, fs, f) {
+        this.N = n;
+        const k = Math.floor(0.5 + n * f / fs);
+        const w = 2.0 * Math.PI * k / n;
+        this.cw = Math.cos(w);
+        this.sw = Math.sin(w);
+        this.s1 = 0; this.s2 = 0;
+      }
+      push(x) {
+        const s = x + 2.0 * this.cw * this.s1 - this.s2;
+        this.s2 = this.s1; this.s1 = s;
+      }
+      result() {
+        const re = this.s1 - this.s2 * this.cw;
+        const im = this.s2 * this.sw;
+        const denom = this.N > 1 ? (this.N / 2.0) : 1.0;
+        const mag = Math.sqrt(Math.max(0, re*re + im*im)) / denom;
+        const ph = Math.atan2(im, re);
+        return { re, im, mag, ph };
+      }
+    }
+
+    /* ============================ Калман 1D ============================ */
+    class KalmanFilter {
+      constructor(x0, v0, qpos, qvel){ this.q_pos=qpos; this.q_vel=qvel; this.reset(x0,v0); }
+      reset(value, velocity){
+        this.x_hat=value; this.x_vel=velocity;
+        this.p_00=1; this.p_01=0; this.p_10=0; this.p_11=1;
+      }
+      predict(dt){
+        this.x_hat += this.x_vel * dt;
+        this.p_00 += dt*(this.p_10 + this.p_01) + dt*dt*this.p_11;
+        this.p_01 += dt*this.p_11; this.p_10 += dt*this.p_11;
+        this.p_00 += this.q_pos; this.p_11 += this.q_vel;
+      }
+      update(z, r){
+        const y = z - this.x_hat;
+        const s = this.p_00 + r;
+        if (Math.abs(s) < 1e-9) return;
+        const k0 = this.p_00 / s, k1 = this.p_10 / s;
+        this.x_hat += k0 * y; this.x_vel += k1 * y;
+        const p00=this.p_00, p01=this.p_01;
+        this.p_00 -= k0 * p00; this.p_01 -= k0 * p01;
+        this.p_10 -= k1 * p00; this.p_11 -= k1 * p01;
+      }
+      getValue(){ return this.x_hat; }
+    }
+
+    /* ========================= Частотный сканер ======================== */
+    class FrequencyScanner {
+      constructor(sampler){
+        this.sampler = sampler;
+
+        this.loopFilter = new KalmanFilter(0,0,0.001,0.01);
+        this.vcoFrequency = 0;
+        this.internalPhase = 0;
+        this.inertia = 0;
+
+        this.currentState = 'SEARCHING';
+        this.out_freqHz = 0; this.out_conf = 0; this.out_inertia = 0; this.out_state = 'SEARCHING';
+
+        this.r = 0;
+        this.f_max = 50;
+        this.f_step = 0.1;
+        this.k_vco_p = 0.1; this.k_vco_v = 0.01;
+        this.max_points = 200;
+
+        // Буферы (переиспользуем)
+        this.Nbuf = sampler.dynamic_n;
+        this.block = new Float64Array(this.Nbuf);
+        this.block_timestamps = new Float64Array(this.Nbuf);
+        this.win = new Float64Array(this.Nbuf);
+        this._needWinRebuild = true;
+      }
+
+      updateParameters(){
+        this.f_max = Math.min(100.0, this.sampler.actual_fs / 2);
+        this.f_step = Math.max(0.02, this.f_max / 200);
+        const scale = this.sampler.actual_fs / 100;
+        this.k_vco_p = 0.3 * scale;
+        this.k_vco_v = 0.03 * scale;
+      }
+
+      grabBlock(){
+        if (this.Nbuf !== this.sampler.dynamic_n){
+          this.Nbuf = this.sampler.dynamic_n;
+          this.block = new Float64Array(this.Nbuf);
+          this.block_timestamps = new Float64Array(this.Nbuf);
+          this.win = new Float64Array(this.Nbuf);
+          this._needWinRebuild = true;
+        }
+        if (this._needWinRebuild){
+          const N = this.Nbuf;
+          for (let n=0; n<N; ++n) this.win[n] = 0.5*(1 - Math.cos(2.0*Math.PI*n/(N-1)));
+          this._needWinRebuild = false;
         }
 
-        // Создание Web Worker или заглушка
-        function createWorker() {
-            if (typeof Worker !== 'undefined') {
-                try {
-                    const workerCode = `
-                        self.onmessage = function(e) {
-                            let x = 1.0001;
-                            for (let i = 0; i < e.data.iters; ++i) {
-                                x *= 1.00000001;
-                                x /= 1.000000009;
-                            }
-                            setTimeout(() => self.postMessage({ done: true }), e.data.tickMs);
-                        };
-                    `;
-                    const blob = new Blob([workerCode], { type: 'application/javascript' });
-                    const worker = new Worker(URL.createObjectURL(blob));
-                    return worker;
-                } catch (e) {
-                    console.warn("Web Worker не поддерживается или заблокирован:", e.message);
-                    return null;
-                }
-            } else {
-                console.warn("Web Worker не поддерживается в этом окружении");
-                return null;
-            }
+        const w = this.sampler.widx;
+        const avail = (w - this.r) & this.sampler.constructor.MASK;
+        if (avail < this.Nbuf) return false;
+
+        for (let i=0;i<this.Nbuf;++i){
+          const idx = (this.r + i) & this.sampler.constructor.MASK;
+          this.block[i] = this.sampler.rb[idx] * this.win[i];
+          this.block_timestamps[i] = this.sampler.timestamps[idx];
+        }
+        const total_time = this.block_timestamps[this.Nbuf-1] - this.block_timestamps[0];
+        this.dt_win = (total_time / 1000.0) / Math.max(1, (this.Nbuf - 1));
+        this.actual_fs = 1.0 / (this.dt_win || 1e-6);
+
+        this.r = (this.r + this.Nbuf) & this.sampler.constructor.MASK;
+        return true;
+      }
+
+      evalAt(f){
+        const g = new Goertzel();
+        g.init(this.Nbuf, this.actual_fs, Math.max(0, Math.min(this.f_max, f)));
+        for (let i=0;i<this.Nbuf;++i) g.push(this.block[i]);
+        const res = g.result();
+        if (!isFinite(res.mag)) res.mag = 0;
+        return res;
+      }
+
+      wrapAngle(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
+
+      processOnce(){
+        if (!this.grabBlock()) return;
+
+        this.updateParameters();
+
+        let bestF = this.vcoFrequency, maxMag = -1, bestRes = null, sumMag = 0, count = 0;
+
+        let f_min = 0, f_max = this.f_max, f_step = this.f_step;
+        if (this.currentState === 'TRACKING'){
+          const span = 0.1 * this.f_max;
+          f_min = Math.max(0, this.vcoFrequency - span);
+          f_max = Math.min(this.f_max, this.vcoFrequency + span);
+          f_step = Math.max(this.f_step/5, 0.01);
         }
 
-        // MathJitterSampler
-        class MathJitterSampler {
-            static RB_SIZE = 16384;
-            static MASK = 16384 - 1;
+        let steps = Math.floor((f_max - f_min) / f_step);
+        if (steps > this.max_points) f_step = (f_max - f_min) / this.max_points;
 
-            constructor() {
-                this.rb = new Array(this.constructor.RB_SIZE).fill(0);
-                this.timestamps = new Array(this.constructor.RB_SIZE).fill(0);
-                this.jitter_rms = 0; // Для отслеживания амплитуды джиттера
-                this.widx = 0;
-                this.ema_delta = 0;
-                this.alpha = 0.01; // Увеличен для быстрой адаптации
-                this.fixed_iterations = 500;
-                this.target_sample_time = 2.0;
-                this.sample_count = 0;
-                this.actual_fs = 500.0;
-                this.last_widx = 0;
-                this.last_check_time = performance.now();
-                this.dynamic_n = 32; // Уменьшено для ускорения
-                this.slow_count = 0;
-                this.stall_count = 0;
-            }
-
-            sample() {
-                let startTime = performance.now();
-                let x = 1.0001;
-                for (let i = 0; i < this.fixed_iterations; ++i) {
-                    x *= 1.00000001;
-                    x /= 1.000000009;
-                }
-                let delta = performance.now() - startTime;
-                if (this.ema_delta === 0) {
-                    this.ema_delta = delta;
-                }
-                this.ema_delta = (1.0 - this.alpha) * this.ema_delta + this.alpha * delta;
-                let jitter = delta - this.ema_delta;
-                let idx = this.widx++ & this.constructor.MASK;
-                this.rb[idx] = jitter;
-                this.timestamps[idx] = startTime;
-                this.sample_count++;
-
-                // Вычисление RMS джиттера
-                this.jitter_rms = (1.0 - this.alpha) * this.jitter_rms + this.alpha * jitter * jitter;
-                
-                if (this.sample_count % 5 === 0) {
-                    let adjustment = this.ema_delta / this.target_sample_time;
-                    this.fixed_iterations = Math.round(this.fixed_iterations / adjustment);
-                    this.fixed_iterations = Math.max(100, Math.min(50000, this.fixed_iterations));
-                    this.actual_fs = 1000.0 / this.ema_delta;
-                    this.dynamic_n = Math.max(16, Math.min(512, Math.ceil(0.25 * this.actual_fs))); // Уменьшен коэффициент
-
-                    if (this.ema_delta > 10.0) {
-                        this.slow_count++;
-                        if (this.slow_count > 5) {
-                            this.fixed_iterations = Math.max(100, this.fixed_iterations / 2);
-                            this.dynamic_n = Math.max(16, this.dynamic_n / 2);
-                            this.slow_count = 0;
-                            console.log("Слишком медленное сэмплирование, уменьшаю итерации до:", this.fixed_iterations, "N:", this.dynamic_n);
-                        }
-                    } else {
-                        this.slow_count = 0;
-                    }
-                    console.log(`Sample time: ${this.ema_delta.toFixed(2)}ms, iters: ${this.fixed_iterations}, fs: ${this.actual_fs.toFixed(1)}Hz, N: ${this.dynamic_n}, RMS jitter: ${Math.sqrt(this.jitter_rms).toFixed(3)}ms`);
-                }
-            }
-
-            checkStall() {
-                let now = performance.now();
-                if (now - this.last_check_time > 1000 && this.widx === this.last_widx) {
-                    this.stall_count++;
-                    if (this.stall_count > 3) {
-                        console.warn("Обнаружено застревание сэмплирования. Сбрасываю параметры.");
-                        this.fixed_iterations = Math.max(100, this.fixed_iterations / 2);
-                        this.dynamic_n = Math.max(16, this.dynamic_n / 2);
-                        this.stall_count = 0;
-                    }
-                    return true;
-                }
-                this.last_check_time = now;
-                this.last_widx = this.widx;
-                this.stall_count = 0;
-                return false;
-            }
+        for (let f=f_min; f<=f_max+1e-9; f+=f_step){
+          const resF = this.evalAt(f);
+          sumMag += resF.mag; count++;
+          if (resF.mag > maxMag){ maxMag = resF.mag; bestF = f; bestRes = resF; }
         }
 
-        // Goertzel
-        class Goertzel {
-            constructor() {
-                this.N = 0;
-                this.cw = 0;
-                this.sw = 0;
-                this.s1 = 0;
-                this.s2 = 0;
-            }
+        const avgMag = count ? (sumMag / count) : 0;
+        const res = bestRes || this.evalAt(this.vcoFrequency);
+        const measuredPhase = res.ph;
+        const currentMag = res.mag;
 
-            init(n, fs, f) {
-                this.N = n;
-                let k = Math.floor(0.5 + n * f / fs);
-                let w = 2.0 * Math.PI * k / n;
-                this.cw = Math.cos(w);
-                this.sw = Math.sin(w);
-                this.s1 = 0;
-                this.s2 = 0;
-            }
+        let localEnergy = Number.EPSILON;
+        for (let df=-2; df<=2; ++df) localEnergy += this.evalAt(this.vcoFrequency + df*f_step).mag;
 
-            push(x) {
-                let s = x + 2.0 * this.cw * this.s1 - this.s2;
-                this.s2 = this.s1;
-                this.s1 = s;
-            }
+        const conf = Math.max(0, Math.min(1, (localEnergy>0 ? currentMag/localEnergy : 0)));
+        const peakness = (avgMag>0) ? (currentMag/avgMag) : 0;
 
-            result() {
-                let re = this.s1 - this.s2 * this.cw;
-                let im = this.s2 * this.sw;
-                let denom = this.N > 1 ? this.N / 2.0 : 1.0;
-                let m2 = re * re + im * im;
-                let mag = Math.sqrt(m2 < 0 ? 0 : m2) / denom;
-                let ph = Math.atan2(im, re);
-                this.s1 = 0;
-                this.s2 = 0;
-                return { re, im, mag, ph };
-            }
+        this.out_avgMag = avgMag;
+        this.out_peakness = peakness;
+        this.out_localEnergy = localEnergy;
+
+        if (conf > 0.05 || peakness > 1.0) this.inertia += 0.5*(1 - this.inertia);
+        else this.inertia -= 0.02 * this.inertia;
+        this.inertia = Math.max(0, Math.min(1, this.inertia));
+
+        if (this.inertia < 0.05 && this.currentState === 'TRACKING') this.currentState = 'SEARCHING';
+        else if (this.inertia > 0.3 && this.currentState === 'SEARCHING'){
+          this.currentState = 'TRACKING';
+          this.loopFilter.reset(0,0);
         }
 
-        // KalmanFilter
-        class KalmanFilter {
-            constructor(initialValue, initialVelocity, processNoisePos, processNoiseVel) {
-                this.q_pos = processNoisePos;
-                this.q_vel = processNoiseVel;
-                this.reset(initialValue, initialVelocity);
-            }
+        if (this.currentState !== 'TRACKING') this.vcoFrequency = bestF;
 
-            reset(value, velocity) {
-                this.x_hat = value;
-                this.x_vel = velocity;
-                this.p_00 = 1.0;
-                this.p_01 = 0.0;
-                this.p_10 = 0.0;
-                this.p_11 = 1.0;
-            }
+        const phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
+        this.loopFilter.predict(this.dt_win);
+        const measurementNoise = 0.05 + (1 - conf)*5.0 + (1 - this.inertia)*20.0;
+        this.loopFilter.update(phaseError, measurementNoise);
+        const u = this.loopFilter.getValue();
 
-            predict(dt) {
-                this.x_hat += this.x_vel * dt;
-                this.p_00 += dt * (this.p_10 + this.p_01) + dt * dt * this.p_11;
-                this.p_01 += dt * this.p_11;
-                this.p_10 += dt * this.p_11;
-                this.p_00 += this.q_pos;
-                this.p_11 += this.q_vel;
-            }
+        this.vcoFrequency += this.k_vco_p*u + this.k_vco_v*this.loopFilter.x_vel;
+        this.vcoFrequency = Math.max(0, Math.min(this.f_max, this.vcoFrequency));
+        this.internalPhase = this.wrapAngle(this.internalPhase + 2*Math.PI*this.vcoFrequency*this.dt_win);
 
-            update(z_meas, r_meas_noise) {
-                let y = z_meas - this.x_hat;
-                let s = this.p_00 + r_meas_noise;
-                if (Math.abs(s) < 1e-9) return;
-                let k_0 = this.p_00 / s;
-                let k_1 = this.p_10 / s;
-                this.x_hat += k_0 * y;
-                this.x_vel += k_1 * y;
-                let p_00_temp = this.p_00, p_01_temp = this.p_01;
-                this.p_00 -= k_0 * p_00_temp;
-                this.p_01 -= k_0 * p_01_temp;
-                this.p_10 -= k_1 * p_00_temp;
-                this.p_11 -= k_1 * p_01_temp;
-            }
+        this.out_freqHz  = this.vcoFrequency;
+        this.out_conf    = conf;
+        this.out_inertia = this.inertia;
+        this.out_state   = this.currentState;
 
-            getValue() {
-                return this.x_hat;
-            }
+        if (this.sampler.sample_count % 400 === 0){
+          console.log(`Scanner: f=${this.out_freqHz.toFixed(3)}Hz, conf=${this.out_conf.toFixed(2)}, inertia=${this.out_inertia.toFixed(2)}, peak=${this.out_peakness.toFixed(2)}, mag=${maxMag.toFixed(3)}`);
         }
+      }
+    }
 
-        // FrequencyScanner
-        class FrequencyScanner {
-            constructor(sampler) {
-                this.sampler = sampler;
-                this.loopFilter = new KalmanFilter(0.0, 0.0, 0.001, 0.01);
-                this.vcoFrequency = 0.0;
-                this.internalPhase = 0.0;
-                this.inertia = 0.0;
-                this.currentState = 'SEARCHING';
-                this.out_freqHz = 0.0;
-                this.out_conf = 0.0;
-                this.out_inertia = 0.0;
-                this.out_state = 'SEARCHING';
-                this.win = new Array(sampler.dynamic_n).fill(0);
-                this.block = new Array(sampler.dynamic_n).fill(0);
-                this.block_timestamps = new Array(sampler.dynamic_n).fill(0);
-                this.r = 0;
-                this.f_max = 50.0;
-                this.f_step = 0.1; // Увеличен для ускорения сканирования
-                this.k_vco_p = 0.1;
-                this.k_vco_v = 0.01;
-                this.max_points = 200; // Уменьшено для снижения нагрузки
-            }
+    /* =============================== UI loop =============================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      const sampler = new MathJitterSampler();
+      const scanner = new FrequencyScanner(sampler);
 
-            updateParameters() {
-                this.f_max = Math.min(100.0, this.sampler.actual_fs / 2);
-                this.f_step = Math.max(0.02, this.f_max / 200); // Увеличен шаг
-                this.k_vco_p = 0.3 * (this.sampler.actual_fs / 100);
-                this.k_vco_v = 0.03 * (this.sampler.actual_fs / 100);
-            }
+      let running = true;
+      const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
 
-            grabBlock() {
-                let w = this.sampler.widx;
-                let avail = (w - this.r) & this.sampler.constructor.MASK;
-                if (avail < this.sampler.dynamic_n) return false;
-                this.block = new Array(this.sampler.dynamic_n).fill(0);
-                this.block_timestamps = new Array(this.sampler.dynamic_n).fill(0);
-                this.win = new Array(this.sampler.dynamic_n).fill(0);
-                for (let n = 0; n < this.sampler.dynamic_n; ++n) {
-                    this.win[n] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * n / (this.sampler.dynamic_n - 1)));
-                }
-                for (let i = 0; i < this.sampler.dynamic_n; ++i) {
-                    let idx = (this.r + i) & this.sampler.constructor.MASK;
-                    this.block[i] = this.sampler.rb[idx] * this.win[i];
-                    this.block_timestamps[i] = this.sampler.timestamps[idx];
-                }
-                let total_time = this.block_timestamps[this.sampler.dynamic_n - 1] - this.block_timestamps[0];
-                this.dt_win = total_time / 1000.0 / (this.sampler.dynamic_n - 1);
-                this.actual_fs = 1.0 / this.dt_win;
-                this.r = (this.r + this.sampler.dynamic_n) & this.sampler.constructor.MASK;
-                return true;
-            }
+      let worker = createWorker();
+      const thermal = new ThermalController(worker);
+      if (worker){
+        worker.onmessage = (e) => { if (e.data && e.data.done) worker.postMessage({ iters: Math.round(thermal.workerIters), tickMs: 10 }); };
+        worker.onerror = (e) => { console.warn("Ошибка воркера:", e.message); worker = null; };
+        try { worker.postMessage({ iters: Math.round(thermal.workerIters), tickMs: 10 }); } catch(e){ console.warn("Не удалось запустить воркер:", e.message); worker=null; }
+      }
 
-            evalAt(f) {
-                let g = new Goertzel();
-                g.init(this.sampler.dynamic_n, this.actual_fs, f);
-                for (let v of this.block) g.push(v);
-                let res = g.result();
-                if (!isFinite(res.mag)) res.mag = 0;
-                return res;
-            }
+      function emulateLoad(iters){
+        let x=1.0001;
+        for (let i=0;i<iters;++i){ x*=1.00000001; x/=1.000000009; }
+      }
 
-            wrapAngle(angle) {
-                return Math.atan2(Math.sin(angle), Math.cos(angle));
-            }
+      const $ = (id)=>document.getElementById(id);
+      const setText = (id, v)=>{ const el=$(id); if (el) el.innerText = v; };
+      const setStyle = (id, prop, v)=>{ const el=$(id); if (el && el.style) el.style[prop]=v; };
+      const timeStr = ()=> new Date().toLocaleTimeString('ru-RU');
 
-            processOnce() {
-                if (!this.grabBlock()) return;
+      function updateBars(){
+        if (!running) return;
+        try {
+          // доступность данных в кольцевом буфере
+          const avail = (sampler.widx - scanner.r) & sampler.constructor.MASK;
+          const need = (avail < sampler.dynamic_n);
 
-                this.updateParameters();
+          if (need){
+            for (let i=0; i<(isMobile?100:300); ++i) sampler.sample();
+            if (!worker && isMobile) emulateLoad(thermal.workerIters);
 
-                let bestF = this.vcoFrequency;
-                let maxMag = -1.0;
-                let bestRes = null;
-                let sumMag = 0;
-                let count = 0;
+            const progress = Math.min(100, (avail / sampler.dynamic_n) * 100);
+            setStyle('loadingBar','width', progress.toFixed(0)+'%');
+            setText('statusText', `Ожидание накопления данных... (${progress.toFixed(0)}%)`);
+            setText('info', `Накопление: ${progress.toFixed(0)}% | fs: ${sampler.actual_fs.toFixed(1)} Гц | iters: ${sampler.fixed_iterations} | N: ${sampler.dynamic_n} | RMS jitter: ${Math.sqrt(sampler.jitter_rms).toFixed(3)}ms`);
 
-                let f_min = 0.0;
-                let f_max = this.f_max;
-                let f_step = this.f_step;
+            if (sampler.checkStall()) setText('statusText', 'Застревание сэмплирования! Уменьшаю нагрузку...');
+            setTimeout(updateBars, isMobile?100:50);
+            return;
+          }
 
-                if (this.currentState === 'TRACKING') {
-                    f_min = Math.max(0.0, this.vcoFrequency - 0.1 * this.f_max); // Уменьшен диапазон
-                    f_max = Math.min(this.f_max, this.vcoFrequency + 0.1 * this.f_max);
-                    f_step = this.f_step / 5;
-                }
+          // вся обработка — внутри processOnce (без внешнего grabBlock)
+          scanner.processOnce();
+          if (!worker && isMobile) emulateLoad(thermal.workerIters);
 
-                let steps = Math.floor((f_max - f_min) / f_step);
-                if (steps > this.max_points) {
-                    f_step = (f_max - f_min) / this.max_points;
-                }
+          if (sampler.actual_fs < 50) {
+            setText('statusText', 'Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.');
+          } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01 && Math.sqrt(sampler.jitter_rms) < 0.01) {
+            setText('statusText', 'Недостаточно фоновой активности, откройте другие приложения или вкладки!');
+          } else {
+            setText('statusText', 'Анализируется...');
+          }
 
-                for (let f = f_min; f <= f_max; f += f_step) {
-                    let resF = this.evalAt(f);
-                    sumMag += resF.mag;
-                    count++;
-                    if (resF.mag > maxMag) {
-                        maxMag = resF.mag;
-                        bestF = f;
-                        bestRes = resF;
-                    }
-                }
-                let avgMag = sumMag / count;
-                let res = bestRes || this.evalAt(this.vcoFrequency);
-                let measuredPhase = res.ph;
-                let currentMag = res.mag;
+          try { thermal.update(scanner.out_peakness || 0); } catch(e){ console.warn('Ошибка ThermalController:', e.message); }
 
-                let localEnergy = Number.EPSILON;
-                for (let df = -2; df <= 2; ++df) {
-                    localEnergy += this.evalAt(this.vcoFrequency + df * f_step).mag;
-                }
-                let conf = Math.max(0.0, Math.min(1.0, currentMag / localEnergy));
-                let peakness = (avgMag > 0) ? currentMag / avgMag : 0;
+          const freqMax = scanner.f_max || 50;
+          setText('freqValue', scanner.out_freqHz.toFixed(2));
+          setStyle('freqBar','width', Math.min(100, 100*scanner.out_freqHz/Math.max(1e-6,freqMax)) + '%');
 
-                this.out_avgMag = avgMag;
-                this.out_peakness = peakness;
-                this.out_localEnergy = localEnergy;
+          setText('inertiaValue', (scanner.out_inertia*100).toFixed(0));
+          setStyle('inertiaBar','width', Math.min(100, scanner.out_inertia*100) + '%');
 
-                if (conf > 0.05 || peakness > 1.0) { // Понижены пороги
-                    this.inertia += 0.5 * (1.0 - this.inertia);
-                } else {
-                    this.inertia -= 0.02 * this.inertia; // Ускоренное затухание
-                }
-                this.inertia = Math.max(0.0, Math.min(1.0, this.inertia));
+          setText('confValue', scanner.out_conf.toFixed(2));
+          setStyle('confBar','width', Math.min(100, scanner.out_conf*100) + '%');
 
-                if (this.inertia < 0.05 && this.currentState === 'TRACKING') {
-                    this.currentState = 'SEARCHING';
-                } else if (this.inertia > 0.3 && this.currentState === 'SEARCHING') { // Понижен порог
-                    this.currentState = 'TRACKING';
-                    this.loopFilter.reset(0.0, 0.0);
-                }
+          setText('info',
+            `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | ` +
+            `Стабильность: ${(scanner.out_inertia*100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | ` +
+            `Время: ${timeStr()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | ` +
+            `Итерации воркера: ${Math.round(thermal.workerIters)} | fs: ${sampler.actual_fs.toFixed(1)} Гц | ` +
+            `N: ${sampler.dynamic_n} | Avg sample: ${sampler.ema_delta.toFixed(2)}ms | RMS jitter: ${Math.sqrt(sampler.jitter_rms).toFixed(3)}ms`
+          );
 
-                if (this.currentState === 'TRACKING') {
-                    bestF = this.vcoFrequency;
-                }
-
-                this.vcoFrequency = bestF;
-
-                let phaseError = this.wrapAngle(measuredPhase - this.internalPhase);
-                this.loopFilter.predict(this.dt_win);
-                let measurementNoise = 0.05 + (1.0 - conf) * 5.0 + (1.0 - this.inertia) * 20.0;
-                this.loopFilter.update(phaseError, measurementNoise);
-                let controlOutput = this.loopFilter.getValue();
-                this.vcoFrequency += this.k_vco_p * controlOutput + this.k_vco_v * this.loopFilter.x_vel;
-                this.vcoFrequency = Math.max(0.0, Math.min(this.f_max, this.vcoFrequency));
-                this.internalPhase = this.wrapAngle(this.internalPhase + 2.0 * Math.PI * this.vcoFrequency * this.dt_win);
-
-                this.out_freqHz = this.vcoFrequency;
-                this.out_conf = conf;
-                this.out_inertia = this.inertia;
-                this.out_state = this.currentState;
-
-                // Отладка
-                if (this.sample_count % 10 === 0) {
-                    console.log(`Scanner: f=${this.out_freqHz.toFixed(3)}Hz, conf=${this.out_conf.toFixed(2)}, inertia=${this.out_inertia.toFixed(2)}, peakness=${this.out_peakness.toFixed(2)}, mag=${maxMag.toFixed(3)}`);
-                }
-            }
+          setTimeout(updateBars, isMobile?300:200);
+        } catch(e){
+          setText('info', `Критическая ошибка: ${e.message}. Обновите страницу.`);
+          console.error('Ошибка в updateBars:', e);
+          setTimeout(updateBars, 1000);
         }
+      }
 
-        // Инициализация алгоритма
-        document.addEventListener('DOMContentLoaded', function() {
-            const sampler = new MathJitterSampler();
-            const scanner = new FrequencyScanner(sampler);
-            let running = true;
-            let firstDraw = true;
-            let stableCounter = 0;
-            let lastFreq = 0;
-            const STABLE_THRESHOLD = 0.5;
-            const STABLE_COUNT_REQUIRED = 30;
-
-            const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
-
-            let worker = createWorker();
-            const thermal = new ThermalController(worker);
-            if (worker) {
-                worker.onmessage = (e) => {
-                    if (e.data.done) {
-                        worker.postMessage({ iters: Math.round(thermal.workerIters), tickMs: 10 });
-                    }
-                };
-                worker.onerror = (e) => {
-                    console.warn("Ошибка воркера:", e.message);
-                    worker = null;
-                };
-                try {
-                    worker.postMessage({ iters: Math.round(thermal.workerIters), tickMs: 10 });
-                } catch (e) {
-                    console.warn("Не удалось запустить воркер:", e.message);
-                    worker = null;
-                }
-            }
-
-            function emulateLoad(iters) {
-                let x = 1.0001;
-                for (let i = 0; i < iters; ++i) {
-                    x *= 1.00000001;
-                    x /= 1.000000009;
-                }
-            }
-
-            function updateDOM(id, text) {
-                const element = document.getElementById(id);
-                if (element) element.innerText = text;
-            }
-
-            function updateDOMStyle(id, property, value) {
-                const element = document.getElementById(id);
-                if (element && element.style) {
-                    element.style[property] = value;
-                }
-            }
-
-            function getSyncedTimeString() {
-                return new Date().toLocaleTimeString('ru-RU');
-            }
-
-            function updateBars() {
-                if (!running) return;
-                try {
-                    let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
-                    if (needSamples) {
-                        for (let i = 0; i < (isMobile ? 100 : 300); ++i) sampler.sample();
-                        if (!worker && isMobile) emulateLoad(thermal.workerIters);
-                        let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
-                        updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
-                        updateDOM('statusText', `Ожидание накопления данных... (${progress.toFixed(0)}%)`);
-                        updateDOM('info', `Накопление данных: ${progress.toFixed(0)}% | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | Итерации: ${sampler.fixed_iterations} | N: ${sampler.dynamic_n} | RMS jitter: ${Math.sqrt(sampler.jitter_rms).toFixed(3)}ms`);
-                        if (sampler.checkStall()) {
-                            updateDOM('statusText', `Застревание сэмплирования! Уменьшаю нагрузку...`);
-                        }
-                        setTimeout(updateBars, isMobile ? 100 : 50);
-                        return;
-                    }
-                    if (!scanner.grabBlock()) {
-                        updateDOM('statusText', `Ожидание блока данных...`);
-                        setTimeout(updateBars, isMobile ? 100 : 50);
-                        return;
-                    }
-                    scanner.processOnce();
-                    if (!worker && isMobile) emulateLoad(thermal.workerIters);
-
-                    if (sampler.actual_fs < 50) {
-                        updateDOM('statusText', "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.");
-                    } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01 && Math.sqrt(sampler.jitter_rms) < 0.01) {
-                        updateDOM('statusText', "Недостаточно фоновой активности, откройте другие приложения или вкладки!");
-                    } else {
-                        updateDOM('statusText', "Анализируется...");
-                    }
-
-                    try { thermal.update(scanner.out_peakness || 0); } catch (e) {
-                        console.warn("Ошибка в ThermalController:", e.message);
-                    }
-
-                    if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
-                        stableCounter++;
-                    } else {
-                        stableCounter = 0;
-                    }
-                    lastFreq = scanner.out_freqHz;
-
-                    const freqMax = scanner.f_max || 50;
-                    updateDOM('freqValue', scanner.out_freqHz.toFixed(2));
-                    updateDOMStyle('freqBar', 'width', Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%");
-                    updateDOM('inertiaValue', (scanner.out_inertia * 100).toFixed(0));
-                    updateDOMStyle('inertiaBar', 'width', Math.min(100, scanner.out_inertia * 100) + "%");
-                    updateDOM('confValue', scanner.out_conf.toFixed(2));
-                    updateDOMStyle('confBar', 'width', Math.min(100, scanner.out_conf * 100) + "%");
-                    updateDOM('info', `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${Math.round(thermal.workerIters)} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms | RMS jitter: ${Math.sqrt(sampler.jitter_rms).toFixed(3)}ms`);
-                    if (firstDraw) {
-                        updateDOMStyle('loading', 'display', 'block');
-                        firstDraw = false;
-                    }
-                    setTimeout(updateBars, isMobile ? 300 : 200);
-                } catch (e) {
-                    updateDOM('info', `Критическая ошибка: ${e.message}. Пожалуйста, обновите страницу.`);
-                    console.error("Ошибка в updateBars:", e);
-                    setTimeout(updateBars, 1000);
-                }
-            }
-            updateBars();
-        });
-    </script>
+      updateBars();
+    });
+  </script>
 </body>
 </html>
