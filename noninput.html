@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Frequency Scanner — Tight String (CPU-only)</title>
+  <title>Frequency Scanner — Autonomous Auto-Tuning (CPU-only)</title>
   <style>
     :root { --bg:#f3f5f7; --panel:#fff; --muted:#556; --bar:#e8ebef; }
     html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,Segoe UI,Arial}
@@ -12,13 +12,13 @@
     h1{margin:0 0 10px}
     #loading{margin:6px 0 12px}
     #loading .bg{height:18px;border-radius:8px;background:var(--bar);overflow:hidden}
-    #loading .fill{height:100%;width:0%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);transition:width .22s cubic-bezier(.17,.67,.32,1)}
+    #loading .fill{height:100%;width:0%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);transition:width .25s ease-out}
     #statusText{color:var(--muted);margin-top:6px}
     .row{margin-top:12px}
     .lbl{margin:10px 0 6px}
     .bar{height:18px;border-radius:8px;background:var(--bar);overflow:hidden}
     .f{height:100%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);width:0%}
-    .i{height:100%;background:linear-gradient(90deg,#17a267 60%,#9cebbb);width:0%}
+    .i{height:100%;background:linear-gradient(90deg,#18b56c 60%,#9ef0c5);width:0%}
     .c{height:100%;background:linear-gradient(90deg,#ff9800 60%,#ffd699);width:0%}
     #info{margin-top:14px;font-family:ui-monospace,Consolas,Menlo,monospace;white-space:pre-wrap;color:#222}
     .hint{color:#444;margin-top:8px}
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Frequency Scanner — Tight String (CPU-only)</h1>
+  <h1>Frequency Scanner — Autonomous Auto-Tuning (CPU-only)</h1>
 
   <div id="loading">
     <div class="bg"><div id="loadingBar" class="fill"></div></div>
@@ -45,7 +45,7 @@
   </div>
 
   <div id="info"></div>
-  <div class="hint">Режим «натянутая струна»: субдискретная интерполяция пика, высокое усиление при хорошем SNR, большой slew при захвате.</div>
+  <div class="hint">Автономная автоподстройка: алгоритм сам меняет kp/kv/ki и ограничение скорости по SNR, устойчивости, ошибке и вариациям.</div>
 </div>
 
 <script>
@@ -56,51 +56,27 @@ class CpuJitterSampler {
     this.rb=new Float64Array(CpuJitterSampler.RB_SIZE);
     this.ts=new Float64Array(CpuJitterSampler.RB_SIZE);
     this.widx=0;
-
-    this.target_ms=1.6;               // быстрее ради низкой задержки
-    this.iters=700;                    // авто-подстройка ниже
-    this.iters_min=100; this.iters_max=150000;
-
-    this.alpha=0.006;                  // чуть «легче», чем раньше
-    this.ema=0; this.rms=0;
-
-    this.dynamic_n=64;                 // авто: ~0.2s наблюдений
-    this.actual_fs=600;
-
-    this.sample_count=0; this.last_widx=0;
-    this.last_check=performance.now(); this.stall_count=0;
-
-    // медианный фильтр на 7 отсчетов
-    this._medBuf=new Float64Array(7); this._mi=0; this._mlen=0;
+    this.target_ms=2.0; this.iters=800; this.iters_min=120; this.iters_max=150000;
+    this.alpha=0.008; this.ema=0; this.rms=0;
+    this.dynamic_n=64; this.actual_fs=500;
+    this.sample_count=0; this.last_widx=0; this.last_check=performance.now(); this.stall_count=0;
+    this._medBuf=new Float64Array(9); this._mi=0; this._mlen=0;
   }
   _kernel(n){let x=1.0001; for(let i=0;i<n;i++){x*=1.00000001; x/=1.000000009;}}
-  _median7(x){
-    const n=this._mlen<7?++this._mlen:7; this._medBuf[this._mi]=x; this._mi=(this._mi+1)%7;
-    const tmp=Array.from(this._medBuf.slice(0,n)).sort((a,b)=>a-b);
-    return tmp[(n>>1)];
-  }
+  _median9(x){const n=this._mlen<9?++this._mlen:9; this._medBuf[this._mi]=x; this._mi=(this._mi+1)%9; const t=Array.from(this._medBuf.slice(0,n)).sort((a,b)=>a-b); return t[(n>>1)];}
   sample(){
     const t0=performance.now(); this._kernel(this.iters);
-    let dt=performance.now()-t0; dt=this._median7(dt);
-
-    if(!this.ema) this.ema=dt;
-    this.ema=(1-this.alpha)*this.ema + this.alpha*dt;
-
-    const jitter=dt - this.ema;
-    const idx=(this.widx++) & CpuJitterSampler.MASK;
+    let dt=performance.now()-t0; dt=this._median9(dt);
+    if(!this.ema) this.ema=dt; this.ema=(1-this.alpha)*this.ema+this.alpha*dt;
+    const jitter=dt-this.ema; const idx=(this.widx++)&CpuJitterSampler.MASK;
     this.rb[idx]=jitter; this.ts[idx]=t0; this.sample_count++;
-
     this.rms=(1-this.alpha)*this.rms + this.alpha*jitter*jitter;
-
     if((this.sample_count & 0x7F)===0){
       const ratio=this.ema/Math.max(0.25,this.target_ms);
-      const k=Math.max(0.6, Math.min(1.6, 1.0/ratio));
-      this.iters=Math.round(this.iters*k);
-      this.iters=Math.max(this.iters_min, Math.min(this.iters_max, this.iters));
-
-      this.actual_fs=1000.0/Math.max(0.25,this.ema);
-      // жёстче: окно ≈ 0.20 s
-      this.dynamic_n = Math.max(48, Math.min(512, Math.ceil(0.20*this.actual_fs)));
+      const k=Math.max(0.65,Math.min(1.5,1/ratio));
+      this.iters=Math.max(this.iters_min, Math.min(this.iters_max, Math.round(this.iters*k)));
+      this.actual_fs=1000/Math.max(0.25,this.ema);
+      this.dynamic_n=Math.max(48, Math.min(512, Math.ceil(0.30*this.actual_fs))); // ~0.3s окна
     }
   }
   checkStall(){
@@ -108,8 +84,8 @@ class CpuJitterSampler {
     if(now-this.last_check>1000 && this.widx===this.last_widx){
       this.stall_count++;
       if(this.stall_count>2){
-        this.iters=Math.max(this.iters_min, (this.iters/2)|0);
-        this.target_ms=Math.min(5.0, this.target_ms*1.10);
+        this.iters=Math.max(this.iters_min,(this.iters/1.8)|0);
+        this.target_ms=Math.min(6.0,this.target_ms*1.12);
         this.stall_count=0;
       }
       return true;
@@ -122,26 +98,22 @@ class CpuJitterSampler {
 class Goertzel{
   init(n,fs,f){this.N=n;const k=Math.floor(0.5+n*f/fs);const w=2*Math.PI*k/n;
     this.cw=Math.cos(w); this.sw=Math.sin(w); this.s1=0; this.s2=0;}
-  push(x){const s=x + 2*this.cw*this.s1 - this.s2; this.s2=this.s1; this.s1=s;}
+  push(x){const s=x+2*this.cw*this.s1 - this.s2; this.s2=this.s1; this.s1=s;}
   result(){const re=this.s1 - this.s2*this.cw, im=this.s2*this.sw;
-    const mag2=re*re + im*im;        // используем квадрат амплитуды (лучше для параболы)
-    const mag=Math.sqrt(Math.max(0,mag2))/(this.N>1?(this.N/2):1);
-    const ph=Math.atan2(im,re);
-    return { mag, mag2, ph };
+    const mag=Math.hypot(re,im)/(this.N>1?(this.N/2):1); const ph=Math.atan2(im,re);
+    return {mag, ph};
   }
 }
 
 /* ===================== OutputBlender ==================== */
 class OutputBlender{
-  constructor(){ this.ready=false; this.ramp=0; this.last={f:0,conf:0,inertia:0,state:'SEARCHING'}; }
-  blend(cur,step=0.35){ // быстрый разогрев
-    if(!this.ready){ this.last={...cur}; this.ready=true; this.ramp=Math.min(1,this.ramp+step); return cur; }
-    const a=Math.min(1,this.ramp+step); this.ramp=a;
-    const mix=(p,q)=>p*(1-a)+q*a;
-    const out={ f:mix(this.last.f,cur.f), conf:mix(this.last.conf,cur.conf), inertia:mix(this.last.inertia,cur.inertia), state:cur.state };
+  constructor(){this.ready=false;this.ramp=0;this.last={f:0,conf:0,inertia:0,state:'SEARCHING'};}
+  blend(cur,step=0.18){ if(!this.ready){this.last={...cur};this.ready=true;this.ramp=Math.min(1,this.ramp+step);return cur;}
+    const a=Math.min(1,this.ramp+step);this.ramp=a; const mix=(p,q)=>p*(1-a)+q*a;
+    const out={f:mix(this.last.f,cur.f),conf:mix(this.last.conf,cur.conf),inertia:mix(this.last.inertia,cur.inertia),state:cur.state};
     this.last=out; return out;
   }
-  hold(step=0.12){ this.ramp=Math.min(1,this.ramp+step); return this.last; }
+  hold(step=0.08){ this.ramp=Math.min(1,this.ramp+step); return this.last; }
 }
 
 /* ======================== Kalman ======================== */
@@ -164,18 +136,79 @@ class Kalman{
   }
 }
 
+/* =================== Автономный тюнер (RL-подобный) =================== */
+// Хранит «агрессивность» и учится на метриках стабильности/шума.
+// Награда R = +conf + 0.5*inertia − λ1*variance − λ2*|dφ|, и небольшой бонус за peak.
+class AutoTuner {
+  constructor(){
+    this.aggr = 1.0;                 // 0.5..2.0 — карта в полосу/усиления/слив
+    this.emaVar = 0;                 // дисперсия шага частоты
+    this.emaDphi = 0;                // средний модуль фазовой ошибки
+    this.emaDf = 0;                  // EMA шага частоты (для знакоперем. детектора)
+    this.signFlip = 0;               // счётчик инверсий df (осцилляции)
+    this.lastDf = 0;
+    this.alpha = 0.08;               // скорость обучения тюнера
+  }
+  update({df, dphi, conf, inertia, peak}){
+    // обновляем статистики
+    const a = 0.12; // EMA для быстрого ощущения дрожания
+    this.emaDf = (1-a)*this.emaDf + a*df;
+    this.emaVar = (1-a)*this.emaVar + a*(df*df);
+    this.emaDphi = (1-a)*this.emaDphi + a*Math.abs(dphi);
+
+    // детектор осцилляций: смена знака df
+    if (this.lastDf !== 0 && Math.sign(df) !== Math.sign(this.lastDf)) this.signFlip = Math.min(1, this.signFlip + 0.12);
+    else this.signFlip = Math.max(0, this.signFlip - 0.08);
+    this.lastDf = df;
+
+    // вычисляем «награду»
+    const variance = this.emaVar;
+    const penalty = 0.35*Math.sqrt(variance) + 0.25*this.emaDphi + 0.4*this.signFlip;
+    const reward = (conf + 0.6*inertia + 0.15*Math.min(2,peak)) - penalty;
+
+    // градиентоподобная подстройка агрессивности
+    // если награда высока — можно подкрутить выше; если низка — ослабить
+    this.aggr += this.alpha * (reward - 0.1);      // 0.1 — целевой комфорт
+    this.aggr = Math.max(0.5, Math.min(2.0, this.aggr));
+  }
+  // маппинг агрессивности в коэффициенты полосы и демпфирования
+  gains(fs, conf, inertia, peak){
+    // базовая желаемая полоса (доля fs)
+    const baseFrac = 0.04 + 0.03*Math.min(1,0.5*peak + conf); // 4..7%
+    let bw = fs * baseFrac * this.aggr;                        // Гц
+    bw = Math.max(2.0, Math.min(fs/3, bw));
+
+    // демпфирование: больше при шуме и осцилляциях (т.е. при малой aggr)
+    const zeta = 0.7 + 0.5*(1 - Math.min(1, conf*0.7 + inertia*0.5)) * (2.0 - this.aggr)/1.5; // ~0.7..1.2
+
+    // перевод в «псевдо» kp/kv/ki для дискретной PLL
+    const twoPiBw = 2*Math.PI*bw;
+    const scale = 1/Math.max(40, fs);
+    let kp = (2*zeta*twoPiBw) * scale;
+    let kv = (twoPiBw*twoPiBw) * scale * 0.25;
+    let ki = kp * 0.12 * (0.3 + 0.7*conf);
+
+    // предел скорости
+    const slew = 12 + 140 * Math.min(1, 0.5*peak + conf) * this.aggr; // 12..~280
+
+    // энергосбережение при высокой устойчивости
+    const eco = 0.85 + 0.15*Math.sqrt(Math.max(0, inertia));
+    kp*=eco; kv*=eco; ki*=eco;
+
+    return { kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew };
+  }
+}
+
 /* ====================== Частотный сканер ====================== */
 class FrequencyScanner{
   constructor(s){
-    this.s=s; this.kf = new Kalman(0,0,0.001,0.008);
- // плотнее
-
+    this.s=s; this.kf=new Kalman(0,0,0.001,0.008);
     this.vco=0; this.phi=0; this.inertia=0; this.state='SEARCHING';
 
     this.r=0; this.N=this.s.dynamic_n;
-    // АВТО шаг окна: меньше при высокой fs
-    this.hopRatio = Math.min(0.35, Math.max(0.08, 0.85 / Math.sqrt((this.s.actual_fs||60) / 60)));
-    this.hop=Math.max(8,Math.floor(this.N*this.hopRatio));
+    // авто hopRatio: меньше при высокой fs
+    this.hopRatio = Math.min(0.4, Math.max(0.1, 0.9 / Math.sqrt((this.s.actual_fs||60)/60)));
+    this.hop=Math.max(8, Math.floor(this.N*this.hopRatio));
     this.booted=false;
 
     this.win=new Float64Array(this.N);
@@ -183,23 +216,22 @@ class FrequencyScanner{
     this.tst=new Float64Array(this.N);
     this._needWin=true;
 
-    // базовые (будут усиливаться по conf)
-   this.kp_base=0.28;
-this.kv_base=0.045;
-this.ki_base=0.032;
+    this.fmax=50; this.fstep=0.1; this.maxPoints=240;
 
-    this.u_int=0; this.u_int_max=6.0;
-
-    this.fmax=60; this.fstep=0.1; this.maxPoints=260;
-
-    this.slew_base_hz_per_s=80;  // высокий предел скорости
-    this.lastUpdateMs=performance.now();
-
-    this.phase_dead=0.01;        // узкая «мёртвая зона»
-    this.f_ema=0; this.f_alpha=0.45; // быстрый EMA в поиске
+    this.phase_dead=0.02;
+    this.f_ema=0;
 
     this.out_f=0; this.out_conf=0; this.out_inertia=0; this.out_state='SEARCHING';
     this.out_peak=0; this.dt=0; this.fs=0;
+
+    this.u_int=0; this.u_int_max=3.0;
+    this.lastUpdateMs=performance.now();
+
+    // текущие усиления (будут задаваться авто-тюнером)
+    this.kp=0.1; this.kv=0.01; this.ki=0.002; this.slew=40;
+
+    this.tuner = new AutoTuner();
+    this.lastF = 0;
   }
 
   _wrap(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
@@ -207,16 +239,14 @@ this.ki_base=0.032;
   _refresh(){
     if(this.N!==this.s.dynamic_n){
       this.N=this.s.dynamic_n;
-      this.hopRatio = Math.min(0.35, Math.max(0.08, 0.85 / Math.sqrt((this.s.actual_fs||60) / 60)));
-      this.hop=Math.max(8,Math.floor(this.N*this.hopRatio));
+      this.hopRatio = Math.min(0.4, Math.max(0.1, 0.9 / Math.sqrt((this.s.actual_fs||60)/60)));
+      this.hop=Math.max(8, Math.floor(this.N*this.hopRatio));
       this.win=new Float64Array(this.N); this.block=new Float64Array(this.N); this.tst=new Float64Array(this.N);
       this._needWin=true;
     }
     this._ensureWin();
   }
-
   needCount(){ return this.booted ? this.hop : this.N; }
-
   _grab(){
     this._refresh();
     const need=this.needCount();
@@ -228,135 +258,97 @@ this.ki_base=0.032;
       this.block[i]=this.s.rb[idx]*this.win[i];
       this.tst[i]=this.s.ts[idx];
     }
-    const total=this.tst[this.N-1] - this.tst[0];
-    this.dt=(total/1000) / Math.max(1,(this.N-1));
-    this.fs=1.0 / Math.max(1e-6,this.dt);
+    const total=this.tst[this.N-1]-this.tst[0];
+    this.dt=(total/1000)/Math.max(1,(this.N-1));
+    this.fs=1.0/Math.max(1e-6,this.dt);
 
-    this.r=(this.r + need) & CpuJitterSampler.MASK;
+    this.r=(this.r+need) & CpuJitterSampler.MASK;
     this.booted=true;
     return true;
   }
-
-  _evalAt(f){
-    const g=new Goertzel(); g.init(this.N,this.fs,Math.max(0,Math.min(this.fmax,f)));
-    for(let i=0;i<this.N;i++) g.push(this.block[i]);
-    return g.result();
-  }
-
-  _autoParams(){
-    this.fmax=Math.min(100, this.s.actual_fs/2);
-    this.fstep=Math.max(0.02, this.fmax/300); // более частая сетка
-    const sc=this.s.actual_fs/100;
-    this.kp=this.kp_base*sc; this.kv=this.kv_base*sc; this.ki=this.ki_base*(this.s.actual_fs/1200);
-    // мягкий адаптивный демпфер по стабильности
-const smoothFactor = 0.85 + 0.15 * Math.pow(this.inertia, 0.5);
-this.kp *= smoothFactor;
-this.kv *= smoothFactor;
-this.ki *= smoothFactor;
-
-  }
-
-  _refineParabolic(f0, step){
-    // Квадратичная интерполяция вокруг максимума (по mag2)
-    const m0=this._evalAt(f0);
-    const m1=this._evalAt(f0 - step);
-    const m2=this._evalAt(f0 + step);
-    const a = (m1.mag2 - m2.mag2) / (2*(m1.mag2 - 2*m0.mag2 + m2.mag2) || 1e-9);
-    const f = f0 + a*step; // сдвиг -1..1 шагов
-    return { f: Math.max(0, Math.min(this.fmax, f)), mag: m0.mag, ph: m0.ph };
-  }
+  _evalAt(f){ const g=new Goertzel(); g.init(this.N,this.fs,Math.max(0,Math.min(this.fmax,f))); for(let i=0;i<this.N;i++) g.push(this.block[i]); return g.result(); }
 
   processOnce(){
     if(!this._grab()) return;
-    this._autoParams();
+
+    this.fmax = Math.min(100, this.s.actual_fs/2);
+    this.fstep= Math.max(0.02, this.fmax/260);
 
     let fmin=0, fmax=this.fmax, fstep=this.fstep;
     if(this.state==='TRACKING'){
-      const span = 0.06*this.fmax;     // сверхузкая полоса в трекинге
+      const span=0.10*this.fmax;
       fmin=Math.max(0, this.vco - span);
       fmax=Math.min(this.fmax, this.vco + span);
-      fstep=Math.max(this.fstep/8, 0.008);
+      fstep=Math.max(this.fstep/5, 0.01);
     }
     let steps=Math.floor((fmax-fmin)/fstep);
     if(steps>this.maxPoints) fstep=(fmax-fmin)/this.maxPoints;
 
-    // скан сетки
     let bestF=this.vco, bestMag=-1, best=null, sumMag=0, cnt=0;
     for(let f=fmin; f<=fmax+1e-9; f+=fstep){
       const r=this._evalAt(f);
       sumMag+=r.mag; cnt++;
-      if(r.mag > bestMag){ bestMag=r.mag; bestF=f; best=r; }
+      if(r.mag>bestMag){bestMag=r.mag; bestF=f; best=r;}
     }
+    const avgMag=cnt?(sumMag/cnt):0;
+    const cur=best || this._evalAt(this.vco);
 
-    // субдискретная подстройка пика
-    const refined=this._refineParabolic(bestF, fstep);
-    const cur = { mag: refined.mag, ph: refined.ph };
-    bestF = refined.f;
-
-    const avgMag = cnt ? (sumMag/cnt) : 0;
-
-    // локальная энергия вокруг текущей частоты
     let local=Number.EPSILON;
     for(let df=-2; df<=2; ++df) local += this._evalAt(this.vco + df*fstep).mag;
-
     const conf=Math.max(0, Math.min(1, (local>0 ? cur.mag/local : 0)));
-    const peak=(avgMag>0) ? (cur.mag/avgMag) : 0;
-    this.out_peak = peak;
+    const peak=(avgMag>0)?(cur.mag/avgMag):0;
+    this.out_peak=peak;
 
-    // быстрое накопление инерции, медленный спад
-    if(conf>0.06 || peak>1.02) this.inertia += 0.55*(1 - this.inertia);
-    else this.inertia *= 0.992;
-    this.inertia = Math.max(0, Math.min(1, this.inertia));
+    if(conf>0.07 || peak>1.05) this.inertia += 0.40*(1 - this.inertia);
+    else this.inertia *= 0.988;
+    this.inertia=Math.max(0, Math.min(1, this.inertia));
 
-    if(this.inertia<0.03 && this.state==='TRACKING') this.state='SEARCHING';
-    else if(this.inertia>0.30 && this.state==='SEARCHING'){ this.state='TRACKING'; this.kf.reset(0,0); }
+    if(this.inertia<0.05 && this.state==='TRACKING') this.state='SEARCHING';
+    else if(this.inertia>0.34 && this.state==='SEARCHING'){ this.state='TRACKING'; this.kf.reset(0,0); }
 
-    // энергичный поиск: очень быстрый EMA
     if(this.f_ema===0) this.f_ema=bestF;
-    const searchGain = (this.state==='SEARCHING') ? Math.min(0.9, 0.25 + 0.65*Math.min(1,peak/1.2)) : 0.0;
-    this.f_ema = (1 - searchGain)*this.f_ema + searchGain*bestF;
-    if(this.state!=='TRACKING') this.vco = this.f_ema;
+    const searchGain=(this.state==='SEARCHING')?Math.min(0.6, 0.08 + 0.52*Math.min(1,peak/1.2)):0;
+    this.f_ema=(1-searchGain)*this.f_ema + searchGain*bestF;
+    if(this.state!=='TRACKING') this.vco=this.f_ema;
 
-    // фазовая ошибка
-    let ephi = this._wrap(cur.ph - this.phi);
+    // ===== Автономная автоподстройка =====
+    const df_inst = this.out_f ? (bestF - this.out_f) : 0;      // наблюдаемый «стремящийся» сдвиг
+    const dphi_est = cur.ph - this.phi;                          // необрезанная фаза для статистики
+    this.tuner.update({ df: df_inst, dphi: dphi_est, conf, inertia: this.inertia, peak });
+    const g = this.tuner.gains(this.fs, conf, this.inertia, peak);
+    this.kp=g.kp; this.kv=g.kv; this.ki=g.ki; const slew=g.slew;
+
+    // фазовая ошибка (с dead-zone)
+    let ephi=this._wrap(cur.ph - this.phi);
     if(Math.abs(ephi) < this.phase_dead) ephi = 0;
 
     // Калман
     this.kf.predict(this.dt);
-    const rMeas = 0.04 + (1 - conf)*2.2 + (1 - this.inertia)*6.0; // ниже шум → плотнее
+    const rMeas = 0.05 + (1 - conf)*3.0 + (1 - this.inertia)*10.0;
     this.kf.update(ephi, rMeas);
-    const u = this.kf.x;
+    const u=this.kf.x;
 
-    // усиление ↑ при высоких conf + inertia
-    const gainBoost = 0.8 + 1.6*Math.sqrt(conf)*(0.7 + 0.3*this.inertia); // до ~2.3x
-    const kp_eff = this.kp * gainBoost;
-    const kv_eff = this.kv * gainBoost;
+    // интегратор
+    this.u_int += this.ki * ephi * this.dt;
+    const uMax=this.u_int_max * (0.8 + 1.2*conf);
+    this.u_int=Math.max(-uMax, Math.min(uMax, this.u_int));
 
-    // интегратор (для нулевого дрейфа), с анти-windup
-    const ki_eff = this.ki * (0.2 + 0.8*conf);
-    this.u_int += ki_eff * ephi * this.dt;
-    const uMax = this.u_int_max * gainBoost;
-    this.u_int = Math.max(-uMax, Math.min(uMax, this.u_int));
-
-    // предел скорости сильно шире при высоком conf
+    // ограничение скорости (из тюнера)
     const now=performance.now();
     const dtMs=Math.max(1, now - this.lastUpdateMs);
     this.lastUpdateMs = now;
-    const slew = this.slew_base_hz_per_s * (0.6 + 1.8*conf); // до ~2.4x
     const maxStep = slew * (dtMs/1000);
 
-    // управляющее воздействие
-    let df = kp_eff*u + kv_eff*this.kf.v + this.u_int;
+    let df = this.kp*u + this.kv*this.kf.v + this.u_int;
     if(!isFinite(df)) df=0;
-    const df_clamped = Math.max(-maxStep, Math.min(maxStep, df));
-    if(df !== df_clamped) this.u_int *= 0.92; // мягкий анти-windup
-    df = df_clamped;
+    const dfc = Math.max(-maxStep, Math.min(maxStep, df));
+    if(dfc !== df) this.u_int *= 0.95;
 
-    // шаг
-    this.vco = Math.max(0, Math.min(this.fmax, this.vco + df));
+    this.vco = Math.max(0, Math.min(this.fmax, this.vco + dfc));
     this.phi = this._wrap(this.phi + 2*Math.PI*this.vco*this.dt);
 
     this.out_f=this.vco; this.out_conf=conf; this.out_inertia=this.inertia; this.out_state=this.state;
+    this.lastF = this.out_f;
   }
 }
 
@@ -366,10 +358,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   const scan=new FrequencyScanner(s);
   const blender=new OutputBlender();
 
-  // Мягкая фоновая активность (CPU worker) — держим минимум для «натянутости»
+  // Мягкая фоновая активность (CPU worker)
   let worker=null;
   try{
-    const code=`let it=950,tick=12;
+    const code=`let it=900,tick=12;
 onmessage=e=>{it=e.data.it||it;tick=e.data.dt||tick;};
 function step(){let x=1.0001;for(let i=0;i<it;i++){x*=1.00000001;x/=1.000000009;} setTimeout(()=>postMessage(1),tick);}
 setInterval(step,12);`;
@@ -381,24 +373,17 @@ setInterval(step,12);`;
   const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
   const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
 
-  function renderOutputs(out){
+  function render(out){
     const fmax=Math.max(1, scan.fmax);
-    setT('freqValue', out.f.toFixed(2));
-    setW('freqBar', 100*out.f/fmax);
-
-    setT('inertiaValue', (out.inertia*100).toFixed(0));
-    setW('inertiaBar', out.inertia*100);
-
-    setT('confValue', out.conf.toFixed(2));
-    setW('confBar', out.conf*100);
-
+    setT('freqValue', out.f.toFixed(2)); setW('freqBar', 100*out.f/fmax);
+    setT('inertiaValue', (out.inertia*100).toFixed(0)); setW('inertiaBar', out.inertia*100);
+    setT('confValue', out.conf.toFixed(2)); setW('confBar', out.conf*100);
     const nowStr=new Date().toLocaleTimeString('ru-RU');
     setT('info',
-      `Состояние: ${out.state} | Частота: ${out.f.toFixed(3)} Гц | `+
+      `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${out.conf.toFixed(2)} | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
-      `Avg: ${s.ema.toFixed(3)} ms | RMS: ${Math.sqrt(s.rms).toFixed(4)} ms | `+
-      `iters: ${s.iters} | target: ${s.target_ms.toFixed(1)} ms`
+      `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)} | `
     );
   }
 
@@ -411,41 +396,36 @@ setInterval(step,12);`;
       const need = (avail < needCnt);
 
       if(need){
-        // мягкий добор — без рывков
         for(let i=0;i<180;i++) s.sample();
-        if(!worker) emulateLoad(500);
-
+        if(!worker) emulateLoad(450);
         const fill=Math.min(100, (avail/Math.max(1,needCnt))*100);
         setW('loadingBar', fill);
         setT('statusText', `Плавное накопление… (${fill.toFixed(0)}%)`);
-
-        renderOutputs(blender.hold());
-        return setTimeout(loop, 70);
+        render(blender.hold());
+        return setTimeout(loop, 80);
       }
 
-      // анализ
       scan.processOnce();
 
       // авто-нагрузка по выраженности пика
       const peak=scan.out_peak||0;
       if(worker){
-        const base=850;
-        const extra=Math.max(0, Math.min(9000, Math.round((1.0 - Math.min(1, peak/1.2))*6500)));
+        const base=700;
+        const extra=Math.max(0, Math.min(8000, Math.round((1.0 - Math.min(1, peak/1.2))*6000)));
         worker.postMessage({it: base+extra, dt:12});
       }
 
-      if(s.actual_fs < 55) setT('statusText','Низкая частота сэмплирования (<55 Гц): добавьте немного активности.');
-      else setT('statusText','Анализируется… (tight)');
+      if(s.actual_fs < 45) setT('statusText','Низкая частота сэмплирования (<45 Гц). Добавьте лёгкой активности.');
+      else setT('statusText','Анализируется… (autonomous)');
 
-      renderOutputs(blender.blend({ f:scan.out_f, conf:scan.out_conf, inertia:scan.out_inertia, state:scan.out_state }));
-      setTimeout(loop, 120); // чаще обновляем — пружинный отклик
+      render(blender.blend({ f:scan.out_f, conf:scan.out_conf, inertia:scan.out_inertia, state:scan.out_state }));
+      setTimeout(loop, 160);
     }catch(e){
       setT('info', `Критическая ошибка: ${e.message}. Обновите страницу.`);
       console.error(e);
-      setTimeout(loop, 600);
+      setTimeout(loop, 700);
     }
   }
-
   loop();
 });
 </script>
