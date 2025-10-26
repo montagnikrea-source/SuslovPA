@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Frequency Scanner — Autonomous Auto-Tuning (CPU-only)</title>
+  <title>Frequency Scanner — Homeostatic Zero-Target (CPU-only)</title>
   <style>
     :root { --bg:#f3f5f7; --panel:#fff; --muted:#556; --bar:#e8ebef; }
     html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,Segoe UI,Arial}
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Frequency Scanner — Autonomous Auto-Tuning (CPU-only)</h1>
+  <h1>Frequency Scanner — Homeostatic Zero-Target (CPU-only)</h1>
 
   <div id="loading">
     <div class="bg"><div id="loadingBar" class="fill"></div></div>
@@ -45,7 +45,7 @@
   </div>
 
   <div id="info"></div>
-  <div class="hint">Автономная автоподстройка: алгоритм сам меняет kp/kv/ki и ограничение скорости по SNR, устойчивости, ошибке и вариациям.</div>
+  <div class="hint">Цель автоматики — J→0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) → 0. Полностью автономно.</div>
 </div>
 
 <script>
@@ -136,63 +136,94 @@ class Kalman{
   }
 }
 
-/* =================== Автономный тюнер (RL-подобный) =================== */
-// Хранит «агрессивность» и учится на метриках стабильности/шума.
-// Награда R = +conf + 0.5*inertia − λ1*variance − λ2*|dφ|, и небольшой бонус за peak.
-class AutoTuner {
+/* =================== Homeostatic tuner (J→0) =================== */
+/* Совокупная «стоимость»:
+   J = wφ*E|φ| + wΔf*E|Δf| + wVar*sqrt(E[Δf²]) + wU*E|u| + wC*(1-conf) + wI*(1-inertia)
+   Цель: J → 0. PI-регулятор подстраивает агрессивность aggr и, через неё, полосу, демпфирование и slew.
+*/
+class HomeoTuner {
   constructor(){
-    this.aggr = 1.0;                 // 0.5..2.0 — карта в полосу/усиления/слив
-    this.emaVar = 0;                 // дисперсия шага частоты
-    this.emaDphi = 0;                // средний модуль фазовой ошибки
-    this.emaDf = 0;                  // EMA шага частоты (для знакоперем. детектора)
-    this.signFlip = 0;               // счётчик инверсий df (осцилляции)
-    this.lastDf = 0;
-    this.alpha = 0.08;               // скорость обучения тюнера
+    this.aggr = 1.0;                   // 0.5..2.0
+    this.I = 0;                        // интеграл ошибки по J
+    this.Imax = 3.0;
+
+    // EMA характеристик
+    this.emaAbsPhi = 0;
+    this.emaAbsDf  = 0;
+    this.emaVarDf  = 0;
+    this.emaAbsU   = 0;
+    this.emaOneMinConf = 1;
+    this.emaOneMinIner = 1;
+
+    this.a = 0.12;                     // скорость EMA метрик
+
+    // веса (масштабированы так, чтобы вклад был сопоставим)
+    this.w_phi = 1.0;
+    this.w_df  = 0.8;
+    this.w_var = 0.9;
+    this.w_u   = 0.7;
+    this.w_c   = 0.9;
+    this.w_i   = 0.7;
+
+    // PI по J: aggr += Kp*(-J) + Ki*∫(-J)
+    this.Kp = 0.35;
+    this.Ki = 0.10;
   }
-  update({df, dphi, conf, inertia, peak}){
-    // обновляем статистики
-    const a = 0.12; // EMA для быстрого ощущения дрожания
-    this.emaDf = (1-a)*this.emaDf + a*df;
-    this.emaVar = (1-a)*this.emaVar + a*(df*df);
-    this.emaDphi = (1-a)*this.emaDphi + a*Math.abs(dphi);
 
-    // детектор осцилляций: смена знака df
-    if (this.lastDf !== 0 && Math.sign(df) !== Math.sign(this.lastDf)) this.signFlip = Math.min(1, this.signFlip + 0.12);
-    else this.signFlip = Math.max(0, this.signFlip - 0.08);
-    this.lastDf = df;
+  updateMetrics({phi, df, u, conf, inertia}){
+    const a=this.a;
+    this.emaAbsPhi     = (1-a)*this.emaAbsPhi     + a*Math.abs(phi);
+    this.emaAbsDf      = (1-a)*this.emaAbsDf      + a*Math.abs(df);
+    this.emaVarDf      = (1-a)*this.emaVarDf      + a*(df*df);
+    this.emaAbsU       = (1-a)*this.emaAbsU       + a*Math.abs(u);
+    this.emaOneMinConf = (1-a)*this.emaOneMinConf + a*(1 - Math.max(0,Math.min(1,conf)));
+    this.emaOneMinIner = (1-a)*this.emaOneMinIner + a*(1 - Math.max(0,Math.min(1,inertia)));
+  }
 
-    // вычисляем «награду»
-    const variance = this.emaVar;
-    const penalty = 0.35*Math.sqrt(variance) + 0.25*this.emaDphi + 0.4*this.signFlip;
-    const reward = (conf + 0.6*inertia + 0.15*Math.min(2,peak)) - penalty;
+  cost(){
+    const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
+    return  this.w_phi*this.emaAbsPhi
+          + this.w_df *this.emaAbsDf
+          + this.w_var*sigmaDf
+          + this.w_u  *this.emaAbsU
+          + this.w_c  *this.emaOneMinConf
+          + this.w_i  *this.emaOneMinIner;
+  }
 
-    // градиентоподобная подстройка агрессивности
-    // если награда высока — можно подкрутить выше; если низка — ослабить
-    this.aggr += this.alpha * (reward - 0.1);      // 0.1 — целевой комфорт
+  step(){
+    const J = this.cost();             // целевой 0
+    const e = -J;                      // хотим J→0 → e = -J
+    this.I = Math.max(-this.Imax, Math.min(this.Imax, this.I + this.Ki*e));
+    this.aggr += this.Kp*e + this.I;
+
+    // границы агрессивности
     this.aggr = Math.max(0.5, Math.min(2.0, this.aggr));
+    return { J, aggr: this.aggr };
   }
-  // маппинг агрессивности в коэффициенты полосы и демпфирования
-  gains(fs, conf, inertia, peak){
-    // базовая желаемая полоса (доля fs)
-    const baseFrac = 0.04 + 0.03*Math.min(1,0.5*peak + conf); // 4..7%
-    let bw = fs * baseFrac * this.aggr;                        // Гц
-    bw = Math.max(2.0, Math.min(fs/3, bw));
 
-    // демпфирование: больше при шуме и осцилляциях (т.е. при малой aggr)
-    const zeta = 0.7 + 0.5*(1 - Math.min(1, conf*0.7 + inertia*0.5)) * (2.0 - this.aggr)/1.5; // ~0.7..1.2
+  // преобразование (aggr → kp/kv/ki/slew) с учётом fs, conf
+  gains(fs, conf){
+    const snr = Math.max(0.05, Math.min(1.0, conf));
+    // базовая доля полосы от fs
+    const baseFrac = 0.035 + 0.025*snr;    // 3.5..6.0% fs (чем чище — шире)
+    let bw = fs * baseFrac * this.aggr;    // итоговая полоса
+    bw = Math.max(1.5, Math.min(fs/3, bw));
 
-    // перевод в «псевдо» kp/kv/ki для дискретной PLL
+    // демпфирование ζ: больше при шуме (снижает колебания)
+    const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - this.aggr)/1.5;  // ≈0.8..1.2
+
+    // непрямой синтез коэффициентов
     const twoPiBw = 2*Math.PI*bw;
     const scale = 1/Math.max(40, fs);
     let kp = (2*zeta*twoPiBw) * scale;
     let kv = (twoPiBw*twoPiBw) * scale * 0.25;
-    let ki = kp * 0.12 * (0.3 + 0.7*conf);
+    let ki = kp * 0.12 * (0.25 + 0.75*snr);
 
-    // предел скорости
-    const slew = 12 + 140 * Math.min(1, 0.5*peak + conf) * this.aggr; // 12..~280
+    // предел скорости: при чистом сигнале и высокой aggr — выше
+    const slew = 10 + 140 * snr * this.aggr; // 10..~290 Hz/s
 
-    // энергосбережение при высокой устойчивости
-    const eco = 0.85 + 0.15*Math.sqrt(Math.max(0, inertia));
+    // анти-срывы: лёгкое энергосбережение
+    const eco = 0.88 + 0.12*snr;
     kp*=eco; kv*=eco; ki*=eco;
 
     return { kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew };
@@ -227,11 +258,11 @@ class FrequencyScanner{
     this.u_int=0; this.u_int_max=3.0;
     this.lastUpdateMs=performance.now();
 
-    // текущие усиления (будут задаваться авто-тюнером)
+    // динамические усиления (задаёт тюнер)
     this.kp=0.1; this.kv=0.01; this.ki=0.002; this.slew=40;
 
-    this.tuner = new AutoTuner();
-    this.lastF = 0;
+    this.tuner = new HomeoTuner();
+    this.lastDfApplied = 0;
   }
 
   _wrap(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
@@ -271,6 +302,7 @@ class FrequencyScanner{
   processOnce(){
     if(!this._grab()) return;
 
+    // сетка частот
     this.fmax = Math.min(100, this.s.actual_fs/2);
     this.fstep= Math.max(0.02, this.fmax/260);
 
@@ -284,6 +316,7 @@ class FrequencyScanner{
     let steps=Math.floor((fmax-fmin)/fstep);
     if(steps>this.maxPoints) fstep=(fmax-fmin)/this.maxPoints;
 
+    // скан и метрики
     let bestF=this.vco, bestMag=-1, best=null, sumMag=0, cnt=0;
     for(let f=fmin; f<=fmax+1e-9; f+=fstep){
       const r=this._evalAt(f);
@@ -293,12 +326,14 @@ class FrequencyScanner{
     const avgMag=cnt?(sumMag/cnt):0;
     const cur=best || this._evalAt(this.vco);
 
+    // уверенность/пикообразность
     let local=Number.EPSILON;
     for(let df=-2; df<=2; ++df) local += this._evalAt(this.vco + df*fstep).mag;
     const conf=Math.max(0, Math.min(1, (local>0 ? cur.mag/local : 0)));
     const peak=(avgMag>0)?(cur.mag/avgMag):0;
     this.out_peak=peak;
 
+    // инерция (захват/срыв)
     if(conf>0.07 || peak>1.05) this.inertia += 0.40*(1 - this.inertia);
     else this.inertia *= 0.988;
     this.inertia=Math.max(0, Math.min(1, this.inertia));
@@ -306,49 +341,61 @@ class FrequencyScanner{
     if(this.inertia<0.05 && this.state==='TRACKING') this.state='SEARCHING';
     else if(this.inertia>0.34 && this.state==='SEARCHING'){ this.state='TRACKING'; this.kf.reset(0,0); }
 
-    if(this.f_ema===0) this.f_ema=bestF;
-    const searchGain=(this.state==='SEARCHING')?Math.min(0.6, 0.08 + 0.52*Math.min(1,peak/1.2)):0;
-    this.f_ema=(1-searchGain)*this.f_ema + searchGain*bestF;
-    if(this.state!=='TRACKING') this.vco=this.f_ema;
+    // в поиске — EMA к лучшей частоте
+    if(this.state!=='TRACKING'){
+      if(!this.f_ema) this.f_ema=bestF;
+      const searchGain=Math.min(0.6, 0.08 + 0.52*Math.min(1,peak/1.2));
+      this.f_ema=(1-searchGain)*this.f_ema + searchGain*bestF;
+      this.vco=this.f_ema;
+    }
 
-    // ===== Автономная автоподстройка =====
-    const df_inst = this.out_f ? (bestF - this.out_f) : 0;      // наблюдаемый «стремящийся» сдвиг
-    const dphi_est = cur.ph - this.phi;                          // необрезанная фаза для статистики
-    this.tuner.update({ df: df_inst, dphi: dphi_est, conf, inertia: this.inertia, peak });
-    const g = this.tuner.gains(this.fs, conf, this.inertia, peak);
-    this.kp=g.kp; this.kv=g.kv; this.ki=g.ki; const slew=g.slew;
-
-    // фазовая ошибка (с dead-zone)
-    let ephi=this._wrap(cur.ph - this.phi);
+    // φ-ошибка (с dead-zone)
+    let ephi = this._wrap(cur.ph - this.phi);
     if(Math.abs(ephi) < this.phase_dead) ephi = 0;
 
-    // Калман
+    // Калман по фазе
     this.kf.predict(this.dt);
     const rMeas = 0.05 + (1 - conf)*3.0 + (1 - this.inertia)*10.0;
     this.kf.update(ephi, rMeas);
-    const u=this.kf.x;
+    const u = this.kf.x; // «фазовая» управляемая ошибка
 
-    // интегратор
+    // ==== Homeostasis: обновление метрик, шаг PI и вычисление усилений ====
+    // Шустрость стремления: наблюдаемый «желательный» сдвиг к пиковой частоте
+    const df_obs = bestF - this.vco;
+    // Управляющее воздействие до ограничения (для метрики усилия)
+    let u_ctrl = this.kp*u + this.kv*this.kf.v + this.u_int;
+
+    this.tuner.updateMetrics({ phi:ephi, df:df_obs, u:u_ctrl, conf, inertia:this.inertia });
+    const { J, aggr } = this.tuner.step(); // J→0, получаем новую агрессивность
+    const g = this.tuner.gains(this.fs, conf); // и коэффициенты из aggr+fs+conf
+    this.kp=g.kp; this.kv=g.kv; this.ki=g.ki; const slew=g.slew;
+
+    // интегратор по фазе (дрейф), с анти-windup
     this.u_int += this.ki * ephi * this.dt;
     const uMax=this.u_int_max * (0.8 + 1.2*conf);
     this.u_int=Math.max(-uMax, Math.min(uMax, this.u_int));
 
-    // ограничение скорости (из тюнера)
+    // обновлённое воздействие + ограничение скорости
+    u_ctrl = this.kp*u + this.kv*this.kf.v + this.u_int;
+
     const now=performance.now();
     const dtMs=Math.max(1, now - this.lastUpdateMs);
     this.lastUpdateMs = now;
     const maxStep = slew * (dtMs/1000);
 
-    let df = this.kp*u + this.kv*this.kf.v + this.u_int;
-    if(!isFinite(df)) df=0;
-    const dfc = Math.max(-maxStep, Math.min(maxStep, df));
-    if(dfc !== df) this.u_int *= 0.95;
+    const df_applied = Math.max(-maxStep, Math.min(maxStep, u_ctrl));
+    if(df_applied !== u_ctrl) this.u_int *= 0.95; // анти-windup
+    this.lastDfApplied = df_applied;
 
-    this.vco = Math.max(0, Math.min(this.fmax, this.vco + dfc));
+    // шаг частоты и фазы
+    this.vco = Math.max(0, Math.min(this.fmax, this.vco + df_applied));
     this.phi = this._wrap(this.phi + 2*Math.PI*this.vco*this.dt);
 
+    // выходы
     this.out_f=this.vco; this.out_conf=conf; this.out_inertia=this.inertia; this.out_state=this.state;
-    this.lastF = this.out_f;
+
+    // (опционально можно логировать J/aggr, но не засоряем консоль)
+    // if ((Math.random()<0.02)) console.log(`J=${J.toFixed(4)} aggr=${aggr.toFixed(2)} kp=${this.kp.toFixed(4)} kv=${this.kv.toFixed(5)} ki=${this.ki.toFixed(5)} slew=${slew.toFixed(0)}`);
   }
 }
 
@@ -378,6 +425,7 @@ setInterval(step,12);`;
     setT('freqValue', out.f.toFixed(2)); setW('freqBar', 100*out.f/fmax);
     setT('inertiaValue', (out.inertia*100).toFixed(0)); setW('inertiaBar', out.inertia*100);
     setT('confValue', out.conf.toFixed(2)); setW('confBar', out.conf*100);
+
     const nowStr=new Date().toLocaleTimeString('ru-RU');
     setT('info',
       `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
@@ -416,7 +464,7 @@ setInterval(step,12);`;
       }
 
       if(s.actual_fs < 45) setT('statusText','Низкая частота сэмплирования (<45 Гц). Добавьте лёгкой активности.');
-      else setT('statusText','Анализируется… (autonomous)');
+      else setT('statusText','Анализируется… (homeostasis J→0)');
 
       render(blender.blend({ f:scan.out_f, conf:scan.out_conf, inertia:scan.out_inertia, state:scan.out_state }));
       setTimeout(loop, 160);
