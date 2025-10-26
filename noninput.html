@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Frequency Scanner (CPU-only · Smooth Moderate Power)</title>
+  <title>Frequency Scanner — Tight String (CPU-only)</title>
   <style>
     :root { --bg:#f3f5f7; --panel:#fff; --muted:#556; --bar:#e8ebef; }
     html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,Segoe UI,Arial}
@@ -12,13 +12,13 @@
     h1{margin:0 0 10px}
     #loading{margin:6px 0 12px}
     #loading .bg{height:18px;border-radius:8px;background:var(--bar);overflow:hidden}
-    #loading .fill{height:100%;width:0%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);transition:width .25s ease-out}
+    #loading .fill{height:100%;width:0%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);transition:width .22s cubic-bezier(.17,.67,.32,1)}
     #statusText{color:var(--muted);margin-top:6px}
     .row{margin-top:12px}
     .lbl{margin:10px 0 6px}
     .bar{height:18px;border-radius:8px;background:var(--bar);overflow:hidden}
     .f{height:100%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);width:0%}
-    .i{height:100%;background:linear-gradient(90deg,#18b56c 60%,#9ef0c5);width:0%}
+    .i{height:100%;background:linear-gradient(90deg,#17a267 60%,#9cebbb);width:0%}
     .c{height:100%;background:linear-gradient(90deg,#ff9800 60%,#ffd699);width:0%}
     #info{margin-top:14px;font-family:ui-monospace,Consolas,Menlo,monospace;white-space:pre-wrap;color:#222}
     .hint{color:#444;margin-top:8px}
@@ -26,11 +26,11 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Frequency Scanner (CPU-only · Smooth Moderate Power)</h1>
+  <h1>Frequency Scanner — Tight String (CPU-only)</h1>
 
   <div id="loading">
     <div class="bg"><div id="loadingBar" class="fill"></div></div>
-    <div id="statusText">Ожидание накопления данных…</div>
+    <div id="statusText">Плавное накопление…</div>
   </div>
 
   <div class="row">
@@ -45,7 +45,7 @@
   </div>
 
   <div id="info"></div>
-  <div class="hint">Скользящее окно + мягкое накопление → без рывков при старте, с сохранённой «мощностью воздействия».</div>
+  <div class="hint">Режим «натянутая струна»: субдискретная интерполяция пика, высокое усиление при хорошем SNR, большой slew при захвате.</div>
 </div>
 
 <script>
@@ -55,207 +55,300 @@ class CpuJitterSampler {
   constructor(){
     this.rb=new Float64Array(CpuJitterSampler.RB_SIZE);
     this.ts=new Float64Array(CpuJitterSampler.RB_SIZE);
-    this.widx=0; this.target_ms=2.4; this.iters=900;
-    this.iters_min=120; this.iters_max=120000;
-    this.alpha=0.008; this.ema=0; this.rms=0;
-    this.dynamic_n=64; this.actual_fs=420;
+    this.widx=0;
+
+    this.target_ms=1.6;               // быстрее ради низкой задержки
+    this.iters=700;                    // авто-подстройка ниже
+    this.iters_min=100; this.iters_max=150000;
+
+    this.alpha=0.006;                  // чуть «легче», чем раньше
+    this.ema=0; this.rms=0;
+
+    this.dynamic_n=64;                 // авто: ~0.2s наблюдений
+    this.actual_fs=600;
+
     this.sample_count=0; this.last_widx=0;
     this.last_check=performance.now(); this.stall_count=0;
-    this._medBuf=new Float64Array(9); this._mi=0; this._mlen=0;
+
+    // медианный фильтр на 7 отсчетов
+    this._medBuf=new Float64Array(7); this._mi=0; this._mlen=0;
   }
-  _kernel(n){let x=1.0001;for(let i=0;i<n;i++){x*=1.00000001;x/=1.000000009;}}
-  _median9(x){const n=this._mlen<9?++this._mlen:9;this._medBuf[this._mi]=x;this._mi=(this._mi+1)%9;const tmp=Array.from(this._medBuf.slice(0,n)).sort((a,b)=>a-b);return tmp[(n>>1)];}
+  _kernel(n){let x=1.0001; for(let i=0;i<n;i++){x*=1.00000001; x/=1.000000009;}}
+  _median7(x){
+    const n=this._mlen<7?++this._mlen:7; this._medBuf[this._mi]=x; this._mi=(this._mi+1)%7;
+    const tmp=Array.from(this._medBuf.slice(0,n)).sort((a,b)=>a-b);
+    return tmp[(n>>1)];
+  }
   sample(){
-    const t0=performance.now();this._kernel(this.iters);let dt=performance.now()-t0;dt=this._median9(dt);
-    if(!this.ema)this.ema=dt;this.ema=(1-this.alpha)*this.ema+this.alpha*dt;
-    const jitter=dt-this.ema;const idx=(this.widx++)&CpuJitterSampler.MASK;
-    this.rb[idx]=jitter;this.ts[idx]=t0;this.sample_count++;
-    this.rms=(1-this.alpha)*this.rms+this.alpha*jitter*jitter;
-    if((this.sample_count&0x7F)===0){
-      const ratio=this.ema/Math.max(0.3,this.target_ms);
-      const k=Math.max(0.7,Math.min(1.4,1.0/ratio));this.iters=Math.round(this.iters*k);
-      this.iters=Math.max(this.iters_min,Math.min(this.iters_max,this.iters));
-      this.actual_fs=1000.0/Math.max(0.3,this.ema);
-      this.dynamic_n=Math.max(48,Math.min(512,Math.ceil(0.35*this.actual_fs)));}}
+    const t0=performance.now(); this._kernel(this.iters);
+    let dt=performance.now()-t0; dt=this._median7(dt);
+
+    if(!this.ema) this.ema=dt;
+    this.ema=(1-this.alpha)*this.ema + this.alpha*dt;
+
+    const jitter=dt - this.ema;
+    const idx=(this.widx++) & CpuJitterSampler.MASK;
+    this.rb[idx]=jitter; this.ts[idx]=t0; this.sample_count++;
+
+    this.rms=(1-this.alpha)*this.rms + this.alpha*jitter*jitter;
+
+    if((this.sample_count & 0x7F)===0){
+      const ratio=this.ema/Math.max(0.25,this.target_ms);
+      const k=Math.max(0.6, Math.min(1.6, 1.0/ratio));
+      this.iters=Math.round(this.iters*k);
+      this.iters=Math.max(this.iters_min, Math.min(this.iters_max, this.iters));
+
+      this.actual_fs=1000.0/Math.max(0.25,this.ema);
+      // жёстче: окно ≈ 0.20 s
+      this.dynamic_n = Math.max(48, Math.min(512, Math.ceil(0.20*this.actual_fs)));
+    }
+  }
   checkStall(){
     const now=performance.now();
-    if(now-this.last_check>1000&&this.widx===this.last_widx){
+    if(now-this.last_check>1000 && this.widx===this.last_widx){
       this.stall_count++;
       if(this.stall_count>2){
-        this.iters=Math.max(this.iters_min,(this.iters/1.8)|0);
-        this.target_ms=Math.min(7.0,this.target_ms*1.12);
+        this.iters=Math.max(this.iters_min, (this.iters/2)|0);
+        this.target_ms=Math.min(5.0, this.target_ms*1.10);
         this.stall_count=0;
       }
       return true;
     }
-    this.last_check=now;this.last_widx=this.widx;this.stall_count=0;return false;
+    this.last_check=now; this.last_widx=this.widx; this.stall_count=0; return false;
   }
 }
 
 /* ======================= Goertzel ======================= */
 class Goertzel{
   init(n,fs,f){this.N=n;const k=Math.floor(0.5+n*f/fs);const w=2*Math.PI*k/n;
-    this.cw=Math.cos(w);this.sw=Math.sin(w);this.s1=0;this.s2=0;}
-  push(x){const s=x+2*this.cw*this.s1-this.s2;this.s2=this.s1;this.s1=s;}
-  result(){const re=this.s1-this.s2*this.cw,im=this.s2*this.sw;
-    const mag=Math.hypot(re,im)/(this.N>1?(this.N/2):1);return{mag,ph:Math.atan2(im,re)};}
+    this.cw=Math.cos(w); this.sw=Math.sin(w); this.s1=0; this.s2=0;}
+  push(x){const s=x + 2*this.cw*this.s1 - this.s2; this.s2=this.s1; this.s1=s;}
+  result(){const re=this.s1 - this.s2*this.cw, im=this.s2*this.sw;
+    const mag2=re*re + im*im;        // используем квадрат амплитуды (лучше для параболы)
+    const mag=Math.sqrt(Math.max(0,mag2))/(this.N>1?(this.N/2):1);
+    const ph=Math.atan2(im,re);
+    return { mag, mag2, ph };
+  }
 }
 
 /* ===================== OutputBlender ==================== */
 class OutputBlender{
-  constructor(){this.ready=false;this.ramp=0;this.last={f:0,conf:0,inertia:0,state:'SEARCHING'};}
-  blend(cur,step=0.15){
-    if(!this.ready){this.last={...cur};this.ready=true;this.ramp=Math.min(1,this.ramp+step);return cur;}
-    const a=Math.min(1,this.ramp+step);this.ramp=a;
+  constructor(){ this.ready=false; this.ramp=0; this.last={f:0,conf:0,inertia:0,state:'SEARCHING'}; }
+  blend(cur,step=0.35){ // быстрый разогрев
+    if(!this.ready){ this.last={...cur}; this.ready=true; this.ramp=Math.min(1,this.ramp+step); return cur; }
+    const a=Math.min(1,this.ramp+step); this.ramp=a;
     const mix=(p,q)=>p*(1-a)+q*a;
-    const out={f:mix(this.last.f,cur.f),conf:mix(this.last.conf,cur.conf),inertia:mix(this.last.inertia,cur.inertia),state:cur.state};
-    this.last=out;return out;
+    const out={ f:mix(this.last.f,cur.f), conf:mix(this.last.conf,cur.conf), inertia:mix(this.last.inertia,cur.inertia), state:cur.state };
+    this.last=out; return out;
   }
-  hold(step=0.07){this.ramp=Math.min(1,this.ramp+step);return this.last;}
+  hold(step=0.12){ this.ramp=Math.min(1,this.ramp+step); return this.last; }
 }
 
 /* ======================== Kalman ======================== */
 class Kalman{
-  constructor(x0,v0,qpos,qvel){this.qp=qpos;this.qv=qvel;this.reset(x0,v0);}
-  reset(x,v){this.x=x;this.v=v;this.p00=1;this.p01=0;this.p10=0;this.p11=1;}
-  predict(dt){this.x+=this.v*dt;this.p00+=dt*(this.p10+this.p01)+dt*dt*this.p11;this.p01+=dt*this.p11;this.p10+=dt*this.p11;this.p00+=this.qp;this.p11+=this.qv;}
-update(z, r){
-  const y = z - this.x;
-  const s = this.p00 + r;
-  if (Math.abs(s) < 1e-9) return;
-  const k0 = this.p00 / s, k1 = this.p10 / s;
-  this.x += k0 * y; this.v += k1 * y;
-  const p00 = this.p00, p01 = this.p01;
-  this.p00 -= k0 * p00;
-  this.p01 -= k0 * p01;
-  this.p10 -= k1 * p00;
-  this.p11 -= k1 * p01;
+  constructor(x0,v0,qpos,qvel){ this.qp=qpos; this.qv=qvel; this.reset(x0,v0); }
+  reset(x,v){ this.x=x; this.v=v; this.p00=1; this.p01=0; this.p10=0; this.p11=1; }
+  predict(dt){
+    this.x += this.v*dt;
+    this.p00 += dt*(this.p10+this.p01) + dt*dt*this.p11;
+    this.p01 += dt*this.p11; this.p10 += dt*this.p11;
+    this.p00 += this.qp; this.p11 += this.qv;
+  }
+  update(z,r){
+    const y=z-this.x, s=this.p00+r; if(Math.abs(s)<1e-9) return;
+    const k0=this.p00/s, k1=this.p10/s;
+    this.x += k0*y; this.v += k1*y;
+    const p00=this.p00, p01=this.p01;
+    this.p00 -= k0*p00; this.p01 -= k0*p01;
+    this.p10 -= k1*p00; this.p11 -= k1*p01;
+  }
 }
- }
 
-/* ====================== FrequencyScanner ====================== */
+/* ====================== Частотный сканер ====================== */
 class FrequencyScanner{
   constructor(s){
-    this.s=s;this.kf=new Kalman(0,0,0.0008,0.008);
-    this.vco=0;this.phi=0;this.inertia=0;this.state='SEARCHING';
-    this.r=0;this.N=this.s.dynamic_n;this.hopRatio = Math.min(0.4, Math.max(0.1, 0.9 / Math.sqrt(this.s.actual_fs / 60)));
+    this.s=s; this.kf=new Kalman(0,0,0.0006,0.006); // плотнее
+
+    this.vco=0; this.phi=0; this.inertia=0; this.state='SEARCHING';
+
+    this.r=0; this.N=this.s.dynamic_n;
+    // АВТО шаг окна: меньше при высокой fs
+    this.hopRatio = Math.min(0.35, Math.max(0.08, 0.85 / Math.sqrt((this.s.actual_fs||60) / 60)));
     this.hop=Math.max(8,Math.floor(this.N*this.hopRatio));
-    this.booted=false;this.win=new Float64Array(this.N);this.block=new Float64Array(this.N);this.tst=new Float64Array(this.N);this._needWin=true;
+    this.booted=false;
 
-    this.kp_base=0.18;this.kv_base=0.018;this.ki_base=0.02;this.u_int=0;this.u_int_max=3.0;
-    this.fmax=40;this.fstep=0.1;this.maxPoints=220;
-    this.slew_base_hz_per_s=22;this.lastUpdateMs=performance.now();
-    this.phase_dead=0.03;this.f_ema=0;this.f_alpha=0.12;
+    this.win=new Float64Array(this.N);
+    this.block=new Float64Array(this.N);
+    this.tst=new Float64Array(this.N);
+    this._needWin=true;
 
-    this.out_f=0;this.out_conf=0;this.out_inertia=0;this.out_state='SEARCHING';this.out_peak=0;this.dt=0;this.fs=0;
+    // базовые (будут усиливаться по conf)
+    this.kp_base=0.42;
+    this.kv_base=0.060;
+    this.ki_base=0.040;
+    this.u_int=0; this.u_int_max=6.0;
+
+    this.fmax=60; this.fstep=0.1; this.maxPoints=260;
+
+    this.slew_base_hz_per_s=80;  // высокий предел скорости
+    this.lastUpdateMs=performance.now();
+
+    this.phase_dead=0.01;        // узкая «мёртвая зона»
+    this.f_ema=0; this.f_alpha=0.45; // быстрый EMA в поиске
+
+    this.out_f=0; this.out_conf=0; this.out_inertia=0; this.out_state='SEARCHING';
+    this.out_peak=0; this.dt=0; this.fs=0;
   }
-  _wrap(a){return Math.atan2(Math.sin(a),Math.cos(a));}
-  _ensureWin(){if(!this._needWin)return;const N=this.N;for(let n=0;n<N;n++)this.win[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));this._needWin=false;}
+
+  _wrap(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
+  _ensureWin(){ if(!this._needWin) return; const N=this.N; for(let n=0;n<N;n++) this.win[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1))); this._needWin=false; }
   _refresh(){
     if(this.N!==this.s.dynamic_n){
-      this.N=this.s.dynamic_n;this.hop=Math.max(8,Math.floor(this.N*this.hopRatio));
-      this.win=new Float64Array(this.N);this.block=new Float64Array(this.N);this.tst=new Float64Array(this.N);this._needWin=true;
+      this.N=this.s.dynamic_n;
+      this.hopRatio = Math.min(0.35, Math.max(0.08, 0.85 / Math.sqrt((this.s.actual_fs||60) / 60)));
+      this.hop=Math.max(8,Math.floor(this.N*this.hopRatio));
+      this.win=new Float64Array(this.N); this.block=new Float64Array(this.N); this.tst=new Float64Array(this.N);
+      this._needWin=true;
     }
     this._ensureWin();
   }
-  needCount(){return this.booted?this.hop:this.N;}
+
+  needCount(){ return this.booted ? this.hop : this.N; }
+
   _grab(){
     this._refresh();
     const need=this.needCount();
-    const avail=(this.s.widx-this.r)&CpuJitterSampler.MASK;
-    if(avail<need) return false;
+    const avail=(this.s.widx - this.r) & CpuJitterSampler.MASK;
+    if(avail < need) return false;
 
     for(let i=0;i<this.N;i++){
-      const idx=(this.r+i)&CpuJitterSampler.MASK;
+      const idx=(this.r + i) & CpuJitterSampler.MASK;
       this.block[i]=this.s.rb[idx]*this.win[i];
       this.tst[i]=this.s.ts[idx];
     }
-    const total=this.tst[this.N-1]-this.tst[0];
-    this.dt=(total/1000)/Math.max(1,(this.N-1));
-    this.fs=1.0/Math.max(1e-6,this.dt);
+    const total=this.tst[this.N-1] - this.tst[0];
+    this.dt=(total/1000) / Math.max(1,(this.N-1));
+    this.fs=1.0 / Math.max(1e-6,this.dt);
 
-    this.r=(this.r+need)&CpuJitterSampler.MASK;
+    this.r=(this.r + need) & CpuJitterSampler.MASK;
     this.booted=true;
     return true;
   }
-  _evalAt(f){const g=new Goertzel();g.init(this.N,this.fs,Math.max(0,Math.min(this.fmax,f)));for(let i=0;i<this.N;i++)g.push(this.block[i]);return g.result();}
-  _autoParams(){
-    this.fmax=Math.min(80,this.s.actual_fs/2);
-    this.fstep=Math.max(0.02,this.fmax/240);
-    const sc=this.s.actual_fs/120;
-    this.kp=this.kp_base*sc;this.kv=this.kv_base*sc;this.ki=this.ki_base*(this.s.actual_fs/2000);
+
+  _evalAt(f){
+    const g=new Goertzel(); g.init(this.N,this.fs,Math.max(0,Math.min(this.fmax,f)));
+    for(let i=0;i<this.N;i++) g.push(this.block[i]);
+    return g.result();
   }
+
+  _autoParams(){
+    this.fmax=Math.min(100, this.s.actual_fs/2);
+    this.fstep=Math.max(0.02, this.fmax/300); // более частая сетка
+    const sc=this.s.actual_fs/100;
+    this.kp=this.kp_base*sc; this.kv=this.kv_base*sc; this.ki=this.ki_base*(this.s.actual_fs/1200);
+  }
+
+  _refineParabolic(f0, step){
+    // Квадратичная интерполяция вокруг максимума (по mag2)
+    const m0=this._evalAt(f0);
+    const m1=this._evalAt(f0 - step);
+    const m2=this._evalAt(f0 + step);
+    const a = (m1.mag2 - m2.mag2) / (2*(m1.mag2 - 2*m0.mag2 + m2.mag2) || 1e-9);
+    const f = f0 + a*step; // сдвиг -1..1 шагов
+    return { f: Math.max(0, Math.min(this.fmax, f)), mag: m0.mag, ph: m0.ph };
+  }
+
   processOnce(){
     if(!this._grab()) return;
     this._autoParams();
 
-    let fmin=0,fmax=this.fmax,fstep=this.fstep;
+    let fmin=0, fmax=this.fmax, fstep=this.fstep;
     if(this.state==='TRACKING'){
-      const span=0.08*this.fmax;
-      fmin=Math.max(0,this.vco-span);fmax=Math.min(this.fmax,this.vco+span);
-      fstep=Math.max(this.fstep/6,0.01);
+      const span = 0.06*this.fmax;     // сверхузкая полоса в трекинге
+      fmin=Math.max(0, this.vco - span);
+      fmax=Math.min(this.fmax, this.vco + span);
+      fstep=Math.max(this.fstep/8, 0.008);
     }
     let steps=Math.floor((fmax-fmin)/fstep);
     if(steps>this.maxPoints) fstep=(fmax-fmin)/this.maxPoints;
 
-    let bestF=this.vco,bestMag=-1,best=null,sumMag=0,cnt=0;
-    for(let f=fmin;f<=fmax+1e-9;f+=fstep){
+    // скан сетки
+    let bestF=this.vco, bestMag=-1, best=null, sumMag=0, cnt=0;
+    for(let f=fmin; f<=fmax+1e-9; f+=fstep){
       const r=this._evalAt(f);
-      sumMag+=r.mag;cnt++;
-      if(r.mag>bestMag){bestMag=r.mag;bestF=f;best=r;}
+      sumMag+=r.mag; cnt++;
+      if(r.mag > bestMag){ bestMag=r.mag; bestF=f; best=r; }
     }
-    const avgMag=cnt?(sumMag/cnt):0;
-    const cur=best||this._evalAt(this.vco);
 
+    // субдискретная подстройка пика
+    const refined=this._refineParabolic(bestF, fstep);
+    const cur = { mag: refined.mag, ph: refined.ph };
+    bestF = refined.f;
+
+    const avgMag = cnt ? (sumMag/cnt) : 0;
+
+    // локальная энергия вокруг текущей частоты
     let local=Number.EPSILON;
-    for(let df=-2;df<=2;++df) local+=this._evalAt(this.vco+df*fstep).mag;
-    const conf=Math.max(0,Math.min(1,(local>0?cur.mag/local:0)));
-    const peak=(avgMag>0)?(cur.mag/avgMag):0;
+    for(let df=-2; df<=2; ++df) local += this._evalAt(this.vco + df*fstep).mag;
 
-    if(conf>0.07||peak>1.05) this.inertia+=0.35*(1-this.inertia);
-    else this.inertia*=0.985;
-    this.inertia=Math.max(0,Math.min(1,this.inertia));
+    const conf=Math.max(0, Math.min(1, (local>0 ? cur.mag/local : 0)));
+    const peak=(avgMag>0) ? (cur.mag/avgMag) : 0;
+    this.out_peak = peak;
 
-    if(this.inertia<0.04&&this.state==='TRACKING') this.state='SEARCHING';
-    else if(this.inertia>0.36&&this.state==='SEARCHING'){ this.state='TRACKING'; this.kf.reset(0,0); }
+    // быстрое накопление инерции, медленный спад
+    if(conf>0.06 || peak>1.02) this.inertia += 0.55*(1 - this.inertia);
+    else this.inertia *= 0.992;
+    this.inertia = Math.max(0, Math.min(1, this.inertia));
 
+    if(this.inertia<0.03 && this.state==='TRACKING') this.state='SEARCHING';
+    else if(this.inertia>0.30 && this.state==='SEARCHING'){ this.state='TRACKING'; this.kf.reset(0,0); }
+
+    // энергичный поиск: очень быстрый EMA
     if(this.f_ema===0) this.f_ema=bestF;
-    const searchGain=(this.state==='SEARCHING')?Math.min(0.5,0.05+0.45*Math.min(1,peak/1.2)):0.0;
-    this.f_ema=(1-searchGain)*this.f_ema+searchGain*bestF;
-    if(this.state!=='TRACKING') this.vco=this.f_ema;
+    const searchGain = (this.state==='SEARCHING') ? Math.min(0.9, 0.25 + 0.65*Math.min(1,peak/1.2)) : 0.0;
+    this.f_ema = (1 - searchGain)*this.f_ema + searchGain*bestF;
+    if(this.state!=='TRACKING') this.vco = this.f_ema;
 
-    let ephi=this._wrap(cur.ph-this.phi);
-    if(Math.abs(ephi)<this.phase_dead) ephi=0;
+    // фазовая ошибка
+    let ephi = this._wrap(cur.ph - this.phi);
+    if(Math.abs(ephi) < this.phase_dead) ephi = 0;
 
+    // Калман
     this.kf.predict(this.dt);
-    const rMeas=0.06+(1-conf)*3.5+(1-this.inertia)*12.0;
-    this.kf.update(ephi,rMeas);
-    const u=this.kf.x;
+    const rMeas = 0.04 + (1 - conf)*2.2 + (1 - this.inertia)*6.0; // ниже шум → плотнее
+    this.kf.update(ephi, rMeas);
+    const u = this.kf.x;
 
-    const gainBoost=0.6+1.2*Math.sqrt(conf)*(0.6+0.4*this.inertia);
-    const kp_eff=this.kp*gainBoost, kv_eff=this.kv*gainBoost;
+    // усиление ↑ при высоких conf + inertia
+    const gainBoost = 0.8 + 1.6*Math.sqrt(conf)*(0.7 + 0.3*this.inertia); // до ~2.3x
+    const kp_eff = this.kp * gainBoost;
+    const kv_eff = this.kv * gainBoost;
 
-    const ki_eff=this.ki*(0.3+0.7*conf);
-    this.u_int+=ki_eff*ephi*this.dt;
-    const uIntMax=this.u_int_max*gainBoost;
-    this.u_int=Math.max(-uIntMax,Math.min(uIntMax,this.u_int));
+    // интегратор (для нулевого дрейфа), с анти-windup
+    const ki_eff = this.ki * (0.2 + 0.8*conf);
+    this.u_int += ki_eff * ephi * this.dt;
+    const uMax = this.u_int_max * gainBoost;
+    this.u_int = Math.max(-uMax, Math.min(uMax, this.u_int));
 
+    // предел скорости сильно шире при высоком conf
     const now=performance.now();
-    const dtMs=Math.max(1,now-this.lastUpdateMs);
-    this.lastUpdateMs=now;
-    const slew=this.slew_base_hz_per_s*(0.6+1.4*conf);
-    const maxStep=slew*(dtMs/1000);
+    const dtMs=Math.max(1, now - this.lastUpdateMs);
+    this.lastUpdateMs = now;
+    const slew = this.slew_base_hz_per_s * (0.6 + 1.8*conf); // до ~2.4x
+    const maxStep = slew * (dtMs/1000);
 
-    let df=kp_eff*u + kv_eff*this.kf.v + this.u_int;
+    // управляющее воздействие
+    let df = kp_eff*u + kv_eff*this.kf.v + this.u_int;
     if(!isFinite(df)) df=0;
-    const df_clamped=Math.max(-maxStep,Math.min(maxStep,df));
-    if(df!==df_clamped) this.u_int*=0.95;
-    df=df_clamped;
+    const df_clamped = Math.max(-maxStep, Math.min(maxStep, df));
+    if(df !== df_clamped) this.u_int *= 0.92; // мягкий анти-windup
+    df = df_clamped;
 
-    this.vco=Math.max(0,Math.min(this.fmax,this.vco+df));
-    this.phi=this._wrap(this.phi+2*Math.PI*this.vco*this.dt);
+    // шаг
+    this.vco = Math.max(0, Math.min(this.fmax, this.vco + df));
+    this.phi = this._wrap(this.phi + 2*Math.PI*this.vco*this.dt);
 
-    this.out_f=this.vco; this.out_conf=conf; this.out_inertia=this.inertia; this.out_state=this.state; this.out_peak=peak;
+    this.out_f=this.vco; this.out_conf=conf; this.out_inertia=this.inertia; this.out_state=this.state;
   }
 }
 
@@ -265,10 +358,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   const scan=new FrequencyScanner(s);
   const blender=new OutputBlender();
 
-  // Мягкая фоновая активность (CPU worker) для чувствительности
+  // Мягкая фоновая активность (CPU worker) — держим минимум для «натянутости»
   let worker=null;
   try{
-    const code=`let it=900,tick=12;
+    const code=`let it=950,tick=12;
 onmessage=e=>{it=e.data.it||it;tick=e.data.dt||tick;};
 function step(){let x=1.0001;for(let i=0;i<it;i++){x*=1.00000001;x/=1.000000009;} setTimeout(()=>postMessage(1),tick);}
 setInterval(step,12);`;
@@ -281,7 +374,7 @@ setInterval(step,12);`;
   const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
 
   function renderOutputs(out){
-    const fmax=Math.max(1,scan.fmax);
+    const fmax=Math.max(1, scan.fmax);
     setT('freqValue', out.f.toFixed(2));
     setW('freqBar', 100*out.f/fmax);
 
@@ -297,59 +390,51 @@ setInterval(step,12);`;
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${out.conf.toFixed(2)} | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
       `Avg: ${s.ema.toFixed(3)} ms | RMS: ${Math.sqrt(s.rms).toFixed(4)} ms | `+
-      `iters: ${s.iters} | target: ${s.target_ms.toFixed(1)} ms | Время: ${nowStr}`
+      `iters: ${s.iters} | target: ${s.target_ms.toFixed(1)} ms`
     );
   }
 
-  function emulateLoad(it){
-    let x=1.0001;
-    for(let i=0;i<it;i++){ x*=1.00000001; x/=1.000000009; }
-  }
+  function emulateLoad(it){ let x=1.0001; for(let i=0;i<it;i++){ x*=1.00000001; x/=1.000000009; } }
 
   function loop(){
     try{
-      // сколько нужно для следующего шага (N — для первого окна, далее hop)
       const needCnt=scan.needCount();
       const avail=((s.widx - scan.r) & CpuJitterSampler.MASK);
       const need = (avail < needCnt);
 
       if(need){
-        // добор недостающих сэмплов мягко, без больших порций
+        // мягкий добор — без рывков
         for(let i=0;i<180;i++) s.sample();
-        if(!worker) emulateLoad(450);
+        if(!worker) emulateLoad(500);
 
         const fill=Math.min(100, (avail/Math.max(1,needCnt))*100);
         setW('loadingBar', fill);
         setT('statusText', `Плавное накопление… (${fill.toFixed(0)}%)`);
 
-        const held=blender.hold();
-        renderOutputs(held);
-        return setTimeout(loop, 80);
+        renderOutputs(blender.hold());
+        return setTimeout(loop, 70);
       }
 
-      // есть окно → анализ
+      // анализ
       scan.processOnce();
 
-      // авто-нагрузка: базовый минимум + чуть больше при слабом пике
+      // авто-нагрузка по выраженности пика
       const peak=scan.out_peak||0;
       if(worker){
-        const base=800;
-        const extra=Math.max(0, Math.min(9000, Math.round((1.0 - Math.min(1, peak/1.2))*7000)));
+        const base=850;
+        const extra=Math.max(0, Math.min(9000, Math.round((1.0 - Math.min(1, peak/1.2))*6500)));
         worker.postMessage({it: base+extra, dt:12});
       }
 
-      // статус и вывод с блендером
-      if(s.actual_fs < 45) setT('statusText','Частота сэмплирования низкая (<45 Гц). Добавьте лёгкой активности.');
-      else setT('statusText','Анализируется… (скользящее окно)');
+      if(s.actual_fs < 55) setT('statusText','Низкая частота сэмплирования (<55 Гц): добавьте немного активности.');
+      else setT('statusText','Анализируется… (tight)');
 
-      const mixed=blender.blend({ f:scan.out_f, conf:scan.out_conf, inertia:scan.out_inertia, state:scan.out_state });
-      renderOutputs(mixed);
-
-      setTimeout(loop, 160);
+      renderOutputs(blender.blend({ f:scan.out_f, conf:scan.out_conf, inertia:scan.out_inertia, state:scan.out_state }));
+      setTimeout(loop, 120); // чаще обновляем — пружинный отклик
     }catch(e){
       setT('info', `Критическая ошибка: ${e.message}. Обновите страницу.`);
       console.error(e);
-      setTimeout(loop, 800);
+      setTimeout(loop, 600);
     }
   }
 
