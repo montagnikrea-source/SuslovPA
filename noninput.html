@@ -536,8 +536,8 @@
             let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
             updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
             document.getElementById('statusText').innerText = "Ожидание накопления данных...";
-            // Обновляем info с полной телеметрией, включая прогресс
-            updateDOM('info', `Ожидание накопления данных... ${progress.toFixed(0)}%\nСостояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
+            // Обновляем info только с телеметрией, без "Ожидание накопления данных..."
+            updateDOM('info', `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
             setTimeout(updateBars, 50);
             return;
         }
