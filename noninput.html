@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frequency Scanner Web App</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --main-bg: #f0f0f0;
@@ -65,80 +64,80 @@
         </div>
         <div id="info"></div>
         <div id="about">
-    <h2>Как работает приложение?</h2>
-    <p>
-        <b>Frequency Scanner Web App</b> — это инструмент, который улучшает производительность вашего устройства в реальном времени, анализируя и стабилизируя вариации времени выполнения вычислений (jitter). Приложение измеряет время выполнения фиксированного набора операций и использует метод Гёрцеля и фильтр Калмана для выявления и сглаживания периодических флуктуаций, вызванных фоновыми процессами, нагрузкой процессора или операционной системой. Пока страница активна, приложение оптимизирует стабильность вычислений, улучшая работу приложений в таких областях, как игры, звук и вычисления.
-    </p>
-    <h3>Как пользоваться приложением?</h3>
-    <ul>
-        <li><b>Начало работы</b>: При запуске приложение накапливает данные. Под шкалами отображается текст "Ожидание накопления данных..." и прогресс-бар. Дождитесь, пока прогресс достигнет 100%, чтобы начать оптимизацию.</li>
-        <li><b>Мониторинг и оптимизация</b>: После накопления данных приложение в реальном времени стабилизирует вычисления, обновляя следующие показатели:
+            <h2>Как работает приложение?</h2>
+            <p>
+                <b>Frequency Scanner Web App</b> — это инструмент, который улучшает производительность вашего устройства в реальном времени, анализируя и стабилизируя вариации времени выполнения вычислений (jitter). Приложение измеряет время выполнения фиксированного набора операций и использует метод Гёрцеля и фильтр Калмана для выявления и сглаживания периодических флуктуаций, вызванных фоновыми процессами, нагрузкой процессора или операционной системой. Пока страница активна, приложение оптимизирует стабильность вычислений, улучшая работу приложений в таких областях, как игры, звук и вычисления.
+            </p>
+            <h3>Как пользоваться приложением?</h3>
             <ul>
-                <li><b>Частота флуктуаций (Гц)</b>: Показывает частоту изменений во времени выполнения вычислений, которые приложение сглаживает.</li>
-                <li><b>Стабильность (%)</b>: Отражает, насколько устойчиво приложение контролирует флуктуации (высокое значение — более плавная работа).</li>
-                <li><b>Уверенность</b>: Указывает, насколько точно приложение выделяет основную частоту для оптимизации (0–1).</li>
+                <li><b>Начало работы</b>: При запуске приложение накапливает данные. Под шкалами отображается текст "Ожидание накопления данных..." и прогресс-бар. Дождитесь, пока прогресс достигнет 100%, чтобы начать оптимизацию.</li>
+                <li><b>Мониторинг и оптимизация</b>: После накопления данных приложение в реальном времени стабилизирует вычисления, обновляя следующие показатели:
+                    <ul>
+                        <li><b>Частота флуктуаций (Гц)</b>: Показывает частоту изменений во времени выполнения вычислений, которые приложение сглаживает.</li>
+                        <li><b>Стабильность (%)</b>: Отражает, насколько устойчиво приложение контролирует флуктуации (высокое значение — более плавная работа).</li>
+                        <li><b>Уверенность</b>: Указывает, насколько точно приложение выделяет основную частоту для оптимизации (0–1).</li>
+                    </ul>
+                </li>
+                <li><b>Телеметрия</b>: Под шкалами отображается информация: состояние (SEARCHING или TRACKING), частота, стабильность, уверенность, время, пик, итерации воркера, частота сэмплирования, N и среднее время сэмпла. Эти данные показывают, как приложение улучшает производительность.</li>
+                <li><b>Усиление эффекта</b>: Для максимальной оптимизации создайте фоновую нагрузку, открыв другие приложения, вкладки браузера или видео. Это помогает приложению лучше выявлять и сглаживать флуктуации.</li>
+                <li><b>Отправка результатов</b>: Если настроена основная кнопка Telegram (например, "Поделиться результатами"), нажмите её, чтобы отправить данные оптимизации в чат для дальнейшего анализа.</li>
+                <li><b>Решение проблем</b>:
+                    <ul>
+                        <li>Если отображается "Частота сэмплирования слишком низкая (<50 Гц)", запустите ресурсоемкие приложения (например, игру или видео), чтобы приложение могло лучше оптимизировать производительность.</li>
+                        <li>Если телеметрия не обновляется, обновите страницу или проверьте консоль браузера (F12).</li>
+                        <li>Если приложение не открывается в Telegram, убедитесь, что URL настроен правильно в @BotFather.</li>
+                    </ul>
+                </li>
             </ul>
-        </li>
-        <li><b>Телеметрия</b>: Под шкалами отображается информация: состояние (SEARCHING или TRACKING), частота, стабильность, уверенность, время, пик, итерации воркера, частота сэмплирования, N и среднее время сэмпла. Эти данные показывают, как приложение улучшает производительность.</li>
-        <li><b>Усиление эффекта</b>: Для максимальной оптимизации создайте фоновую нагрузку, открыв другие приложения, вкладки браузера или видео. Это помогает приложению лучше выявлять и сглаживать флуктуации.</li>
-        <li><b>Отправка результатов</b>: Если настроена основная кнопка Telegram (например, "Поделиться результатами"), нажмите её, чтобы отправить данные оптимизации в чат для дальнейшего анализа.</li>
-        <li><b>Решение проблем</b>:
+            <h3>Как приложение улучшает производительность?</h3>
+            <p>Пока страница приложения активна, оно стабилизирует время выполнения вычислений, минимизируя флуктуации и улучшая работу приложений в следующих областях:</p>
             <ul>
-                <li>Если отображается "Частота сэмплирования слишком низкая (<50 Гц)", запустите ресурсоемкие приложения (например, игру или видео), чтобы приложение могло лучше оптимизировать производительность.</li>
-                <li>Если телеметрия не обновляется, обновите страницу или проверьте консоль браузера (F12).</li>
-                <li>Если приложение не открывается в Telegram, убедитесь, что URL настроен правильно в @BotFather.</li>
+                <li><b>Игры</b>:
+                    <ul>
+                        <li><b>Плавный геймплей</b>: Приложение сглаживает флуктуации времени рендеринга кадров, уменьшая лаги и обеспечивая более плавный игровой процесс. Например, во время игры приложение стабилизирует циклы рендеринга, улучшая отзывчивость.</li>
+                        <li><b>Оптимизация игровых движков</b>: Разработчики могут использовать приложение для повышения стабильности игровых движков (Unity, Unreal Engine), минимизируя влияние фоновых процессов на игровой цикл (например, 60 Гц).</li>
+                        <li><b>Адаптация устройств</b>: Приложение оптимизирует производительность игр на разных устройствах, обеспечивая стабильность даже на бюджетных смартфонах.</li>
+                    </ul>
+                </li>
+                <li><b>Звук</b>:
+                    <ul>
+                        <li><b>Стабильная аудиообработка</b>: Приложение уменьшает задержки и щелчки в аудиопрограммах (например, Ableton Live, FL Studio), стабилизируя время выполнения задач обработки звука.</li>
+                        <li><b>MIDI-синхронизация</b>: Обеспечивает точную синхронизацию MIDI-контроллеров и синтезаторов, минимизируя сбои в нотах, вызванные флуктуациями.</li>
+                        <li><b>Потоковое аудио</b>: Улучшает воспроизведение в приложениях вроде Spotify, устраняя буферизацию, вызванную нестабильностью вычислений.</li>
+                    </ul>
+                </li>
+                <li><b>Вычисления</b>:
+                    <ul>
+                        <li><b>Высокопроизводительные задачи</b>: Приложение оптимизирует производительность серверов и облачных сред (например, AWS) для машинного обучения или рендеринга видео, сглаживая периодические задержки.</li>
+                        <li><b>Виртуальные машины и контейнеры</b>: Повышает стабильность вычислений в Docker или VMware, минимизируя влияние конкуренции за ресурсы.</li>
+                        <li><b>Системы реального времени</b>: Улучшает работу систем с низкой латентностью (например, биржевые платформы, IoT), обеспечивая стабильное выполнение задач.</li>
+                    </ul>
+                </li>
+                <li><b>Другие области</b>:
+                    <ul>
+                        <li><b>Передача данных</b>: Стабилизирует потоковое видео или видеоконференции (например, Zoom), минимизируя задержки и потери данных.</li>
+                        <li><b>Браузеры</b>: Оптимизирует выполнение JavaScript в браузерах, улучшая работу веб-приложений.</li>
+                        <li><b>IoT-устройства</b>: Повышает производительность умных устройств, устраняя задержки, вызванные ограниченными ресурсами или сетью.</li>
+                    </ul>
+                </li>
             </ul>
-        </li>
-    </ul>
-    <h3>Как приложение улучшает производительность?</h3>
-    <p>Пока страница приложения активна, оно стабилизирует время выполнения вычислений, минимизируя флуктуации и улучшая работу приложений в следующих областях:</p>
-    <ul>
-        <li><b>Игры</b>:
+            <h3>Рекомендации для максимальной эффективности</h3>
             <ul>
-                <li><b>Плавный геймплей</b>: Приложение сглаживает флуктуации времени рендеринга кадров, уменьшая лаги и обеспечивая более плавный игровой процесс. Например, во время игры приложение стабилизирует циклы рендеринга, улучшая отзывчивость.</li>
-                <li><b>Оптимизация игровых движков</b>: Разработчики могут использовать приложение для повышения стабильности игровых движков (Unity, Unreal Engine), минимизируя влияние фоновых процессов на игровой цикл (например, 60 Гц).</li>
-                <li><b>Адаптация устройств</b>: Приложение оптимизирует производительность игр на разных устройствах, обеспечивая стабильность даже на бюджетных смартфонах.</li>
+                <li><b>Для игр</b>: Запустите приложение во время игры и создайте фоновую нагрузку (видео, браузер), чтобы усилить стабилизацию игрового цикла.</li>
+                <li><b>Для звука</b>: Используйте приложение с аудиопрограммами. Если уверенность низкая, закройте фоновые приложения для лучшей стабилизации.</li>
+                <li><b>Для вычислений</b>: Запустите приложение на сервере или в облаке, чтобы оптимизировать производительность ресурсоемких задач.</li>
+                <li><b>Общее</b>: Держите страницу активной и создавайте умеренную фоновую нагрузку для лучшего сглаживания флуктуаций. Если частота сэмплирования <50 Гц, увеличьте нагрузку на устройство.</li>
             </ul>
-        </li>
-        <li><b>Звук</b>:
+            <h3>Ограничения</h3>
             <ul>
-                <li><b>Стабильная аудиообработка</b>: Приложение уменьшает задержки и щелчки в аудиопрограммах (например, Ableton Live, FL Studio), стабилизируя время выполнения задач обработки звука.</li>
-                <li><b>MIDI-синхронизация</b>: Обеспечивает точную синхронизацию MIDI-контроллеров и синтезаторов, минимизируя сбои в нотах, вызванные флуктуациями.</li>
-                <li><b>Потоковое аудио</b>: Улучшает воспроизведение в приложениях вроде Spotify, устраняя буферизацию, вызванную нестабильностью вычислений.</li>
+                <li>Приложение работает в браузере без доступа к аппаратным датчикам, полагаясь на фоновую активность для выявления и сглаживания флуктуаций.</li>
+                <li>На слабых устройствах частота сэмплирования может быть низкой, что может снизить эффект оптимизации.</li>
+                <li>В Telegram производительность зависит от встроенного браузера, поэтому тестируйте на разных платформах.</li>
             </ul>
-        </li>
-        <li><b>Вычисления</b>:
-            <ul>
-                <li><b>Высокопроизводительные задачи</b>: Приложение оптимизирует производительность серверов и облачных сред (например, AWS) для машинного обучения или рендеринга видео, сглаживая периодические задержки.</li>
-                <li><b>Виртуальные машины и контейнеры</b>: Повышает стабильность вычислений в Docker или VMware, минимизируя влияние конкуренции за ресурсы.</li>
-                <li><b>Системы реального времени</b>: Улучшает работу систем с низкой латентностью (например, биржевые платформы, IoT), обеспечивая стабильное выполнение задач.</li>
-            </ul>
-        </li>
-        <li><b>Другие области</b>:
-            <ul>
-                <li><b>Передача данных</b>: Стабилизирует потоковое видео или видеоконференции (например, Zoom), минимизируя задержки и потери данных.</li>
-                <li><b>Браузеры</b>: Оптимизирует выполнение JavaScript в браузерах, улучшая работу веб-приложений.</li>
-                <li><b>IoT-устройства</b>: Повышает производительность умных устройств, устраняя задержки, вызванные ограниченными ресурсами или сетью.</li>
-            </ul>
-        </li>
-    </ul>
-    <h3>Рекомендации для максимальной эффективности</h3>
-    <ul>
-        <li><b>Для игр</b>: Запустите приложение во время игры и создайте фоновую нагрузку (видео, браузер), чтобы усилить стабилизацию игрового цикла.</li>
-        <li><b>Для звука</b>: Используйте приложение с аудиопрограммами. Если уверенность низкая, закройте фоновые приложения для лучшей стабилизации.</li>
-        <li><b>Для вычислений</b>: Запустите приложение на сервере или в облаке, чтобы оптимизировать производительность ресурсоемких задач.</li>
-        <li><b>Общее</b>: Держите страницу активной и создавайте умеренную фоновую нагрузку для лучшего сглаживания флуктуаций. Если частота сэмплирования <50 Гц, увеличьте нагрузку на устройство.</li>
-    </ul>
-    <h3>Ограничения</h3>
-    <ul>
-        <li>Приложение работает в браузере без доступа к аппаратным датчикам, полагаясь на фоновую активность для выявления и сглаживания флуктуаций.</li>
-        <li>На слабых устройствах частота сэмплирования может быть низкой, что может снизить эффект оптимизации.</li>
-        <li>В Telegram производительность зависит от встроенного браузера, поэтому тестируйте на разных платформах.</li>
-    </ul>
-    <p>
-        Для максимального эффекта держите страницу приложения активной.
-    </p>
-</div>
+            <p>
+                Для максимального эффекта держите страницу приложения активной.
+            </p>
+        </div>
     </div>
     <script>
         // MathJitterSampler
@@ -470,226 +469,110 @@
         }
 
         // Инициализация алгоритма
-        const sampler = new MathJitterSampler();
-        const scanner = new FrequencyScanner(sampler);
-        let running = true;
-        let firstDraw = true;
+        document.addEventListener('DOMContentLoaded', function() {
+            const sampler = new MathJitterSampler();
+            const scanner = new FrequencyScanner(sampler);
+            let running = true;
+            let firstDraw = true;
+            let stableCounter = 0;
+            let lastFreq = 0;
+            const STABLE_THRESHOLD = 0.5;
+            const STABLE_COUNT_REQUIRED = 30;
 
-        let stableCounter = 0;
-        let lastFreq = 0;
-        const STABLE_THRESHOLD = 0.5;
-        const STABLE_COUNT_REQUIRED = 30;
+            // Определение мобильного браузера
+            const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
 
-        // Термостабилизация
-        class ThermalController {
-            constructor(worker) {
-                this.worker = worker;
-                this.kp = 25.0;
-                this.ki = 0.5;
-                this.integral = 0.0;
-                this.targetPeak = 1.5;
-                this.minIter = 1000;
-                this.maxIter = 100000;
-                this.lastAdjust = Date.now();
-                this.adjustIntervalMs = 200;
-                this.workerIters = 50000;
+            // Воркер или эмуляция нагрузки
+            let worker = createWorker();
+            const thermal = new ThermalController(worker);
+            if (worker) {
+                worker.onmessage = (e) => {};
+                worker.onerror = (e) => {};
+                try { worker.postMessage({ iters: thermal.workerIters, tickMs: 10 }); } catch(e){}
             }
 
-            update(measuredPeakness) {
-                const now = Date.now();
-                if (now - this.lastAdjust < this.adjustIntervalMs) return;
-                this.lastAdjust = now;
-
-                let error = this.targetPeak - measuredPeakness;
-                this.integral += error * (this.adjustIntervalMs / 1000.0);
-                let control = this.kp * error + this.ki * this.integral;
-
-                let deltaIters = Math.round(control * -1000);
-                this.workerIters = Math.max(this.minIter, Math.min(this.maxIter, this.workerIters + deltaIters));
-                try { this.worker.postMessage({ iters: this.workerIters }); } catch (e) {}
-            }
-        }
-
-        // Воркер
-    </script>
-    <script id="worker-script" type="text/plain">
-        let iters = 50000;
-        let tickMs = 10;
-        let timer = null;
-
-        function start() {
-            if (timer) clearInterval(timer);
-            timer = setInterval(() => {
+            // Эмуляция нагрузки для мобильных, если воркер не поддерживается
+            function emulateLoad(iters) {
                 let x = 1.0001;
                 for (let i = 0; i < iters; ++i) {
                     x *= 1.00000001;
                     x /= 1.000000009;
                 }
-            }, tickMs);
-        }
-
-        onmessage = (e) => {
-            if (e.data && typeof e.data.iters === 'number') {
-                iters = Math.max(1000, e.data.iters|0);
             }
-            if (e.data && typeof e.data.tickMs === 'number') {
-                tickMs = Math.max(1, e.data.tickMs|0);
+
+            function updateDOM(id, text) {
+                const element = document.getElementById(id);
+                if (element) element.innerText = text;
             }
-            start();
-            postMessage({ status: 'running', iters });
-        };
-
-        start();
-    </script>
-    <script>
-document.addEventListener('DOMContentLoaded', function() {
-    (function(){
-        let worker = null;
-        let workerSupported = false;
-        try {
-            workerSupported = !!window.Worker;
-            if (workerSupported) {
-                const code = document.getElementById('worker-script').textContent;
-                const blob = new Blob([code], { type: "application/javascript" });
-                worker = new Worker(URL.createObjectURL(blob));
-            }
-        } catch (e) {
-            workerSupported = false;
-            worker = null;
-        }
-        if (worker) {
-            worker.onmessage = (e) => console.log('Worker status:', e.data);
-            worker.onerror = (e) => console.error('Worker error:', e.message);
-        }
-        const thermal = new ThermalController(worker);
-        try { if (worker) worker.postMessage({ iters: thermal.workerIters, tickMs: 10 }); } catch(e){}
-
-        // Исправленный цикл накопления сэмплов — не зависает!
-        let running = true;
-        let firstDraw = true;
-        let stableCounter = 0;
-        let lastFreq = 0;
-        const STABLE_THRESHOLD = 0.5;
-        const STABLE_COUNT_REQUIRED = 30;
-
-        function getSyncedTimeString() {
-            return new Date().toLocaleTimeString('ru-RU');
-        }
-
-        let statusText = "Загрузка данных...";
-
-        // Helper function to safely update DOM text
-        function updateDOM(id, text) {
-            const element = document.getElementById(id);
-            if (element) element.innerText = text;
-        }
-
-        // Helper function to safely update DOM style
-        function updateDOMStyle(id, property, value) {
-            const element = document.getElementById(id);
-            if (element && element.style) {
-                element.style[property] = value;
-            }
-        }
-
-        function emulateLoad(iters) {
-            let x = 1.0001;
-            for (let i = 0; i < iters; ++i) {
-                x *= 1.00000001;
-                x /= 1.000000009;
-            }
-        }
-
-        function updateBars() {
-    if (!running) return;
-
-    try {
-        // Быстрое накопление сэмплов
-        let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
-        if (needSamples) {
-            for (let i = 0; i < 100; ++i) sampler.sample(); // ускоряем старт
-            let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
-            updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
-            updateDOM('info', `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
-            setTimeout(updateBars, 50);
-            return;
-        }
-
-        // Гарантируем старт анализа после накопления
-        if (!scanner.grabBlock()) {
-            // Если блок не готов, продолжаем накапливать
-            setTimeout(updateBars, 50);
-            return;
-        }
-
-        // После накопления — анализ
-        scanner.processOnce();
-
-        // Статус всегда отображается под шкалой
-        if (sampler.actual_fs < 50) {
-            document.getElementById('statusText').innerText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
-        } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
-            document.getElementById('statusText').innerText = "Недостаточно фоновой активности, откройте другие приложения или вкладки!";
-        } else {
-            document.getElementById('statusText').innerText = "Анализируется...";
-        }
-
-        // Update thermal controller with fallback
-        try {
-            thermal.update(scanner.out_peakness || 0);
-        } catch (e) {
-            console.warn('Thermal update error:', e);
-            thermal.workerIters = 50000; // Reset to default
-        }
-
-        // Stability check
-        if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
-            stableCounter++;
-        } else {
-            stableCounter = 0;
-        }
-        lastFreq = scanner.out_freqHz;
-
-        const freqMax = scanner.f_max || 50; // Default to 50 if undefined
-        updateDOM('freqValue', scanner.out_freqHz.toFixed(2));
-        updateDOMStyle('freqBar', 'width', Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%");
-
-        updateDOM('inertiaValue', (scanner.out_inertia * 100).toFixed(0));
-        updateDOMStyle('inertiaBar', 'width', Math.min(100, scanner.out_inertia * 100) + "%");
-
-        updateDOM('confValue', scanner.out_conf.toFixed(2));
-        updateDOMStyle('confBar', 'width', Math.min(100, scanner.out_conf * 100) + "%");
-
-        // Обновление инфо с полной телеметрией
-        updateDOM('info', `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
-
-        if (firstDraw) {
-            updateDOMStyle('loading', 'display', 'block');
-            firstDraw = false;
-        }
-
-        setTimeout(updateBars, 200);
-    } catch (e) {
-        console.error('Critical error in updateBars:', e);
-        updateDOM('info', "Критическая ошибка! Пожалуйста, обновите страницу.");
-        setTimeout(updateBars, 1000); // Retry after 1 second
-    }
-}
-
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.onEvent('viewportChanged', () => {
-                if (!window.Telegram.WebApp.isExpanded) {
-                    running = false;
+            function updateDOMStyle(id, property, value) {
+                const element = document.getElementById(id);
+                if (element && element.style) {
+                    element.style[property] = value;
                 }
-            });
-        } else {
-            console.warn("Running outside Telegram environment, some features may not work.");
-            running = true; // Ensure it runs in non-Telegram context
-        }
-        updateBars();
-    })();
-});
+            }
+            function getSyncedTimeString() {
+                return new Date().toLocaleTimeString('ru-RU');
+            }
+
+            function updateBars() {
+                if (!running) return;
+                try {
+                    // Быстрое накопление сэмплов
+                    let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
+                    if (needSamples) {
+                        for (let i = 0; i < (isMobile ? 30 : 100); ++i) sampler.sample();
+                        if (!worker && isMobile) emulateLoad(thermal.workerIters);
+                        let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
+                        updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
+                        updateDOM('info', `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
+                        setTimeout(updateBars, 50);
+                        return;
+                    }
+                    if (!scanner.grabBlock()) {
+                        setTimeout(updateBars, 50);
+                        return;
+                    }
+                    scanner.processOnce();
+                    if (!worker && isMobile) emulateLoad(thermal.workerIters);
+
+                    // Статус всегда отображается под шкалой
+                    if (sampler.actual_fs < 50) {
+                        document.getElementById('statusText').innerText = "Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.";
+                    } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01) {
+                        document.getElementById('statusText').innerText = "Недостаточно фоновой активности, откройте другие приложения или вкладки!";
+                    } else {
+                        document.getElementById('statusText').innerText = "Анализируется...";
+                    }
+
+                    try { thermal.update(scanner.out_peakness || 0); } catch (e) {}
+
+                    if (Math.abs(scanner.out_freqHz - lastFreq) < STABLE_THRESHOLD) {
+                        stableCounter++;
+                    } else {
+                        stableCounter = 0;
+                    }
+                    lastFreq = scanner.out_freqHz;
+
+                    const freqMax = scanner.f_max || 50;
+                    updateDOM('freqValue', scanner.out_freqHz.toFixed(2));
+                    updateDOMStyle('freqBar', 'width', Math.min(100, 100 * scanner.out_freqHz / freqMax) + "%");
+                    updateDOM('inertiaValue', (scanner.out_inertia * 100).toFixed(0));
+                    updateDOMStyle('inertiaBar', 'width', Math.min(100, scanner.out_inertia * 100) + "%");
+                    updateDOM('confValue', scanner.out_conf.toFixed(2));
+                    updateDOMStyle('confBar', 'width', Math.min(100, scanner.out_conf * 100) + "%");
+                    updateDOM('info', `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | Стабильность: ${(scanner.out_inertia * 100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | Время: ${getSyncedTimeString()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | Итерации воркера: ${thermal.workerIters} | Частота сэмплирования: ${sampler.actual_fs.toFixed(1)} Гц | N: ${sampler.dynamic_n} | Avg sample time: ${sampler.ema_delta.toFixed(2)}ms`);
+                    if (firstDraw) {
+                        updateDOMStyle('loading', 'display', 'block');
+                        firstDraw = false;
+                    }
+                    setTimeout(updateBars, 200);
+                } catch (e) {
+                    updateDOM('info', "Критическая ошибка! Пожалуйста, обновите страницу.");
+                    setTimeout(updateBars, 1000);
+                }
+            }
+            updateBars();
+        });
     </script>
 </body>
 </html>
