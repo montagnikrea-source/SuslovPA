@@ -144,7 +144,7 @@
         // MathJitterSampler
         class MathJitterSampler {
             static RB_SIZE = 16384;
-            static MASK = this.RB_SIZE - 1;
+            static MASK = 16384 - 1; // совместимость между движками
 
             constructor() {
                 this.rb = new Array(this.constructor.RB_SIZE).fill(0);
@@ -179,7 +179,8 @@
                 this.rb[idx] = jitter;
                 this.timestamps[idx] = startTime;
                 this.sample_count++;
-                console.log(`Sampled at widx: ${this.widx}, delta: ${delta.toFixed(2)}ms`); // Debug log
+
+                // Убираем частые логи — сильно тормозят браузеры при большом числе сэмплов
 
                 // Агрессивная адаптация первых 50 сэмплов
                 if (this.sample_count <= 50) {
@@ -193,6 +194,8 @@
                     // Мягкое ограничение для разумных значений
                     if (this.fixed_iterations < 100) this.fixed_iterations *= 2;
                     if (this.fixed_iterations > 1e6) this.fixed_iterations /= 2;
+                    // Жёсткая защита от чрезмерного блокирования main thread
+                    this.fixed_iterations = Math.max(100, Math.min(200000, this.fixed_iterations));
                     this.actual_fs = 1000.0 / this.ema_delta;
                     this.dynamic_n = Math.max(64, Math.min(2048, Math.ceil(0.5 * this.actual_fs)));
 
@@ -509,7 +512,7 @@
 
         // Воркер
     </script>
-    <script id="worker-script" type="javascript/worker">
+    <script id="worker-script" type="text/plain">
         let iters = 50000;
         let tickMs = 10;
         let timer = null;
@@ -541,12 +544,20 @@
     <script>
 document.addEventListener('DOMContentLoaded', function() {
     (function(){
-        const blob = new Blob([document.getElementById('worker-script').textContent], { type: "application/javascript" });
-        const worker = new Worker(URL.createObjectURL(blob));
-        worker.onmessage = (e) => console.log('Worker status:', e.data);
-        worker.onerror = (e) => console.error('Worker error:', e.message);
+        let worker = null;
+        try {
+            const code = document.getElementById('worker-script').textContent;
+            const blob = new Blob([code], { type: "application/javascript" });
+            worker = new Worker(URL.createObjectURL(blob));
+        } catch (e) {
+            console.warn('Worker creation failed, falling back to no-worker mode:', e);
+        }
+        if (worker) {
+            worker.onmessage = (e) => console.log('Worker status:', e.data);
+            worker.onerror = (e) => console.error('Worker error:', e.message);
+        }
         const thermal = new ThermalController(worker);
-        worker.postMessage({ iters: thermal.workerIters, tickMs: 10 });
+        try { if (worker) worker.postMessage({ iters: thermal.workerIters, tickMs: 10 }); } catch(e){}
 
         // Исправленный цикл накопления сэмплов — не зависает!
         let running = true;
@@ -583,7 +594,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Обновление строки загрузки
         let needSamples = ((sampler.widx - scanner.r) & sampler.constructor.MASK) < sampler.dynamic_n;
         if (needSamples) {
-            for (let i = 0; i < 100; ++i) sampler.sample();
+            // уменьшаем число sample за тик чтобы не блокировать UI в Chrome/Safari
+            for (let i = 0; i < 20; ++i) sampler.sample();
             let progress = ((sampler.widx / sampler.dynamic_n) * 100) % 100;
             updateDOMStyle('loadingBar', 'width', Math.min(100, progress) + "%");
             
