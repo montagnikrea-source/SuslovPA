@@ -1,98 +1,60 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Frequency Scanner Web App</title>
-  <style>
-    :root {
-      --main-bg: #f0f0f0;
-      --panel-bg: #fff;
-      --bar-bg: #eee;
-      --bar-radius: 8px;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: var(--main-bg);
-    }
-    .embed-wrapper {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-      background: var(--panel-bg);
-      border-radius: 16px;
-      box-shadow: 0 2px 8px #ccc;
-    }
-    h1 { margin-bottom: 10px; font-size: 1.5em; }
-    #desc { margin-bottom: 20px; color: #555; }
-    #loading { color: #888; margin-bottom: 10px; }
-    .bar-container { width: 100%; margin: 20px 0; }
-    .bar-label { margin-bottom: 5px; font-size: 16px; color: #333; }
-    .bar-bg { width: 100%; height: 32px; background: var(--bar-bg); border-radius: var(--bar-radius); overflow: hidden; margin-bottom: 20px; }
-    .bar-fill { height: 100%; transition: width 0.3s; }
-    #info { margin-top: 20px; font-size: 16px; word-break: break-word; }
-    .freq { background: linear-gradient(90deg, #007bff 60%, #66bfff); }
-    .inertia { background: linear-gradient(90deg, #28a745 60%, #7be88b); }
-    .conf { background: linear-gradient(90deg, #dc3545 60%, #ffb3b3); }
-    #about { margin: 40px 0 0 0; padding: 20px; background: var(--panel-bg); border-radius: 12px; box-shadow: 0 2px 8px #ccc; font-size: 16px; color: #333; }
-    #about h2 { margin-top: 0; }
-    #about ul { padding-left: 20px; }
-    @media (max-width: 700px) {
-      .embed-wrapper, #about { max-width: 98vw; padding: 10px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="embed-wrapper">
-    <h1>Frequency Scanner Web App</h1>
-    <div id="desc">
-      Веб-приложение для анализа вариаций времени выполнения вычислений.<br />
-      Шкалы обновляются в реальном времени.
-    </div>
-
-    <div id="loading">
-      <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
-        <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
-      </div>
-      <div id="statusText" style="margin-top:8px;color:#555;">Ожидание накопления данных...</div>
-    </div>
-
-    <div class="bar-container">
-      <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
-      <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
-
-      <div class="bar-label">Стабильность (%): <span id="inertiaValue">0</span></div>
-      <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
-
-      <div class="bar-label">Уверенность: <span id="confValue">0</span></div>
-      <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
-    </div>
-
-    <div id="info"></div>
-
-    <div id="about">
-      <h2>Как работает приложение?</h2>
-      <p>
-        <b>Frequency Scanner Web App</b> — инструмент для анализа и стабилизации
-        вариаций времени выполнения (jitter). Измеряется время выполнения
-        детерминированного набора операций, далее окно данных обрабатывается
-        методом Гёрцеля и фильтром Калмана; отображаются частота флуктуаций,
-        «стабильность» петли слежения и уверенность в выделенной частоте.
-      </p>
-
-      <h3>Как пользоваться?</h3>
-      <ul>
-        <li><b>Старт:</b> дождитесь завершения накопления окна (прогресс-бар).</li>
-        <li><b>Мониторинг:</b> полосы и телеметрия обновляются в реальном времени.</li>
-        <li><b>Если слишком тихо:</b> создайте умеренную фоновую нагрузку (другая вкладка/видео/приложение).</li>
-      </ul>
-    </div>
+<div id="loading">
+  <div style="width:100%;background:#eee;border-radius:8px;height:18px;margin-top:8px;">
+    <div id="loadingBar" style="height:100%;width:0%;background:linear-gradient(90deg,#007bff 60%,#66bfff);border-radius:8px;transition:width 0.3s;"></div>
   </div>
+  <div id="statusText" style="margin-top:8px;color:#555;">Ожидание накопления данных...</div>
+</div>
 
-  <script>
+<div class="bar-container">
+  <div class="bar-label">Частота флуктуаций (Гц): <span id="freqValue">0</span></div>
+  <div class="bar-bg"><div class="bar-fill freq" id="freqBar" style="width:0%"></div></div>
+
+  <div class="bar-label">Стабильность (%): <span id="inertiaValue">0</span></div>
+  <div class="bar-bg"><div class="bar-fill inertia" id="inertiaBar" style="width:0%"></div></div>
+
+  <div class="bar-label">Уверенность: <span id="confValue">0</span></div>
+  <div class="bar-bg"><div class="bar-fill conf" id="confBar" style="width:0%"></div></div>
+</div>
+
+<hr>
+
+<h1 id="gpuTitle">GPU Frequency Scanner Web App</h1>
+<div id="descGpu">
+  Веб-приложение для анализа вариаций времени выполнения вычислений на GPU.<br />
+  Шкалы обновляются в реальном времени.
+</div>
+
+<div id="gpuContainer" class="bar-container" style="display:none">
+  <div class="bar-label">Частота флуктуаций (Гц): <span id="gpuFreqValue">0</span></div>
+  <div class="bar-bg"><div class="bar-fill freq" id="gpuFreqBar" style="width:0%"></div></div>
+
+  <div class="bar-label">Стабильность (%): <span id="gpuInertiaValue">0</span></div>
+  <div class="bar-bg"><div class="bar-fill inertia" id="gpuInertiaBar" style="width:0%"></div></div>
+
+  <div class="bar-label">Уверенность: <span id="gpuConfValue">0</span></div>
+  <div class="bar-bg"><div class="bar-fill conf" id="gpuConfBar" style="width:0%"></div></div>
+</div>
+
+<div id="info"></div>
+
+<div id="about">
+  <h2>Как работает приложение?</h2>
+  <p>
+    <b>Frequency Scanner Web App</b> — инструмент для анализа и стабилизации
+    вариаций времени выполнения (jitter). Измеряется время выполнения
+    детерминированного набора операций, далее окно данных обрабатывается
+    методом Гёрцеля и фильтром Калмана; отображаются частота флуктуаций,
+    «стабильность» петли слежения и уверенность в выделенной частоте.
+  </p>
+
+  <h3>Как пользоваться?</h3>
+  <ul>
+    <li><b>Старт:</b> дождитесь завершения накопления окна (прогресс-бар).</li>
+    <li><b>Мониторинг:</b> полосы и телеметрия обновляются в реальном времени.</li>
+    <li><b>Если слишком тихо:</b> создайте умеренную фоновую нагрузку (другая вкладка/видео/приложение).</li>
+  </ul>
+  <p>Приложение теперь поддерживает одновременный анализ на CPU и GPU (если WebGPU доступен с поддержкой timestamp-query).</p>
+</div>  <script>
     /* ========= ThermalController (простейший адаптер «фоновой нагрузки») ========= */
     class ThermalController {
       constructor(worker) {
@@ -220,6 +182,118 @@
         this.last_widx = this.widx;
         this.stall_count = 0;
         return false;
+      }
+    }
+
+    class GpuJitterSampler extends MathJitterSampler {
+      constructor() {
+        super();
+        this.device = null;
+        this.pipeline = null;
+        this.bindGroup = null;
+        this.itersBuffer = null;
+        this.querySet = null;
+        this.resolveBuffer = null;
+        this.readBuffer = null;
+        this.maxIters = 10000000;
+      }
+
+      async initGpu() {
+        if (!navigator.gpu) {
+          console.warn("WebGPU not supported");
+          return;
+        }
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) return;
+        if (!adapter.features.has('timestamp-query')) {
+          console.warn("timestamp-query not supported");
+          return;
+        }
+        this.device = await adapter.requestDevice({
+          requiredFeatures: ['timestamp-query']
+        });
+        this.querySet = this.device.createQuerySet({ type: 'timestamp', count: 2 });
+        this.resolveBuffer = this.device.createBuffer({ size: 16, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC });
+        this.readBuffer = this.device.createBuffer({ size: 16, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+        const module = this.device.createShaderModule({
+          code: `
+@group(0) @binding(0) var<uniform> iters: i32;
+@compute @workgroup_size(1)
+fn main() {
+  var x: f32 = 1.0001f;
+  for (var i: i32 = 0; i < iters; i = i + 1) {
+    x = x * 1.00000001f;
+    x = x / 1.000000009f;
+  }
+}
+          `
+        });
+        this.pipeline = this.device.createComputePipeline({
+          layout: 'auto',
+          compute: { module, entryPoint: 'main' }
+        });
+        this.itersBuffer = this.device.createBuffer({ size: 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+        this.bindGroup = this.device.createBindGroup({
+          layout: this.pipeline.getBindGroupLayout(0),
+          entries: [{ binding: 0, resource: { buffer: this.itersBuffer } }]
+        });
+      }
+
+      async sample() {
+        if (!this.device) {
+          return super.sample();
+        }
+        this.device.queue.writeBuffer(this.itersBuffer, 0, new Int32Array([this.fixed_iterations]));
+        const encoder = this.device.createCommandEncoder();
+        const pass = encoder.beginComputePass();
+        pass.writeTimestamp(this.querySet, 0);
+        pass.setPipeline(this.pipeline);
+        pass.setBindGroup(0, this.bindGroup);
+        pass.dispatchWorkgroups(1);
+        pass.writeTimestamp(this.querySet, 1);
+        pass.end();
+        this.device.queue.submit([encoder.finish()]);
+        await this.device.queue.onSubmittedWorkDone();
+        const resolveEncoder = this.device.createCommandEncoder();
+        resolveEncoder.resolveQuerySet(this.querySet, 0, 2, this.resolveBuffer, 0);
+        this.device.queue.submit([resolveEncoder.finish()]);
+        const copyEncoder = this.device.createCommandEncoder();
+        copyEncoder.copyBufferToBuffer(this.resolveBuffer, 0, this.readBuffer, 0, 16);
+        this.device.queue.submit([copyEncoder.finish()]);
+        await this.readBuffer.mapAsync(GPUMapMode.READ);
+        const times = new BigInt64Array(this.readBuffer.getMappedRange());
+        let delta = Number(times[1] - times[0]) / 1000000.0;
+        this.readBuffer.unmap();
+        if (delta <= 0) {
+          console.warn("Invalid GPU delta, falling back to host time");
+          delta = performance.now() - performance.now(); // dummy, or implement fallback
+        }
+        if (this.ema_delta === 0) this.ema_delta = delta;
+        this.ema_delta = (1 - this.alpha) * this.ema_delta + this.alpha * delta;
+        const jitter = delta - this.ema_delta;
+        const idx = (this.widx++) & this.constructor.MASK;
+        this.rb[idx] = jitter;
+        this.timestamps[idx] = performance.now();
+        this.sample_count++;
+        this.jitter_rms = (1 - this.alpha) * this.jitter_rms + this.alpha * jitter * jitter;
+        if (this.sample_count % 200 === 0) {
+          const adjust = this.ema_delta / this.target_sample_time;
+          this.fixed_iterations = Math.round(this.fixed_iterations / (adjust || 1));
+          this.fixed_iterations = Math.max(100, Math.min(this.maxIters, this.fixed_iterations));
+          this.actual_fs = 1000.0 / (this.ema_delta || 1);
+          this.dynamic_n = Math.max(16, Math.min(512, Math.ceil(0.25 * this.actual_fs)));
+          if (this.ema_delta > 10.0) {
+            this.slow_count++;
+            if (this.slow_count > 5) {
+              this.fixed_iterations = Math.max(100, this.fixed_iterations >> 1);
+              this.dynamic_n = Math.max(16, this.dynamic_n >> 1);
+              this.slow_count = 0;
+              console.log("Слишком медленно (GPU), уменьшаю нагрузку → iters:", this.fixed_iterations, "N:", this.dynamic_n);
+            }
+          } else {
+            this.slow_count = 0;
+          }
+        }
       }
     }
 
@@ -417,15 +491,28 @@
         this.out_state   = this.currentState;
 
         if (this.sampler.sample_count % 400 === 0){
-          console.log(`Scanner: f=${this.out_freqHz.toFixed(3)}Hz, conf=${this.out_conf.toFixed(2)}, inertia=${this.out_inertia.toFixed(2)}, peak=${this.out_peakness.toFixed(2)}, mag=${maxMag.toFixed(3)}`);
+          console.log(`Scanner${this.sampler instanceof GpuJitterSampler ? ' (GPU)' : ''}: f=${this.out_freqHz.toFixed(3)}Hz, conf=${this.out_conf.toFixed(2)}, inertia=${this.out_inertia.toFixed(2)}, peak=${this.out_peakness.toFixed(2)}, mag=${maxMag.toFixed(3)}`);
         }
       }
     }
 
     /* =============================== UI loop =============================== */
-    document.addEventListener('DOMContentLoaded', () => {
-      const sampler = new MathJitterSampler();
-      const scanner = new FrequencyScanner(sampler);
+    document.addEventListener('DOMContentLoaded', async () => {
+      const cpuSampler = new MathJitterSampler();
+      const gpuSampler = new GpuJitterSampler();
+      await gpuSampler.initGpu();
+      if (gpuSampler.device) {
+        document.getElementById('gpuTitle').style.display = 'block';
+        document.getElementById('descGpu').style.display = 'block';
+        document.getElementById('gpuContainer').style.display = 'block';
+      } else {
+        document.getElementById('gpuTitle').innerText = 'GPU не доступен (WebGPU или timestamp-query не поддерживается)';
+        document.getElementById('gpuTitle').style.display = 'block';
+        document.getElementById('descGpu').style.display = 'none';
+        document.getElementById('gpuContainer').style.display = 'none';
+      }
+      const cpuScanner = new FrequencyScanner(cpuSampler);
+      const gpuScanner = new FrequencyScanner(gpuSampler);
 
       let running = true;
       const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
@@ -448,68 +535,110 @@
       const setStyle = (id, prop, v)=>{ const el=$(id); if (el && el.style) el.style[prop]=v; };
       const timeStr = ()=> new Date().toLocaleTimeString('ru-RU');
 
-      function updateBars(){
+      async function updateBars(){
         if (!running) return;
         try {
-          // доступность данных в кольцевом буфере
-          const avail = (sampler.widx - scanner.r) & sampler.constructor.MASK;
-          const need = (avail < sampler.dynamic_n);
+          const cpuAvail = (cpuSampler.widx - cpuScanner.r) & MathJitterSampler.MASK;
+          let gpuAvail = cpuAvail;
+          if (gpuSampler.device) {
+            gpuAvail = (gpuSampler.widx - gpuScanner.r) & MathJitterSampler.MASK;
+          }
+          const need = (cpuAvail < cpuSampler.dynamic_n) || (gpuSampler.device && gpuAvail < gpuSampler.dynamic_n);
 
           if (need){
-            for (let i=0; i<(isMobile?100:300); ++i) sampler.sample();
-            if (!worker && isMobile) emulateLoad(thermal.workerIters);
+            const num = isMobile?100:300;
+            const gpuPromises = [];
+            for (let i=0; i<num; ++i) {
+              if (gpuSampler.device) gpuPromises.push(gpuSampler.sample());
+              cpuSampler.sample();
+              if (!worker && isMobile) emulateLoad(thermal.workerIters);
+            }
+            await Promise.all(gpuPromises);
 
-            const progress = Math.min(100, (avail / sampler.dynamic_n) * 100);
+            const minAvail = Math.min(cpuAvail, gpuAvail);
+            const minN = Math.min(cpuSampler.dynamic_n, gpuSampler.dynamic_n);
+            const progress = Math.min(100, (minAvail / minN) * 100);
             setStyle('loadingBar','width', progress.toFixed(0)+'%');
             setText('statusText', `Ожидание накопления данных... (${progress.toFixed(0)}%)`);
 
-            if (sampler.checkStall()) setText('statusText', 'Застревание сэмплирования! Уменьшаю нагрузку...');
-            setTimeout(updateBars, isMobile?100:50);
+            let stalled = cpuSampler.checkStall();
+            if (gpuSampler.device) stalled = stalled || gpuSampler.checkStall();
+            if (stalled) setText('statusText', 'Застревание сэмплирования! Уменьшаю нагрузку...');
+            setTimeout(()=> updateBars(), isMobile?100:50);
             return;
           }
 
-          // вся обработка — внутри processOnce (без внешнего grabBlock)
-          scanner.processOnce();
+          cpuScanner.processOnce();
+          if (gpuSampler.device) gpuScanner.processOnce();
           if (!worker && isMobile) emulateLoad(thermal.workerIters);
 
-          if (sampler.actual_fs < 50) {
+          let fsLow = cpuSampler.actual_fs < 50;
+          let lowActivity = cpuScanner.out_freqHz < 0.01 && cpuScanner.out_inertia < 0.01 && cpuScanner.out_conf < 0.01 && Math.sqrt(cpuSampler.jitter_rms) < 0.01;
+          if (gpuSampler.device) {
+            fsLow = fsLow || gpuSampler.actual_fs < 50;
+            lowActivity = lowActivity || (gpuScanner.out_freqHz < 0.01 && gpuScanner.out_inertia < 0.01 && gpuScanner.out_conf < 0.01 && Math.sqrt(gpuSampler.jitter_rms) < 0.01);
+          }
+          if (fsLow) {
             setText('statusText', 'Частота сэмплирования слишком низкая (<50 Гц). Откройте другие приложения для увеличения нагрузки.');
-          } else if (scanner.out_freqHz < 0.01 && scanner.out_inertia < 0.01 && scanner.out_conf < 0.01 && Math.sqrt(sampler.jitter_rms) < 0.01) {
+          } else if (lowActivity) {
             setText('statusText', 'Недостаточно фоновой активности, откройте другие приложения или вкладки!');
           } else {
             setText('statusText', 'Анализируется...');
           }
 
-          try { thermal.update(scanner.out_peakness || 0); } catch(e){ console.warn('Ошибка ThermalController:', e.message); }
+          let peakness = cpuScanner.out_peakness || 0;
+          if (gpuSampler.device) peakness = (peakness + (gpuScanner.out_peakness || 0)) / 2;
+          try { thermal.update(peakness); } catch(e){ console.warn('Ошибка ThermalController:', e.message); }
 
-          const freqMax = scanner.f_max || 50;
-          setText('freqValue', scanner.out_freqHz.toFixed(2));
-          setStyle('freqBar','width', Math.min(100, 100*scanner.out_freqHz/Math.max(1e-6,freqMax)) + '%');
+          const freqMax = cpuScanner.f_max || 50;
+          setText('freqValue', cpuScanner.out_freqHz.toFixed(2));
+          setStyle('freqBar','width', Math.min(100, 100*cpuScanner.out_freqHz/Math.max(1e-6,freqMax)) + '%');
 
-          setText('inertiaValue', (scanner.out_inertia*100).toFixed(0));
-          setStyle('inertiaBar','width', Math.min(100, scanner.out_inertia*100) + '%');
+          setText('inertiaValue', (cpuScanner.out_inertia*100).toFixed(0));
+          setStyle('inertiaBar','width', Math.min(100, cpuScanner.out_inertia*100) + '%');
 
-          setText('confValue', scanner.out_conf.toFixed(2));
-          setStyle('confBar','width', Math.min(100, scanner.out_conf*100) + '%');
+          setText('confValue', cpuScanner.out_conf.toFixed(2));
+          setStyle('confBar','width', Math.min(100, cpuScanner.out_conf*100) + '%');
 
-          setText('info',
-            `Состояние: ${scanner.out_state} | Частота: ${scanner.out_freqHz.toFixed(3)} Гц | ` +
-            `Стабильность: ${(scanner.out_inertia*100).toFixed(0)}% | Уверенность: ${scanner.out_conf.toFixed(2)} | ` +
-            `Время: ${timeStr()} | Пик: ${(scanner.out_peakness||0).toFixed(2)} | ` +
-            `Итерации воркера: ${Math.round(thermal.workerIters)} | fs: ${sampler.actual_fs.toFixed(1)} Гц | ` +
-            `N: ${sampler.dynamic_n} | Avg sample: ${sampler.ema_delta.toFixed(2)}ms | RMS jitter: ${Math.sqrt(sampler.jitter_rms).toFixed(3)}ms`
-          );
+          if (gpuSampler.device) {
+            const gpuFreqMax = gpuScanner.f_max || 50;
+            setText('gpuFreqValue', gpuScanner.out_freqHz.toFixed(2));
+            setStyle('gpuFreqBar','width', Math.min(100, 100*gpuScanner.out_freqHz/Math.max(1e-6,gpuFreqMax)) + '%');
 
-          setTimeout(updateBars, isMobile?300:200);
+            setText('gpuInertiaValue', (gpuScanner.out_inertia*100).toFixed(0));
+            setStyle('gpuInertiaBar','width', Math.min(100, gpuScanner.out_inertia*100) + '%');
+
+            setText('gpuConfValue', gpuScanner.out_conf.toFixed(2));
+            setStyle('gpuConfBar','width', Math.min(100, gpuScanner.out_conf*100) + '%');
+          }
+
+          let infoText = `CPU: Состояние: ${cpuScanner.out_state} | Частота: ${cpuScanner.out_freqHz.toFixed(3)} Гц | ` +
+            `Стабильность: ${(cpuScanner.out_inertia*100).toFixed(0)}% | Уверенность: ${cpuScanner.out_conf.toFixed(2)} | ` +
+            `Время: ${timeStr()} | Пик: ${(cpuScanner.out_peakness||0).toFixed(2)} | ` +
+            `fs: ${cpuSampler.actual_fs.toFixed(1)} Гц | N: ${cpuSampler.dynamic_n} | Avg sample: ${cpuSampler.ema_delta.toFixed(2)}ms | RMS jitter: ${Math.sqrt(cpuSampler.jitter_rms).toFixed(3)}ms`;
+
+          if (gpuSampler.device) {
+            infoText += `\nGPU: Состояние: ${gpuScanner.out_state} | Частота: ${gpuScanner.out_freqHz.toFixed(3)} Гц | ` +
+              `Стабильность: ${(gpuScanner.out_inertia*100).toFixed(0)}% | Уверенность: ${gpuScanner.out_conf.toFixed(2)} | ` +
+              `Пик: ${(gpuScanner.out_peakness||0).toFixed(2)} | ` +
+              `fs: ${gpuSampler.actual_fs.toFixed(1)} Гц | N: ${gpuSampler.dynamic_n} | Avg sample: ${gpuSampler.ema_delta.toFixed(2)}ms | RMS jitter: ${Math.sqrt(gpuSampler.jitter_rms).toFixed(3)}ms`;
+          }
+
+          infoText += `\nИтерации воркера: ${Math.round(thermal.workerIters)}`;
+
+          setText('info', infoText);
+
+          setTimeout(()=> updateBars(), isMobile?300:200);
         } catch(e){
           setText('info', `Критическая ошибка: ${e.message}. Обновите страницу.`);
           console.error('Ошибка в updateBars:', e);
-          setTimeout(updateBars, 1000);
+          setTimeout(()=> updateBars(), 1000);
         }
       }
 
       updateBars();
     });
-  </script>
-</body>
+  </script></body>
 </html>
+
+
