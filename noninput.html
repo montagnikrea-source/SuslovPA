@@ -3420,6 +3420,7 @@ ${text}
     console.log('🔍 Диагностика проблем с внешними API...');
     
     const results = {
+      internetTest: null,
       networkTest: null,
       corsTest: null,
       dnsTest: null,
@@ -3427,6 +3428,10 @@ ${text}
       environment: this.getEnvironmentInfo(),
       recommendations: []
     };
+    
+    // Тест 0: Проверка интернет-соединения сайта
+    console.log('🌐 Проверка интернет-соединения сайта...');
+    results.internetTest = await this.testInternetConnectivity();
     
     // Тест 1: Базовая проверка сети
     try {
@@ -3589,6 +3594,71 @@ ${text}
     return results;
   }
 
+  // Тест интернет-соединения сайта с проверенными сервисами
+  async testInternetConnectivity() {
+    const testServices = [
+      { name: 'Google', url: 'https://www.google.com', timeout: 5000 },
+      { name: 'Cloudflare', url: 'https://1.1.1.1', timeout: 5000 },
+      { name: 'GitHub', url: 'https://api.github.com', timeout: 5000 },
+      { name: 'Mozilla', url: 'https://mozilla.org', timeout: 5000 }
+    ];
+    
+    const results = [];
+    let successCount = 0;
+    
+    for (const service of testServices) {
+      try {
+        const startTime = performance.now();
+        
+        const response = await Promise.race([
+          fetch(service.url, { 
+            method: 'HEAD', 
+            mode: 'no-cors',  // Используем no-cors для избежания CORS блокировки
+            cache: 'no-cache'
+          }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), service.timeout)
+          )
+        ]);
+        
+        const endTime = performance.now();
+        const timing = Math.round(endTime - startTime);
+        
+        results.push({
+          name: service.name,
+          url: service.url,
+          success: true,
+          timing: timing,
+          status: 'Доступен'
+        });
+        
+        successCount++;
+        
+      } catch (error) {
+        results.push({
+          name: service.name,
+          url: service.url,
+          success: false,
+          error: error.message,
+          status: 'Недоступен'
+        });
+      }
+    }
+    
+    const successRate = (successCount / testServices.length) * 100;
+    
+    return {
+      success: successCount > 0,
+      successRate: successRate,
+      workingServices: successCount,
+      totalTested: testServices.length,
+      message: successCount > 0 
+        ? `Интернет работает (${successCount}/${testServices.length} сервисов доступны)`
+        : 'Интернет-соединение отсутствует или заблокировано',
+      testedServices: results
+    };
+  }
+
   // Получение информации об окружении
   getEnvironmentInfo() {
     return {
@@ -3620,11 +3690,27 @@ ${text}
   generateAPIRecommendations(results) {
     const recommendations = [];
     
+    // Проблемы с интернет-соединением сайта
+    if (!results.internetTest?.success || results.internetTest?.successRate < 50) {
+      recommendations.push({
+        type: 'internet',
+        title: '🌐 Проблемы с интернет-соединением сайта',
+        solutions: [
+          'Сайт не может подключиться к внешним сервисам',
+          'Возможна блокировка со стороны провайдера интернета',
+          'Корпоративный файрвол может блокировать запросы',
+          'Попробуйте подключиться через мобильный интернет',
+          'Отключите VPN/прокси на время теста',
+          'Обратитесь к администратору сети (если в офисе)'
+        ]
+      });
+    }
+    
     // Проблемы с сетью
     if (!results.networkTest?.success) {
       recommendations.push({
         type: 'network',
-        title: '🌐 Проблемы с сетью',
+        title: '🔌 Проблемы с базовой сетью',
         solutions: [
           'Проверьте подключение к интернету',
           'Перезагрузите роутер/модем',
@@ -3743,19 +3829,19 @@ ${text}
           <h4 style="margin: 0 0 10px 0; color: #1976d2;">📊 Результаты диагностики</h4>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div style="background: ${diagnosis.internetTest?.success ? '#e8f5e8' : '#ffebee'}; padding: 10px; border-radius: 5px;">
+              <strong>🌐 Интернет сайта:</strong> ${diagnosis.internetTest?.success ? '✅ Работает' : '❌ Проблемы'}<br>
+              <small>${diagnosis.internetTest?.message || 'Не удалось проверить'}</small>
+            </div>
+            
             <div style="background: ${diagnosis.networkTest?.success ? '#e8f5e8' : '#ffebee'}; padding: 10px; border-radius: 5px;">
-              <strong>🌐 Сеть:</strong> ${diagnosis.networkTest?.success ? '✅ Работает' : '❌ Проблемы'}<br>
+              <strong>� Сеть:</strong> ${diagnosis.networkTest?.success ? '✅ Работает' : '❌ Проблемы'}<br>
               <small>${diagnosis.networkTest?.message || 'Не удалось проверить'}</small>
             </div>
             
             <div style="background: ${diagnosis.corsTest?.success ? '#e8f5e8' : '#ffebee'}; padding: 10px; border-radius: 5px;">
-              <strong>🔒 CORS:</strong> ${diagnosis.corsTest?.success ? '✅ Работает' : '❌ Блокировка'}<br>
+              <strong>� CORS:</strong> ${diagnosis.corsTest?.success ? '✅ Работает' : '❌ Блокировка'}<br>
               <small>${diagnosis.corsTest?.workingApis || 0}/${diagnosis.corsTest?.totalTested || 0} API доступны</small>
-            </div>
-            
-            <div style="background: ${diagnosis.dnsTest?.success ? '#e8f5e8' : '#ffebee'}; padding: 10px; border-radius: 5px;">
-              <strong>📡 DNS:</strong> ${diagnosis.dnsTest?.success ? '✅ Работает' : '❌ Проблемы'}<br>
-              <small>${diagnosis.dnsTest?.resolvedDomains || 0}/${diagnosis.dnsTest?.totalTested || 0} доменов резолвится</small>
             </div>
             
             <div style="background: ${diagnosis.apiTests.filter(t => t.success).length > 0 ? '#e8f5e8' : '#ffebee'}; padding: 10px; border-radius: 5px;">
@@ -3764,6 +3850,22 @@ ${text}
             </div>
           </div>
         </div>
+        
+        ${diagnosis.internetTest?.testedServices ? `
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h4 style="margin: 0 0 10px 0; color: #495057;">🌐 Тест интернет-соединения</h4>
+            <div style="font-size: 11px;">
+              <div style="margin-bottom: 8px;"><strong>Результат:</strong> ${diagnosis.internetTest.workingServices}/${diagnosis.internetTest.totalTested} сервисов доступны</div>
+              ${diagnosis.internetTest.testedServices.map(service => `
+                <div style="margin: 4px 0; padding: 6px; background: ${service.success ? '#e8f5e8' : '#ffebee'}; border-radius: 3px;">
+                  <strong>${service.name}:</strong> ${service.status}
+                  ${service.timing ? ` (${service.timing}мс)` : ''}
+                  ${service.error ? ` - ${service.error}` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
         
         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
           <h4 style="margin: 0 0 10px 0; color: #495057;">🖥️ Информация об окружении</h4>
