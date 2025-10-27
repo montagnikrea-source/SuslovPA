@@ -173,6 +173,9 @@
     📱 <strong>Telegram интеграция:</strong> Чат работает через Telegram Bot API для реального интернет-подключения.<br>
     🔗 <strong>Активный канал:</strong> <a href="https://t.me/noninput" target="_blank" style="color: #1976d2;">t.me/noninput</a> | 
     🤖 <strong>Бот:</strong> <a href="https://t.me/Inputlagthebot" target="_blank" style="color: #1976d2;">@Inputlagthebot</a><br>
+    <button onclick="multiUserChat.retryTelegramConnection()" style="margin-top: 5px; padding: 5px 10px; background: #2196f3; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      🔄 Переподключиться к Telegram
+    </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
       <div style="margin-top: 5px; padding: 5px;">
@@ -341,7 +344,8 @@ class MultiUserChatSystem {
     this.proxyUrls = [
       'https://cors-anywhere.herokuapp.com/',
       'https://api.allorigins.win/get?url=',
-      'https://thingproxy.freeboard.io/fetch/'
+      'https://thingproxy.freeboard.io/fetch/',
+      '', // Прямое подключение без прокси
     ];
     this.currentProxyIndex = 0;
     
@@ -351,16 +355,24 @@ class MultiUserChatSystem {
 
   async initTelegramConnection() {
     try {
-      console.log('Подключение к Telegram Bot API...');
+      console.log('🔄 Подключение к Telegram Bot API...');
+      console.log('📋 Конфигурация:', {
+        botToken: this.telegramConfig.botToken.substring(0, 20) + '...',
+        chatId: this.telegramConfig.chatId,
+        proxyUrls: this.proxyUrls.length + ' прокси доступно'
+      });
       
       // Проверяем подключение к боту
       const botInfo = await this.sendTelegramRequest('getMe');
       
       if (botInfo && botInfo.ok) {
-        console.log('Telegram бот подключен:', botInfo.result.username);
-        console.log('Канал для чата:', this.telegramConfig.chatId);
-        console.log('Проверьте, что бот добавлен как админ в канал:', 'https://t.me/noninput');
+        console.log('✅ Telegram бот подключен:', botInfo.result.username);
+        console.log('📢 Канал для чата:', this.telegramConfig.chatId);
+        console.log('🔗 Проверьте, что бот добавлен как админ в канал:', 'https://t.me/noninput');
         this.updateConnectionStatus('подключен (Telegram)');
+        
+        // Проверяем доступ к каналу
+        await this.testChannelAccess();
         
         // Загружаем последние сообщения
         this.loadTelegramMessages();
@@ -372,23 +384,61 @@ class MultiUserChatSystem {
         this.sendWelcomeMessage();
         
       } else {
-        throw new Error('Не удалось подключиться к Telegram боту');
+        console.error('❌ Ошибка подключения к боту:', botInfo);
+        throw new Error('Не удалось подключиться к Telegram боту: ' + (botInfo?.description || 'неизвестная ошибка'));
       }
       
     } catch (error) {
-      console.warn('Ошибка подключения к Telegram:', error);
+      console.error('🚨 Критическая ошибка Telegram подключения:', error);
+      console.log('🔧 Возможные причины:');
+      console.log('1. CORS блокировка - все прокси недоступны');
+      console.log('2. Неверный токен бота');
+      console.log('3. Бот заблокирован или удален');
+      console.log('4. Проблемы с интернет-соединением');
+      console.log('5. Бот не добавлен как админ в канал @noninput');
+      
       this.fallbackToLocal();
     }
   }
 
+  async testChannelAccess() {
+    try {
+      console.log('🧪 Тестируем доступ к каналу...');
+      const testMessage = await this.sendTelegramRequest('sendMessage', {
+        chat_id: this.telegramConfig.chatId,
+        text: '🔧 Тест подключения - ' + new Date().toLocaleTimeString()
+      });
+      
+      if (testMessage && testMessage.ok) {
+        console.log('✅ Доступ к каналу работает');
+      } else {
+        console.warn('⚠️ Проблема с доступом к каналу:', testMessage);
+        console.log('💡 Убедитесь, что:');
+        console.log('- Канал @noninput существует');
+        console.log('- Бот @Inputlagthebot добавлен как администратор');
+        console.log('- У бота есть права на отправку сообщений');
+      }
+    } catch (error) {
+      console.warn('⚠️ Не удалось протестировать канал:', error);
+    }
+  }
+
   async sendTelegramRequest(method, params = {}) {
+    console.log(`🌐 Отправка Telegram запроса: ${method}`, params);
+    
     // Пробуем разные прокси по очереди
     for (let i = 0; i < this.proxyUrls.length; i++) {
       try {
         const proxyUrl = this.proxyUrls[this.currentProxyIndex];
+        console.log(`🔄 Попытка ${i + 1}/${this.proxyUrls.length} через прокси: ${proxyUrl}`);
+        
         let url;
         
-        if (proxyUrl.includes('allorigins')) {
+        if (proxyUrl === '') {
+          // Прямое подключение без прокси
+          url = `${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
+          console.log(`🔗 Прямое подключение к Telegram API`);
+        } else if (proxyUrl.includes('allorigins')) {
           // Для allorigins нужен другой формат
           const apiUrl = `${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
           url = `${proxyUrl}${encodeURIComponent(apiUrl)}`;
@@ -396,6 +446,8 @@ class MultiUserChatSystem {
           // Стандартный формат для других прокси
           url = `${proxyUrl}${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
         }
+        
+        console.log(`📡 URL запроса: ${url.substring(0, 100)}...`);
         
         const response = await fetch(url, {
           method: 'POST',
@@ -405,6 +457,8 @@ class MultiUserChatSystem {
           },
           body: JSON.stringify(params)
         });
+        
+        console.log(`📊 Ответ: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -417,14 +471,19 @@ class MultiUserChatSystem {
           result = JSON.parse(result.contents);
         }
         
+        console.log(`✅ Успешный ответ через прокси ${this.currentProxyIndex}:`, result);
         return result;
         
       } catch (error) {
-        console.warn(`Прокси ${this.currentProxyIndex} не работает:`, error);
+        console.warn(`❌ Прокси ${this.currentProxyIndex} (${this.proxyUrls[this.currentProxyIndex]}) не работает:`, error.message);
         this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxyUrls.length;
         
         if (i === this.proxyUrls.length - 1) {
-          console.error('Все прокси недоступны:', error);
+          console.error('🚨 Все прокси недоступны! Последняя ошибка:', error);
+          console.log('💡 Возможные решения:');
+          console.log('1. Проверьте интернет-соединение');
+          console.log('2. Попробуйте позже (прокси могут быть временно недоступны)');
+          console.log('3. Откройте канал t.me/noninput в Telegram напрямую');
           return null;
         }
       }
@@ -754,8 +813,30 @@ class MultiUserChatSystem {
     this.showActiveUsers();
   }
 
+  async retryTelegramConnection() {
+    console.log('🔄 Ручное переподключение к Telegram...');
+    this.updateConnectionStatus('переподключение...');
+    
+    // Сбрасываем индекс прокси
+    this.currentProxyIndex = 0;
+    
+    // Очищаем старые интервалы
+    if (this.telegramPollInterval) {
+      clearInterval(this.telegramPollInterval);
+    }
+    
+    // Пробуем подключиться заново
+    try {
+      await this.initTelegramConnection();
+    } catch (error) {
+      console.error('❌ Переподключение не удалось:', error);
+      this.fallbackToLocal();
+    }
+  }
+
   fallbackToLocal() {
     // Локальный режим с имитацией многопользовательского чата
+    console.log('📱 Переход в локальный режим');
     this.isLocalMode = true;
     this.messages = this.loadLocalMessages();
     this.simulateOtherUsers();
