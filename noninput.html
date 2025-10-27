@@ -129,15 +129,16 @@
       right: 20px;
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
-      padding: 10px 15px;
+      padding: 12px 16px;
       border-radius: 20px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.3);
       font-size: 12px;
       font-weight: 500;
       z-index: 1000;
-      min-width: 160px;
+      min-width: 180px;
       text-align: center;
       transition: all 0.3s ease;
+      cursor: pointer;
     }
     
     .page-counter-widget:hover {
@@ -149,12 +150,56 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 2px 0;
+      margin: 3px 0;
     }
     
     .counter-number {
       font-weight: 600;
       color: #ffd700;
+    }
+    
+    .global-stats-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #00ff88;
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+    
+    .global-stats-indicator.offline {
+      background: #ff4444;
+      animation: none;
+    }
+    
+    .global-stats-widget {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+      font-size: 11px;
+      z-index: 999;
+      max-width: 200px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .global-stats-widget:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    }
+    
+    .world-map-mini {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 5px 0;
+      font-size: 16px;
     }
   </style>
 </head>
@@ -287,6 +332,12 @@
     </button>
     <button onclick="multiUserChat.showPageStats()" style="margin-left: 5px; padding: 5px 10px; background: #795548; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
       📈 Статистика страницы
+    </button>
+    <button onclick="multiUserChat.showGlobalStatsDetails()" style="margin-left: 5px; padding: 5px 10px; background: #009688; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      🌍 Глобальная статистика
+    </button>
+    <button onclick="multiUserChat.testGlobalCounter()" style="margin-left: 5px; padding: 5px 10px; background: #FF5722; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      🧪 Тест глобального API
     </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
@@ -458,7 +509,10 @@ class MultiUserChatSystem {
 
   // Система отслеживания посетителей сайта
   initVisitorTracking() {
-    console.log('🌐 Инициализация отслеживания посетителей сайта...');
+    console.log('🌐 Инициализация глобального отслеживания посетителей...');
+    
+    // Инициализируем глобальный счетчик через API
+    this.initGlobalCounter();
     
     // Уникальный ID сессии для каждого посетителя
     this.sessionId = this.generateSessionId();
@@ -478,7 +532,430 @@ class MultiUserChatSystem {
     // Периодически обновляем счетчик посетителей
     this.startVisitorCountUpdates();
     
-    console.log('✅ Отслеживание посетителей инициализировано');
+    console.log('✅ Глобальное отслеживание посетителей инициализировано');
+  }
+
+  // Инициализация глобального счетчика через внешний API
+  async initGlobalCounter() {
+    console.log('🌍 Подключение к глобальному счетчику посетителей...');
+    
+    // Конфигурация API
+    this.globalCounter = {
+      apiUrls: [
+        'https://api.countapi.xyz',
+        'https://api.counterapi.dev',
+        'https://counter-api.dev'
+      ],
+      namespace: 'suslovpa-frequency-scanner',
+      key: 'global-visitors',
+      currentApiIndex: 0,
+      isOnline: false,
+      lastUpdate: 0,
+      retryCount: 0,
+      maxRetries: 3
+    };
+    
+    // Пробуем подключиться к API
+    await this.connectToGlobalAPI();
+    
+    // Запускаем периодическое обновление
+    this.startGlobalCounterUpdates();
+  }
+
+  // Подключение к глобальному API счетчика
+  async connectToGlobalAPI() {
+    const config = this.globalCounter;
+    
+    for (let apiIndex = 0; apiIndex < config.apiUrls.length; apiIndex++) {
+      try {
+        const apiUrl = config.apiUrls[apiIndex];
+        console.log(`🔄 Попытка подключения к API ${apiIndex + 1}/${config.apiUrls.length}: ${apiUrl}`);
+        
+        // Тестируем API и увеличиваем счетчик
+        const response = await this.makeAPIRequest(apiUrl, 'hit');
+        
+        if (response && response.value !== undefined) {
+          config.currentApiIndex = apiIndex;
+          config.isOnline = true;
+          config.lastUpdate = Date.now();
+          config.retryCount = 0;
+          
+          console.log(`✅ Подключено к глобальному API: ${apiUrl}`);
+          console.log(`📊 Глобальный счетчик: ${response.value} посещений`);
+          
+          // Обновляем виджет
+          this.updateGlobalStatsWidget(response.value, true);
+          
+          // Получаем информацию о посетителе
+          this.getVisitorInfo();
+          
+          return true;
+        }
+        
+      } catch (error) {
+        console.warn(`❌ API ${apiIndex + 1} недоступен:`, error.message);
+      }
+    }
+    
+    // Если ни одно API не работает
+    console.warn('⚠️ Все глобальные API недоступны. Работаем в локальном режиме.');
+    config.isOnline = false;
+    this.updateGlobalStatsWidget(0, false);
+    
+    return false;
+  }
+
+  // Выполнение запроса к API счетчика
+  async makeAPIRequest(apiUrl, action = 'get') {
+    const config = this.globalCounter;
+    const url = `${apiUrl}/${action}/${config.namespace}/${config.key}`;
+    
+    console.log(`🌐 API запрос: ${action} → ${url}`);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 секунд таймаут
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log(`📥 API ответ:`, data);
+      
+      return data;
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Таймаут API запроса');
+      }
+      throw error;
+    }
+  }
+
+  // Получение информации о посетителе (страна, город)
+  async getVisitorInfo() {
+    try {
+      console.log('🌍 Получение информации о местоположении...');
+      
+      // Используем бесплатный API для определения местоположения
+      const geoUrls = [
+        'https://ipapi.co/json/',
+        'https://ipinfo.io/json',
+        'https://freegeoip.app/json/'
+      ];
+      
+      for (const url of geoUrls) {
+        try {
+          const response = await fetch(url, { 
+            timeout: 5000,
+            headers: { 'Accept': 'application/json' }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            this.visitorInfo = {
+              country: data.country || data.country_name || 'Unknown',
+              city: data.city || 'Unknown',
+              ip: data.ip || 'Unknown',
+              timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+              isp: data.org || data.isp || 'Unknown'
+            };
+            
+            console.log('📍 Информация о посетителе:', this.visitorInfo);
+            this.updateGlobalStatsWidget(null, true, this.visitorInfo);
+            break;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Geo API ${url} недоступен:`, error.message);
+        }
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Не удалось получить информацию о местоположении:', error);
+      this.visitorInfo = {
+        country: 'Unknown',
+        city: 'Unknown', 
+        ip: 'Unknown',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        isp: 'Unknown'
+      };
+    }
+  }
+
+  // Запуск обновления глобального счетчика
+  startGlobalCounterUpdates() {
+    // Обновляем каждые 30 секунд
+    setInterval(async () => {
+      await this.updateGlobalCounter();
+    }, 30000);
+    
+    // Проверяем здоровье соединения каждые 2 минуты
+    setInterval(async () => {
+      await this.checkGlobalAPIHealth();
+    }, 120000);
+  }
+
+  // Обновление глобального счетчика
+  async updateGlobalCounter() {
+    if (!this.globalCounter.isOnline) {
+      // Пробуем переподключиться
+      await this.connectToGlobalAPI();
+      return;
+    }
+    
+    try {
+      const config = this.globalCounter;
+      const apiUrl = config.apiUrls[config.currentApiIndex];
+      
+      // Получаем текущее значение счетчика без увеличения
+      const response = await this.makeAPIRequest(apiUrl, 'get');
+      
+      if (response && response.value !== undefined) {
+        config.lastUpdate = Date.now();
+        config.retryCount = 0;
+        
+        console.log(`📊 Обновлен глобальный счетчик: ${response.value} посещений`);
+        this.updateGlobalStatsWidget(response.value, true);
+        
+      } else {
+        throw new Error('Неверный ответ API');
+      }
+      
+    } catch (error) {
+      console.error('❌ Ошибка обновления глобального счетчика:', error);
+      this.globalCounter.retryCount++;
+      
+      if (this.globalCounter.retryCount >= this.globalCounter.maxRetries) {
+        console.warn('⚠️ Превышено количество попыток. Переход в режим офлайн.');
+        this.globalCounter.isOnline = false;
+        this.updateGlobalStatsWidget(0, false);
+      }
+    }
+  }
+
+  // Проверка здоровья API
+  async checkGlobalAPIHealth() {
+    const config = this.globalCounter;
+    const timeSinceLastUpdate = Date.now() - config.lastUpdate;
+    
+    // Если давно не было обновлений - пробуем переподключиться
+    if (timeSinceLastUpdate > 180000) { // 3 минуты
+      console.log('🔄 Проверка здоровья глобального API...');
+      await this.connectToGlobalAPI();
+    }
+  }
+
+  // Обновление виджета глобальной статистики
+  updateGlobalStatsWidget(globalCount, isOnline, visitorInfo = null) {
+    let widget = document.getElementById('globalStatsWidget');
+    
+    if (!widget) {
+      // Создаем виджет если его нет
+      widget = document.createElement('div');
+      widget.id = 'globalStatsWidget';
+      widget.className = 'global-stats-widget';
+      document.body.appendChild(widget);
+      
+      // Добавляем обработчик клика для показа подробностей
+      widget.addEventListener('click', () => {
+        this.showGlobalStatsDetails();
+      });
+    }
+    
+    const info = visitorInfo || this.visitorInfo || {};
+    const statusClass = isOnline ? '' : 'offline';
+    const statusEmoji = isOnline ? '🟢' : '🔴';
+    
+    // Определяем флаг страны
+    const countryFlag = this.getCountryFlag(info.country);
+    
+    widget.innerHTML = `
+      <div style="display: flex; align-items: center; margin-bottom: 5px;">
+        <div class="global-stats-indicator ${statusClass}"></div>
+        <strong>🌍 Глобальная статистика</strong>
+      </div>
+      
+      <div style="font-size: 10px; margin-bottom: 5px;">
+        ${statusEmoji} ${isOnline ? 'Онлайн' : 'Офлайн'} • 
+        ${globalCount ? globalCount.toLocaleString() : '---'} посещений
+      </div>
+      
+      ${info.country && info.country !== 'Unknown' ? `
+        <div class="world-map-mini">
+          ${countryFlag} ${info.city}, ${info.country}
+        </div>
+      ` : `
+        <div class="world-map-mini">🌐 Определение местоположения...</div>
+      `}
+      
+      <div style="font-size: 9px; opacity: 0.8; margin-top: 3px;">
+        Нажмите для подробностей
+      </div>
+    `;
+    
+    // Обновляем тултип
+    widget.title = `Глобальная статистика посетителей
+📊 Всего посещений: ${globalCount ? globalCount.toLocaleString() : 'неизвестно'}
+📍 Ваше местоположение: ${info.city || 'неизвестно'}, ${info.country || 'неизвестно'}
+🌐 Часовой пояс: ${info.timezone || 'неизвестно'}
+🔌 Статус API: ${isOnline ? 'подключен' : 'отключен'}
+📡 Последнее обновление: ${new Date().toLocaleTimeString()}
+
+Данные обновляются в реальном времени со всего мира`;
+  }
+
+  // Получение флага страны по коду
+  getCountryFlag(countryCode) {
+    const flags = {
+      'RU': '🇷🇺', 'US': '🇺🇸', 'DE': '🇩🇪', 'FR': '🇫🇷', 'GB': '🇬🇧',
+      'CN': '🇨🇳', 'JP': '🇯🇵', 'KR': '🇰🇷', 'IN': '🇮🇳', 'BR': '🇧🇷',
+      'CA': '🇨🇦', 'AU': '🇦🇺', 'IT': '🇮🇹', 'ES': '🇪🇸', 'UA': '🇺🇦',
+      'PL': '🇵🇱', 'NL': '🇳🇱', 'SE': '🇸🇪', 'NO': '🇳🇴', 'FI': '🇫🇮'
+    };
+    
+    return flags[countryCode] || '🌍';
+  }
+
+  // Показать подробную глобальную статистику
+  async showGlobalStatsDetails() {
+    console.log('📊 Показ подробной глобальной статистики...');
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
+      justify-content: center; align-items: center; padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white; border-radius: 10px; padding: 20px; 
+      max-width: 700px; max-height: 80vh; overflow-y: auto;
+      font-family: system-ui; font-size: 13px; line-height: 1.5;
+    `;
+    
+    // Получаем свежие данные
+    let globalCount = 0;
+    let apiStatus = 'Проверка...';
+    
+    try {
+      if (this.globalCounter.isOnline) {
+        const config = this.globalCounter;
+        const apiUrl = config.apiUrls[config.currentApiIndex];
+        const response = await this.makeAPIRequest(apiUrl, 'get');
+        
+        if (response && response.value !== undefined) {
+          globalCount = response.value;
+          apiStatus = '✅ Подключен';
+        } else {
+          apiStatus = '⚠️ Ошибка API';
+        }
+      } else {
+        apiStatus = '❌ Отключен';
+      }
+    } catch (error) {
+      apiStatus = '❌ Ошибка: ' + error.message;
+    }
+    
+    const info = this.visitorInfo || {};
+    const flag = this.getCountryFlag(info.country);
+    
+    content.innerHTML = `
+      <h3 style="margin: 0 0 15px 0; color: #333;">🌍 Глобальная статистика посетителей</h3>
+      
+      <div style="background: linear-gradient(135deg, #11998e, #38ef7d); color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
+          <div>
+            <div style="font-size: 28px; font-weight: bold;">${globalCount.toLocaleString()}</div>
+            <div style="font-size: 12px; opacity: 0.9;">🌐 Глобальных посещений</div>
+          </div>
+          <div>
+            <div style="font-size: 28px; font-weight: bold;">${flag}</div>
+            <div style="font-size: 12px; opacity: 0.9;">Ваше местоположение</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: #495057;">📍 Ваша информация</h4>
+        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px; font-size: 12px;">
+          <div><strong>Страна:</strong></div>
+          <div>${flag} ${info.country || 'Определяется...'}</div>
+          
+          <div><strong>Город:</strong></div>
+          <div>🏙️ ${info.city || 'Определяется...'}</div>
+          
+          <div><strong>Часовой пояс:</strong></div>
+          <div>🕐 ${info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</div>
+          
+          <div><strong>Провайдер:</strong></div>
+          <div>📡 ${info.isp || 'Определяется...'}</div>
+          
+          <div><strong>IP адрес:</strong></div>
+          <div>🔗 ${info.ip ? info.ip.replace(/\d+$/, 'xxx') : 'Скрыт'}</div>
+        </div>
+      </div>
+      
+      <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: #1976d2;">🔌 Статус подключения</h4>
+        <div style="font-size: 12px;">
+          <div style="margin: 5px 0;"><strong>API статус:</strong> ${apiStatus}</div>
+          <div style="margin: 5px 0;"><strong>Активный API:</strong> ${this.globalCounter.isOnline ? this.globalCounter.apiUrls[this.globalCounter.currentApiIndex] : 'Нет подключения'}</div>
+          <div style="margin: 5px 0;"><strong>Последнее обновление:</strong> ${new Date(this.globalCounter.lastUpdate).toLocaleString()}</div>
+          <div style="margin: 5px 0;"><strong>Попыток переподключения:</strong> ${this.globalCounter.retryCount}/${this.globalCounter.maxRetries}</div>
+        </div>
+      </div>
+      
+      <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: #856404;">ℹ️ Как работает счетчик</h4>
+        <ul style="margin: 0; padding-left: 20px; font-size: 12px;">
+          <li>Использует внешние API для подсчета посетителей со всего мира</li>
+          <li>Каждое посещение страницы увеличивает глобальный счетчик</li>
+          <li>Данные синхронизируются в реальном времени</li>
+          <li>Автоматическое определение местоположения по IP</li>
+          <li>Резервирование через несколько API сервисов</li>
+          <li>Данные обновляются каждые 30 секунд</li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center; margin-top: 15px;">
+        <button onclick="this.closest('[style*=fixed]').remove()" 
+                style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px;">
+          Закрыть
+        </button>
+        <button onclick="multiUserChat.updateGlobalCounter(); this.closest('[style*=fixed]').remove();" 
+                style="background: #28a745; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">
+          🔄 Обновить сейчас
+        </button>
+        <button onclick="window.open('https://countapi.xyz/', '_blank')" 
+                style="background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer;">
+          🌐 О сервисе CountAPI
+        </button>
+      </div>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Закрытие по клику вне модального окна
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
   }
 
   // Генерация уникального ID сессии
@@ -2444,6 +2921,238 @@ ${text}
     document.body.appendChild(modal);
   }
 
+  // Тестирование глобального счетчика
+  async testGlobalCounter() {
+    console.log('🧪 Тестирование глобального счетчика...');
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
+      justify-content: center; align-items: center; padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white; border-radius: 10px; padding: 20px; 
+      max-width: 600px; max-height: 80vh; overflow-y: auto;
+      font-family: monospace; font-size: 12px; line-height: 1.4;
+    `;
+    
+    content.innerHTML = `
+      <h3>🧪 Тестирование глобального API счетчика</h3>
+      <div id="globalTestResults">
+        <div>🔄 Запуск тестов...</div>
+      </div>
+      <button onclick="this.closest('[style*=fixed]').remove()" 
+              style="margin-top: 15px; padding: 10px 20px; background: #f44336; 
+                     color: white; border: none; border-radius: 5px; cursor: pointer;">
+        Закрыть
+      </button>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    const resultsDiv = content.querySelector('#globalTestResults');
+    
+    try {
+      // Тест 1: Проверка доступности API
+      resultsDiv.innerHTML = `
+        <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+          <strong>🔄 Тест 1: Проверка доступности API</strong>
+        </div>
+        <div>⏳ Тестируем API серверы...</div>
+      `;
+      
+      const config = this.globalCounter;
+      let workingAPIs = [];
+      let failedAPIs = [];
+      
+      for (let i = 0; i < config.apiUrls.length; i++) {
+        const apiUrl = config.apiUrls[i];
+        
+        try {
+          console.log(`🔄 Тестируем API ${i + 1}: ${apiUrl}`);
+          const response = await this.makeAPIRequest(apiUrl, 'get');
+          
+          if (response && response.value !== undefined) {
+            workingAPIs.push({
+              url: apiUrl,
+              response: response,
+              index: i
+            });
+            console.log(`✅ API ${i + 1} работает:`, response);
+          } else {
+            failedAPIs.push({
+              url: apiUrl,
+              error: 'Неверный ответ API',
+              index: i
+            });
+          }
+          
+        } catch (error) {
+          failedAPIs.push({
+            url: apiUrl,
+            error: error.message,
+            index: i
+          });
+          console.error(`❌ API ${i + 1} не работает:`, error.message);
+        }
+      }
+      
+      // Тест 2: Увеличение счетчика
+      resultsDiv.innerHTML += `
+        <div style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin: 10px 0;">
+          <strong>🔄 Тест 2: Увеличение счетчика</strong>
+        </div>
+      `;
+      
+      let incrementTest = null;
+      if (workingAPIs.length > 0) {
+        try {
+          const api = workingAPIs[0];
+          const beforeValue = api.response.value;
+          
+          console.log(`📈 Увеличиваем счетчик с ${beforeValue}...`);
+          const incrementResponse = await this.makeAPIRequest(api.url, 'hit');
+          
+          if (incrementResponse && incrementResponse.value > beforeValue) {
+            incrementTest = {
+              success: true,
+              before: beforeValue,
+              after: incrementResponse.value,
+              difference: incrementResponse.value - beforeValue
+            };
+            console.log(`✅ Счетчик увеличен: ${beforeValue} → ${incrementResponse.value}`);
+          } else {
+            incrementTest = {
+              success: false,
+              error: 'Счетчик не увеличился'
+            };
+          }
+          
+        } catch (error) {
+          incrementTest = {
+            success: false,
+            error: error.message
+          };
+        }
+      }
+      
+      // Тест 3: Получение информации о местоположении
+      resultsDiv.innerHTML += `
+        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0;">
+          <strong>🔄 Тест 3: Определение местоположения</strong>
+        </div>
+        <div>⏳ Получаем информацию о местоположении...</div>
+      `;
+      
+      await this.getVisitorInfo();
+      const locationTest = this.visitorInfo;
+      
+      // Формируем итоговый отчет
+      let reportHTML = `
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <h4 style="margin: 0 0 10px 0; color: #1976d2;">📊 Результаты тестирования</h4>
+          
+          <div style="margin-bottom: 15px;">
+            <strong>🌐 API Серверы (${workingAPIs.length}/${config.apiUrls.length} работают):</strong><br>
+            ${workingAPIs.map(api => `
+              <div style="margin: 5px 0; padding: 5px; background: #e8f5e8; border-radius: 3px;">
+                ✅ API ${api.index + 1}: ${api.url}<br>
+                <small>Текущий счетчик: ${api.response.value.toLocaleString()}</small>
+              </div>
+            `).join('')}
+            
+            ${failedAPIs.map(api => `
+              <div style="margin: 5px 0; padding: 5px; background: #ffebee; border-radius: 3px;">
+                ❌ API ${api.index + 1}: ${api.url}<br>
+                <small>Ошибка: ${api.error}</small>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <strong>📈 Тест увеличения счетчика:</strong><br>
+            ${incrementTest ? (incrementTest.success ? `
+              <div style="margin: 5px 0; padding: 5px; background: #e8f5e8; border-radius: 3px;">
+                ✅ Успешно: ${incrementTest.before.toLocaleString()} → ${incrementTest.after.toLocaleString()} (+${incrementTest.difference})
+              </div>
+            ` : `
+              <div style="margin: 5px 0; padding: 5px; background: #ffebee; border-radius: 3px;">
+                ❌ Ошибка: ${incrementTest.error}
+              </div>
+            `) : `
+              <div style="margin: 5px 0; padding: 5px; background: #f5f5f5; border-radius: 3px;">
+                ⚠️ Пропущен (нет рабочих API)
+              </div>
+            `}
+          </div>
+          
+          <div style="margin-bottom: 15px;">
+            <strong>📍 Определение местоположения:</strong><br>
+            <div style="margin: 5px 0; padding: 5px; background: ${locationTest.country !== 'Unknown' ? '#e8f5e8' : '#fff3cd'}; border-radius: 3px;">
+              ${locationTest.country !== 'Unknown' ? '✅' : '⚠️'} 
+              ${this.getCountryFlag(locationTest.country)} ${locationTest.city}, ${locationTest.country}<br>
+              <small>Часовой пояс: ${locationTest.timezone}</small><br>
+              <small>Провайдер: ${locationTest.isp}</small>
+            </div>
+          </div>
+        </div>
+        
+        <div style="background: ${workingAPIs.length > 0 ? '#e8f5e8' : '#ffebee'}; padding: 15px; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: ${workingAPIs.length > 0 ? '#4CAF50' : '#f44336'};">
+            ${workingAPIs.length > 0 ? '✅ ТЕСТЫ ПРОЙДЕНЫ' : '❌ ТЕСТЫ НЕ ПРОЙДЕНЫ'}
+          </h4>
+          
+          <div style="font-size: 12px;">
+            ${workingAPIs.length > 0 ? `
+              <div>🎉 Глобальный счетчик работает корректно!</div>
+              <div>📊 Текущее значение: ${workingAPIs[0].response.value.toLocaleString()} посещений</div>
+              <div>🌍 Местоположение: ${locationTest.country !== 'Unknown' ? 'определено' : 'частично определено'}</div>
+              <div>🚀 Все системы готовы к работе</div>
+            ` : `
+              <div>⚠️ Все API серверы недоступны</div>
+              <div>🔧 Возможные причины:</div>
+              <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>Проблемы с интернет-соединением</li>
+                <li>Блокировка CORS политикой браузера</li>
+                <li>Временная недоступность внешних сервисов</li>
+                <li>Сетевые ограничения</li>
+              </ul>
+              <div>💡 Система будет работать в локальном режиме</div>
+            `}
+          </div>
+        </div>
+      `;
+      
+      resultsDiv.innerHTML = reportHTML;
+      
+    } catch (error) {
+      console.error('🚨 Критическая ошибка тестирования:', error);
+      
+      resultsDiv.innerHTML = `
+        <div style="color: #f44336; font-weight: bold; margin-bottom: 15px;">
+          🚨 КРИТИЧЕСКАЯ ОШИБКА ТЕСТИРОВАНИЯ
+        </div>
+        
+        <div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+          <strong>❌ Детали ошибки:</strong><br>
+          ${error.message}
+        </div>
+        
+        <div style="background: #fff3cd; padding: 10px; border-radius: 5px;">
+          <strong>💡 Рекомендации:</strong><br>
+          1. Проверьте интернет-соединение<br>
+          2. Попробуйте обновить страницу<br>
+          3. Проверьте консоль браузера (F12)<br>
+          4. Попробуйте другой браузер
+        </div>
+      `;
+    }
+  }
+
   // Показать детальную статистику страницы
   showPageStats() {
     console.log('📈 Показ статистики страницы...');
@@ -3599,7 +4308,7 @@ setInterval(step,12);`;
 </script>
 
 <!-- Виджет счетчика посетителей страницы -->
-<div class="page-counter-widget" id="pageCounterWidget">
+<div class="page-counter-widget" id="pageCounterWidget" onclick="multiUserChat.showPageStats()">
   <div class="counter-row">
     <span>👁️ Просмотров:</span>
     <span class="counter-number" id="pageViewsCount">0</span>
@@ -3610,6 +4319,26 @@ setInterval(step,12);`;
   </div>
   <div style="font-size: 10px; opacity: 0.8; margin-top: 3px;" id="lastUpdateTime">
     Обновлено: загрузка...
+  </div>
+</div>
+
+<!-- Виджет глобальной статистики -->
+<div class="global-stats-widget" id="globalStatsWidget">
+  <div style="display: flex; align-items: center; margin-bottom: 5px;">
+    <div class="global-stats-indicator"></div>
+    <strong>🌍 Глобальная статистика</strong>
+  </div>
+  
+  <div style="font-size: 10px; margin-bottom: 5px;">
+    🔄 Подключение к глобальному API...
+  </div>
+  
+  <div class="world-map-mini">
+    🌐 Определение местоположения...
+  </div>
+  
+  <div style="font-size: 9px; opacity: 0.8; margin-top: 3px;">
+    Нажмите для подробностей
   </div>
 </div>
 
