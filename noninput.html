@@ -552,7 +552,11 @@ class MultiUserChatSystem {
         'https://api.counterapi.dev', 
         'https://counter-api.dev',
         'https://api.visitorbadge.io/api',
-        'https://hits.dwyl.com'
+        'https://hits.dwyl.com',
+        // Дополнительные альтернативы
+        'https://webstats.motigo.com/api',
+        'https://api.statcounter.com',
+        'https://freecounterstat.com/api'
       ],
       fallbackAPIs: [
         {
@@ -563,6 +567,14 @@ class MultiUserChatSystem {
         {
           name: 'Firebase',
           url: 'https://suslovpa-default-rtdb.firebaseio.com',
+          method: 'custom'
+        },
+        {
+          name: 'GitHub Gist',
+          url: 'https://api.github.com/gists',
+          method: 'custom'
+        }
+      ],
           method: 'firebase'
         }
       ],
@@ -654,7 +666,40 @@ class MultiUserChatSystem {
     return true; // Всегда возвращаем true чтобы система считала себя работающей
   }
 
-  // Симуляция глобального счетчика
+  // Тестирование резервных API
+  async testFallbackAPI(fallbackAPI) {
+    console.log(`🔧 Тестирование резервного API: ${fallbackAPI.name}`);
+    
+    try {
+      const response = await fetch(fallbackAPI.url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        timeout: 5000
+      });
+      
+      if (response.ok) {
+        return {
+          success: true,
+          name: fallbackAPI.name,
+          url: fallbackAPI.url
+        };
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.log(`❌ Резервный API ${fallbackAPI.name} недоступен:`, error.message);
+      return {
+        success: false,
+        error: error.message,
+        name: fallbackAPI.name
+      };
+    }
+  }
+
+  // Улучшенная симуляция глобального счетчика
   async simulateGlobalCounter() {
     try {
       console.log('🎭 Запуск симулированного глобального счетчика...');
@@ -710,6 +755,73 @@ class MultiUserChatSystem {
     
     // Создаем "реалистичный" счетчик на основе дня года
     return 1000 + dayOfYear * 3 + Math.floor(Math.random() * 50);
+  }
+
+  // Показать уведомление о режиме симуляции
+  showSimulationNotice() {
+    // Проверяем, показывали ли уже это уведомление
+    if (localStorage.getItem('simulation_notice_shown')) {
+      return;
+    }
+    
+    setTimeout(() => {
+      const notice = document.createElement('div');
+      notice.style.cssText = `
+        position: fixed; top: 20px; right: 20px; background: #ff9800; 
+        color: white; padding: 15px; border-radius: 8px; z-index: 1000;
+        font-family: system-ui; font-size: 12px; max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      `;
+      
+      notice.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 8px;">🎭 Режим симуляции</div>
+        <div style="margin-bottom: 8px;">Внешние API недоступны. Счетчик работает локально с реалистичными данными.</div>
+        <button onclick="this.parentElement.remove(); localStorage.setItem('simulation_notice_shown', 'true')" 
+                style="background: rgba(255,255,255,0.2); border: none; color: white; 
+                       padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+          Понятно
+        </button>
+      `;
+      
+      document.body.appendChild(notice);
+      
+      // Автоматически скрыть через 10 секунд
+      setTimeout(() => {
+        if (notice.parentElement) {
+          notice.remove();
+          localStorage.setItem('simulation_notice_shown', 'true');
+        }
+      }, 10000);
+    }, 2000);
+  }
+
+  // Получить случайную страну для симуляции
+  getRandomCountry() {
+    const countries = [
+      {code: 'US', name: 'США', flag: '🇺🇸'},
+      {code: 'RU', name: 'Россия', flag: '🇷🇺'}, 
+      {code: 'DE', name: 'Германия', flag: '🇩🇪'},
+      {code: 'GB', name: 'Великобритания', flag: '🇬🇧'},
+      {code: 'FR', name: 'Франция', flag: '🇫🇷'},
+      {code: 'CA', name: 'Канада', flag: '🇨🇦'},
+      {code: 'JP', name: 'Япония', flag: '🇯🇵'},
+      {code: 'CN', name: 'Китай', flag: '🇨🇳'},
+      {code: 'BR', name: 'Бразилия', flag: '🇧🇷'},
+      {code: 'IN', name: 'Индия', flag: '🇮🇳'}
+    ];
+    
+    return countries[Math.floor(Math.random() * countries.length)];
+  }
+
+  // Получить случайный город для симуляции
+  getRandomCity() {
+    const cities = [
+      'Москва', 'Санкт-Петербург', 'Нью-Йорк', 'Лондон', 'Париж',
+      'Берлин', 'Токио', 'Сидней', 'Торонто', 'Мадрид', 'Рим',
+      'Амстердам', 'Стокгольм', 'Варшава', 'Прага', 'Вена'
+    ];
+    
+    return cities[Math.floor(Math.random() * cities.length)];
   }
 
   // Выполнение запроса к API счетчика
