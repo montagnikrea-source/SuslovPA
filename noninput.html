@@ -179,6 +179,9 @@
     </button>
     <button onclick="multiUserChat.syncTelegramMessages()" style="margin-left: 5px; padding: 5px 10px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
       📥 Синхронизировать сообщения
+    </button>
+    <button onclick="multiUserChat.testTelegramSending()" style="margin-left: 5px; padding: 5px 10px; background: #FF9800; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      🧪 Тест отправки
     </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
@@ -470,7 +473,13 @@ class MultiUserChatSystem {
           
           // Создаем контроллер для таймаута
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), this.telegramConfig.timeout);
+          
+          // Уменьшенный таймаут для отправки сообщений (чтобы быстрее переключаться на другой прокси)
+          const timeout = method === 'sendMessage' ? 8000 : this.telegramConfig.timeout;
+          const timeoutId = setTimeout(() => {
+            console.warn(`⏱️ Таймаут ${timeout}мс для ${method} через ${proxyUrl || 'прямое'}`);
+            controller.abort();
+          }, timeout);
           
           const response = await fetch(url, {
             method: 'POST',
@@ -751,6 +760,9 @@ ${text}
         message: text.substring(0, 50) + '...'
       });
       
+      // Обновляем статус на "отправка..."
+      this.updateConnectionStatus('отправка сообщения...');
+      
       const result = await this.sendTelegramRequest('sendMessage', {
         chat_id: this.telegramConfig.chatId,
         text: formattedMessage,
@@ -760,14 +772,43 @@ ${text}
       if (result && result.ok) {
         console.log('✅ Сообщение отправлено в Telegram канал');
         console.log('🔗 Проверьте: https://t.me/noninput');
+        
+        // Восстанавливаем статус подключения
+        this.updateConnectionStatus('подключен (Telegram)');
         return true;
       } else {
         console.error('❌ Не удалось отправить сообщение в Telegram:', result);
+        
+        // Проверяем тип ошибки
+        if (result && result.error_code === 403) {
+          console.error('🚫 Бот заблокирован или не имеет прав на отправку в канал');
+          this.updateConnectionStatus('нет прав доступа');
+        } else if (result && result.error_code === 400) {
+          console.error('📝 Неверный формат сообщения или канал не найден');
+          this.updateConnectionStatus('ошибка формата');
+        } else {
+          // Для других ошибок сохраняем соединение
+          this.updateConnectionStatus('подключен (Telegram)');
+        }
+        
         return false;
       }
       
     } catch (error) {
       console.error('🚨 Ошибка отправки в Telegram:', error);
+      
+      // Не меняем статус соединения при сетевых ошибках
+      // Соединение может быть в порядке, просто временный сбой
+      if (error.name === 'AbortError') {
+        console.warn('⏱️ Таймаут отправки сообщения');
+        this.updateConnectionStatus('таймаут отправки');
+      } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        console.warn('🌐 Сетевая ошибка при отправке');
+        this.updateConnectionStatus('сетевая ошибка');
+      } else {
+        this.updateConnectionStatus('подключен (Telegram)');
+      }
+      
       return false;
     }
   }
@@ -979,6 +1020,28 @@ ${text}
   simulateUserActivity() {
     localStorage.setItem('chatLastActivity', Date.now().toString());
     this.showActiveUsers();
+  }
+
+  async testTelegramSending() {
+    console.log('🧪 Тестирование отправки сообщений в Telegram...');
+    this.updateConnectionStatus('тест отправки...');
+    
+    try {
+      const testMessage = `🧪 Тест отправки - ${new Date().toLocaleTimeString()}`;
+      const success = await this.sendMessageToTelegram(testMessage, 'Система тестирования');
+      
+      if (success) {
+        alert('✅ Тест успешен! Сообщение отправлено в Telegram канал.');
+        console.log('✅ Тест отправки прошел успешно');
+      } else {
+        alert('❌ Тест не прошел. Проверьте права бота и канал.');
+        console.error('❌ Тест отправки провален');
+      }
+      
+    } catch (error) {
+      console.error('🚨 Ошибка теста отправки:', error);
+      alert('🚨 Ошибка при тестировании: ' + error.message);
+    }
   }
 
   async syncTelegramMessages() {
@@ -1251,30 +1314,36 @@ ${text}
     
     // Отправляем в Telegram для интернет-синхронизации
     if (this.telegramConfig && !this.isLocalMode) {
-      this.sendMessageToTelegram(filtered.text)
+      this.sendMessageToTelegram(filtered.text, currentUsername)
         .then(success => {
           if (success) {
-            console.log('Сообщение отправлено в Telegram чат');
-            this.updateConnectionStatus('подключен (Telegram)');
+            console.log('✅ Сообщение успешно отправлено в Telegram чат');
           } else {
-            console.warn('Не удалось отправить в Telegram, сохраняем локально');
+            console.warn('⚠️ Не удалось отправить в Telegram, но соединение активно');
+            // Сохраняем локально как резерв
             this.saveSharedMessages();
-            this.updateConnectionStatus('локальный режим');
           }
         })
         .catch(error => {
-          console.error('Ошибка отправки в Telegram:', error);
+          console.error('❌ Критическая ошибка отправки в Telegram:', error);
+          // Сохраняем локально при критических ошибках
           this.saveSharedMessages();
-          this.updateConnectionStatus('ошибка подключения');
+          
+          // Проверяем, нужно ли переходить в локальный режим
+          this.connectionState.consecutiveFailures++;
+          if (this.connectionState.consecutiveFailures >= 3) {
+            console.warn('🔄 Слишком много ошибок отправки. Проверка соединения...');
+            this.performHealthCheck();
+          }
         });
     } else {
       // Резервный вариант - локальное сохранение
       const success = this.saveSharedMessages();
       if (success) {
-        console.log('Сообщение доступно другим пользователям');
+        console.log('💾 Сообщение сохранено локально');
         this.updateConnectionStatus('подключен (локальная сеть)');
       } else {
-        console.warn('Сообщение сохранено только локально');
+        console.warn('⚠️ Ошибка локального сохранения');
         this.updateConnectionStatus('ошибка сохранения');
       }
     }
