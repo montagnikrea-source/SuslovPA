@@ -175,6 +175,9 @@
     🤖 <strong>Бот:</strong> <a href="https://t.me/Inputlagthebot" target="_blank" style="color: #1976d2;">@Inputlagthebot</a><br>
     <button onclick="multiUserChat.retryTelegramConnection()" style="margin-top: 5px; padding: 5px 10px; background: #2196f3; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
       🔄 Переподключиться к Telegram
+    </button>
+    <button onclick="multiUserChat.syncTelegramMessages()" style="margin-left: 5px; padding: 5px 10px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      📥 Синхронизировать сообщения
     </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
@@ -337,7 +340,7 @@ class MultiUserChatSystem {
       botToken: '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I',
       chatId: '@noninput', // Ваш канал t.me/noninput
       apiUrl: 'https://api.telegram.org/bot',
-      pollInterval: 3000 // Проверяем новые сообщения каждые 3 секунды
+      pollInterval: 2000 // Проверяем новые сообщения каждые 2 секунды
     };
     
     // Используем публичные прокси для обхода CORS (попробуем несколько)
@@ -494,40 +497,59 @@ class MultiUserChatSystem {
 
   async loadTelegramMessages() {
     try {
-      // Получаем последние сообщения из чата
+      console.log('📥 Загрузка сообщений из Telegram канала...');
+      
+      // Для каналов используем getChatHistory через getUpdates
+      // Сначала получаем обновления бота
       const updates = await this.sendTelegramRequest('getUpdates', {
-        chat_id: this.telegramConfig.chatId,
-        limit: 20,
-        offset: -20
+        limit: 100,
+        timeout: 0
       });
       
       if (updates && updates.ok) {
+        console.log(`📬 Получено ${updates.result.length} обновлений`);
+        
         const telegramMessages = updates.result
-          .filter(update => update.message && update.message.text)
+          .filter(update => {
+            // Фильтруем сообщения из нашего канала
+            return update.channel_post && 
+                   update.channel_post.chat && 
+                   update.channel_post.chat.username === 'noninput' &&
+                   update.channel_post.text;
+          })
           .map(update => ({
-            id: 'tg_' + update.message.message_id,
-            text: update.message.text,
-            username: update.message.from.first_name || 'Пользователь',
-            userId: 'tg_' + update.message.from.id,
-            timestamp: update.message.date * 1000,
+            id: 'tg_' + update.channel_post.message_id,
+            text: update.channel_post.text,
+            username: update.channel_post.author_signature || 'Telegram User',
+            userId: 'tg_' + (update.channel_post.from?.id || 'channel'),
+            timestamp: update.channel_post.date * 1000,
             isCurrentUser: false,
             wasFiltered: false,
             source: 'telegram'
           }));
         
-        // Объединяем с локальными сообщениями
-        this.messages = [...this.messages, ...telegramMessages];
+        console.log(`💬 Найдено ${telegramMessages.length} сообщений из канала`);
+        
+        // Добавляем только новые сообщения
+        telegramMessages.forEach(tgMsg => {
+          if (!this.messages.find(existing => existing.id === tgMsg.id)) {
+            this.messages.push(tgMsg);
+          }
+        });
+        
         this.messages.sort((a, b) => a.timestamp - b.timestamp);
         this.messages = this.messages.slice(-50);
         
         this.updateMessageCount();
         this.renderMessages();
         
-        console.log(`Загружено ${telegramMessages.length} сообщений из Telegram`);
+        console.log(`✅ Обработано сообщений: ${telegramMessages.length}`);
+      } else {
+        console.warn('⚠️ Не удалось получить обновления:', updates);
       }
       
     } catch (error) {
-      console.error('Ошибка загрузки сообщений Telegram:', error);
+      console.error('❌ Ошибка загрузки сообщений Telegram:', error);
     }
   }
 
@@ -540,66 +562,113 @@ class MultiUserChatSystem {
 
   async checkTelegramUpdates() {
     try {
-      const lastMessageId = Math.max(...this.messages
-        .filter(msg => msg.source === 'telegram')
-        .map(msg => parseInt(msg.id.replace('tg_', '')))
-        .filter(id => !isNaN(id)), 0);
+      console.log('🔄 Проверка новых сообщений из Telegram...');
+      
+      // Получаем последний update_id для правильного offset
+      const lastUpdateId = parseInt(localStorage.getItem('lastTelegramUpdateId') || '0');
       
       const updates = await this.sendTelegramRequest('getUpdates', {
-        chat_id: this.telegramConfig.chatId,
-        offset: lastMessageId + 1,
-        limit: 10
+        offset: lastUpdateId + 1,
+        limit: 100,
+        timeout: 0
       });
       
-      if (updates && updates.ok && updates.result.length > 0) {
-        console.log(`Получено ${updates.result.length} новых сообщений из Telegram`);
+      if (updates && updates.ok) {
+        console.log(`📨 Получено ${updates.result.length} обновлений`);
         
-        const newMessages = updates.result
-          .filter(update => update.message && update.message.text)
-          .map(update => ({
-            id: 'tg_' + update.message.message_id,
-            text: update.message.text,
-            username: update.message.from.first_name || 'Пользователь',
-            userId: 'tg_' + update.message.from.id,
-            timestamp: update.message.date * 1000,
-            isCurrentUser: false,
-            wasFiltered: false,
-            source: 'telegram'
-          }));
+        let newMessagesCount = 0;
         
-        // Добавляем новые сообщения
-        this.messages.push(...newMessages);
-        this.messages.sort((a, b) => a.timestamp - b.timestamp);
-        this.messages = this.messages.slice(-50);
+        updates.result.forEach(update => {
+          // Сохраняем последний update_id
+          localStorage.setItem('lastTelegramUpdateId', update.update_id.toString());
+          
+          let message = null;
+          
+          // Проверяем разные типы сообщений
+          if (update.channel_post && update.channel_post.chat.username === 'noninput') {
+            // Сообщение из канала
+            message = {
+              id: 'tg_ch_' + update.channel_post.message_id,
+              text: update.channel_post.text || '[Медиа]',
+              username: update.channel_post.author_signature || 'Канал',
+              userId: 'channel_' + update.channel_post.chat.id,
+              timestamp: update.channel_post.date * 1000,
+              isCurrentUser: false,
+              wasFiltered: false,
+              source: 'telegram_channel'
+            };
+          } else if (update.message && update.message.text) {
+            // Обычное сообщение боту
+            message = {
+              id: 'tg_msg_' + update.message.message_id,
+              text: update.message.text,
+              username: update.message.from.first_name || 'Пользователь',
+              userId: 'tg_' + update.message.from.id,
+              timestamp: update.message.date * 1000,
+              isCurrentUser: false,
+              wasFiltered: false,
+              source: 'telegram_private'
+            };
+          }
+          
+          // Добавляем сообщение, если оно новое
+          if (message && !this.messages.find(existing => existing.id === message.id)) {
+            this.messages.push(message);
+            newMessagesCount++;
+            console.log(`➕ Новое сообщение: ${message.text.substring(0, 50)}...`);
+          }
+        });
         
-        this.updateMessageCount();
-        this.renderMessages();
-        this.showActiveUsers();
+        if (newMessagesCount > 0) {
+          console.log(`✨ Добавлено ${newMessagesCount} новых сообщений`);
+          
+          this.messages.sort((a, b) => a.timestamp - b.timestamp);
+          this.messages = this.messages.slice(-50);
+          
+          this.updateMessageCount();
+          this.renderMessages();
+          this.showActiveUsers();
+        }
       }
       
     } catch (error) {
-      console.error('Ошибка проверки обновлений Telegram:', error);
+      console.error('❌ Ошибка проверки обновлений Telegram:', error);
     }
   }
 
-  async sendMessageToTelegram(text) {
+  async sendMessageToTelegram(text, username = null) {
     try {
+      const currentUsername = username || document.getElementById('usernameInput')?.value.trim() || 'Анонимный';
+      const timestamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      
+      const formattedMessage = `💬 <b>${currentUsername}</b> (${timestamp}):
+${text}
+
+📱 <i>Отправлено через Frequency Scanner</i>`;
+
+      console.log('📤 Отправка в Telegram канал:', {
+        channel: this.telegramConfig.chatId,
+        user: currentUsername,
+        message: text.substring(0, 50) + '...'
+      });
+      
       const result = await this.sendTelegramRequest('sendMessage', {
         chat_id: this.telegramConfig.chatId,
-        text: `🎵 Frequency Scanner User: ${text}`,
+        text: formattedMessage,
         parse_mode: 'HTML'
       });
       
       if (result && result.ok) {
-        console.log('Сообщение отправлено в Telegram');
+        console.log('✅ Сообщение отправлено в Telegram канал');
+        console.log('🔗 Проверьте: https://t.me/noninput');
         return true;
       } else {
-        console.error('Не удалось отправить сообщение в Telegram');
+        console.error('❌ Не удалось отправить сообщение в Telegram:', result);
         return false;
       }
       
     } catch (error) {
-      console.error('Ошибка отправки в Telegram:', error);
+      console.error('🚨 Ошибка отправки в Telegram:', error);
       return false;
     }
   }
@@ -811,6 +880,30 @@ class MultiUserChatSystem {
   simulateUserActivity() {
     localStorage.setItem('chatLastActivity', Date.now().toString());
     this.showActiveUsers();
+  }
+
+  async syncTelegramMessages() {
+    console.log('🔄 Ручная синхронизация сообщений с Telegram...');
+    this.updateConnectionStatus('синхронизация...');
+    
+    try {
+      // Принудительно загружаем все сообщения
+      await this.loadTelegramMessages();
+      await this.checkTelegramUpdates();
+      
+      console.log('✅ Синхронизация завершена');
+      this.updateConnectionStatus('подключен (Telegram)');
+      
+      // Показываем уведомление
+      setTimeout(() => {
+        const messageCount = this.messages.filter(m => m.source?.includes('telegram')).length;
+        alert(`📥 Синхронизация завершена!\nЗагружено ${messageCount} сообщений из Telegram.`);
+      }, 500);
+      
+    } catch (error) {
+      console.error('❌ Ошибка синхронизации:', error);
+      this.updateConnectionStatus('ошибка синхронизации');
+    }
   }
 
   async retryTelegramConnection() {
