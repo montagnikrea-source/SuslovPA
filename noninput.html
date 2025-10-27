@@ -166,7 +166,7 @@
   </div>
   
   <div class="online-count" id="onlineCount">
-    👥 Пользователей онлайн: <span id="onlineUsers">1</span>
+    👥 Многопользовательский режим: <span id="connectionStatus">подключается...</span>
   </div>
   
   <div class="username-input">
@@ -237,9 +237,112 @@ class MultiUserChatSystem {
   }
 
   initFirebase() {
-    // Временно отключаем Firebase и используем только локальный режим для стабильности
-    console.log('Используется локальный режим чата');
-    this.fallbackToLocal();
+    // Используем простое облачное хранилище для многопользовательского чата
+    console.log('Инициализация облачного чата');
+    this.initCloudChat();
+  }
+
+  initCloudChat() {
+    // Используем JSONBin как простое облачное хранилище
+    this.cloudUrl = 'https://api.jsonbin.io/v3/b/67223abbacd3cb34a8a2a85a'; // Публичный bin для демонстрации
+    this.cloudHeaders = {
+      'Content-Type': 'application/json'
+    };
+    
+    // Загружаем существующие сообщения
+    this.loadCloudMessages();
+    
+    // Периодически проверяем новые сообщения
+    this.pollInterval = setInterval(() => {
+      this.loadCloudMessages();
+    }, 3000); // Проверяем каждые 3 секунды
+    
+    this.isLocalMode = false;
+  }
+
+  async loadCloudMessages() {
+    try {
+      const response = await fetch(this.cloudUrl, {
+        method: 'GET',
+        headers: this.cloudHeaders
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const cloudMessages = data.record?.messages || [];
+        
+        // Объединяем с локальными сообщениями, убираем дубликаты
+        const allMessages = [...this.messages];
+        
+        cloudMessages.forEach(cloudMsg => {
+          if (!allMessages.find(msg => msg.id === cloudMsg.id)) {
+            allMessages.push({
+              ...cloudMsg,
+              isCurrentUser: cloudMsg.userId === this.userId
+            });
+          }
+        });
+        
+        // Сортируем по времени
+        allMessages.sort((a, b) => a.timestamp - b.timestamp);
+        
+        this.messages = allMessages.slice(-50); // Ограничиваем количество
+        this.updateMessageCount();
+        this.renderMessages();
+        
+        // Обновляем статус подключения
+        this.updateConnectionStatus('подключен к облаку');
+        
+        console.log('Загружено сообщений из облака:', cloudMessages.length);
+      } else {
+        throw new Error('Ошибка HTTP: ' + response.status);
+      }
+    } catch (error) {
+      console.warn('Ошибка загрузки сообщений из облака:', error);
+      this.updateConnectionStatus('ошибка подключения');
+      if (this.messages.length === 0) {
+        this.fallbackToLocal();
+      }
+    }
+  }
+
+  async saveToCloud(message) {
+    try {
+      // Получаем текущие сообщения
+      const response = await fetch(this.cloudUrl, {
+        method: 'GET',
+        headers: this.cloudHeaders
+      });
+      
+      let currentData = { messages: [] };
+      if (response.ok) {
+        const data = await response.json();
+        currentData = data.record || { messages: [] };
+      }
+      
+      // Добавляем новое сообщение
+      currentData.messages.push(message);
+      
+      // Ограничиваем количество сообщений в облаке
+      if (currentData.messages.length > 100) {
+        currentData.messages = currentData.messages.slice(-100);
+      }
+      
+      // Сохраняем обратно
+      const saveResponse = await fetch(this.cloudUrl, {
+        method: 'PUT',
+        headers: this.cloudHeaders,
+        body: JSON.stringify(currentData)
+      });
+      
+      if (saveResponse.ok) {
+        console.log('Сообщение сохранено в облаке');
+        return true;
+      }
+    } catch (error) {
+      console.warn('Ошибка сохранения в облако:', error);
+    }
+    return false;
   }
 
   fallbackToLocal() {
@@ -248,6 +351,32 @@ class MultiUserChatSystem {
     this.messages = this.loadLocalMessages();
     this.simulateOtherUsers();
     this.renderMessages();
+    this.updateConnectionStatus('локальный режим');
+  }
+
+  updateConnectionStatus(status) {
+    const statusElement = document.getElementById('connectionStatus');
+    if (statusElement) {
+      statusElement.textContent = status;
+      
+      // Меняем цвет в зависимости от статуса
+      const container = statusElement.closest('.online-count');
+      if (container) {
+        if (status.includes('подключен') || status.includes('онлайн')) {
+          container.style.background = '#d4edda';
+          container.style.borderColor = '#c3e6cb';
+          container.style.color = '#155724';
+        } else if (status.includes('ошибка') || status.includes('локальный')) {
+          container.style.background = '#f8d7da';
+          container.style.borderColor = '#f5c6cb';
+          container.style.color = '#721c24';
+        } else {
+          container.style.background = '#fff3cd';
+          container.style.borderColor = '#ffeaa7';
+          container.style.color = '#856404';
+        }
+      }
+    }
   }
 
   simulateOtherUsers() {
@@ -404,10 +533,21 @@ class MultiUserChatSystem {
 
     console.log('Создано сообщение:', message); // Отладка
 
-    // Всегда используем локальное сохранение для стабильности
+    // Добавляем локально сразу для быстрого отклика
     this.messages.push(message);
     this.saveLocalMessages();
     this.addMessageToUI(message);
+
+    // Сохраняем в облако для других пользователей
+    if (!this.isLocalMode) {
+      this.saveToCloud(message).then(success => {
+        if (success) {
+          console.log('Сообщение доступно другим пользователям');
+        } else {
+          console.warn('Сообщение сохранено только локально');
+        }
+      });
+    }
 
     console.log('Сообщение добавлено в массив, всего сообщений:', this.messages.length); // Отладка
 
