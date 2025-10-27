@@ -247,6 +247,9 @@
     </button>
     <button onclick="multiUserChat.checkBotSettings()" style="margin-left: 5px; padding: 5px 10px; background: #9C27B0; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
       🤖 Настройки бота
+    </button>
+    <button onclick="multiUserChat.showVisitorStats()" style="margin-left: 5px; padding: 5px 10px; background: #FF9800; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      📊 Посетители сайта
     </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
@@ -405,9 +408,319 @@ class MultiUserChatSystem {
     this.onlineUsers = new Set();
     this.lastActivity = Date.now();
     
+    // Система отслеживания посетителей сайта
+    this.initVisitorTracking();
+    
     // Инициализация Firebase (используем публичную конфигурацию для демонстрации)
     this.initFirebase();
     this.updateMessageCount();
+  }
+
+  // Система отслеживания посетителей сайта
+  initVisitorTracking() {
+    console.log('🌐 Инициализация отслеживания посетителей сайта...');
+    
+    // Уникальный ID сессии для каждого посетителя
+    this.sessionId = this.generateSessionId();
+    
+    // Время входа на сайт
+    this.visitStartTime = Date.now();
+    
+    // Последняя активность
+    this.lastVisitorActivity = Date.now();
+    
+    // Регистрируем посетителя
+    this.registerVisitor();
+    
+    // Отслеживаем активность
+    this.startActivityTracking();
+    
+    // Периодически обновляем счетчик посетителей
+    this.startVisitorCountUpdates();
+    
+    console.log('✅ Отслеживание посетителей инициализировано');
+  }
+
+  // Генерация уникального ID сессии
+  generateSessionId() {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substr(2, 5);
+    return `visitor_${timestamp}_${random}`;
+  }
+
+  // Регистрация нового посетителя
+  registerVisitor() {
+    const visitorData = {
+      sessionId: this.sessionId,
+      userId: this.userId,
+      visitTime: this.visitStartTime,
+      lastActivity: this.lastVisitorActivity,
+      userAgent: navigator.userAgent.substring(0, 100),
+      referrer: document.referrer || 'direct',
+      pageUrl: window.location.href
+    };
+    
+    // Сохраняем в localStorage для отслеживания
+    const visitors = this.getActiveVisitors();
+    visitors[this.sessionId] = visitorData;
+    
+    // Очищаем старые записи (старше 10 минут)
+    this.cleanupOldVisitors(visitors);
+    
+    localStorage.setItem('siteVisitors', JSON.stringify(visitors));
+    
+    console.log('👤 Посетитель зарегистрирован:', this.sessionId);
+    console.log('📊 Всего активных посетителей:', Object.keys(visitors).length);
+  }
+
+  // Получение активных посетителей
+  getActiveVisitors() {
+    try {
+      const stored = localStorage.getItem('siteVisitors');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.warn('⚠️ Ошибка чтения данных посетителей:', error);
+      return {};
+    }
+  }
+
+  // Очистка старых посетителей
+  cleanupOldVisitors(visitors = null) {
+    if (!visitors) {
+      visitors = this.getActiveVisitors();
+    }
+    
+    const now = Date.now();
+    const tenMinutesAgo = now - (10 * 60 * 1000); // 10 минут
+    
+    let cleaned = 0;
+    for (const sessionId in visitors) {
+      if (visitors[sessionId].lastActivity < tenMinutesAgo) {
+        delete visitors[sessionId];
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      console.log(`🧹 Удалено ${cleaned} неактивных посетителей`);
+      localStorage.setItem('siteVisitors', JSON.stringify(visitors));
+    }
+    
+    return visitors;
+  }
+
+  // Отслеживание активности посетителя
+  startActivityTracking() {
+    // Обновляем активность при взаимодействии
+    const updateActivity = () => {
+      this.lastVisitorActivity = Date.now();
+      this.updateVisitorActivity();
+    };
+    
+    // События активности
+    document.addEventListener('mousedown', updateActivity);
+    document.addEventListener('keydown', updateActivity);
+    document.addEventListener('scroll', updateActivity);
+    document.addEventListener('touchstart', updateActivity);
+    
+    // Периодическое обновление активности
+    setInterval(() => {
+      this.updateVisitorActivity();
+    }, 60000); // Каждую минуту
+    
+    // Удаляем посетителя при закрытии вкладки
+    window.addEventListener('beforeunload', () => {
+      this.unregisterVisitor();
+    });
+  }
+
+  // Обновление активности посетителя
+  updateVisitorActivity() {
+    const visitors = this.getActiveVisitors();
+    
+    if (visitors[this.sessionId]) {
+      visitors[this.sessionId].lastActivity = this.lastVisitorActivity;
+      localStorage.setItem('siteVisitors', JSON.stringify(visitors));
+    }
+  }
+
+  // Удаление посетителя при уходе
+  unregisterVisitor() {
+    const visitors = this.getActiveVisitors();
+    delete visitors[this.sessionId];
+    localStorage.setItem('siteVisitors', JSON.stringify(visitors));
+    console.log('👋 Посетитель покинул сайт:', this.sessionId);
+  }
+
+  // Запуск обновления счетчика посетителей
+  startVisitorCountUpdates() {
+    // Первоначальное обновление
+    this.updateVisitorCounter();
+    
+    // Периодические обновления каждые 30 секунд
+    setInterval(() => {
+      this.updateVisitorCounter();
+    }, 30000);
+  }
+
+  // Обновление счетчика посетителей на странице
+  updateVisitorCounter() {
+    const visitors = this.cleanupOldVisitors();
+    const totalVisitors = Object.keys(visitors).length;
+    
+    // Обновляем глобальный счетчик
+    const globalCountElement = document.getElementById('globalOnlineCount');
+    const globalStatusElement = document.getElementById('globalOnlineStatus');
+    
+    if (globalCountElement) {
+      globalCountElement.textContent = `👥 Посетителей онлайн: ${totalVisitors}`;
+    }
+    
+    if (globalStatusElement) {
+      const now = Date.now();
+      const recentVisitors = Object.values(visitors).filter(v => 
+        (now - v.lastActivity) < 120000 // Активны в последние 2 минуты
+      ).length;
+      
+      if (recentVisitors > 1) {
+        globalStatusElement.textContent = `• ${recentVisitors} активных`;
+        globalStatusElement.style.color = '#28a745';
+      } else {
+        globalStatusElement.textContent = '• Просматриваете сайт';
+        globalStatusElement.style.color = '#6c757d';
+      }
+    }
+    
+    // Обновляем тултип
+    const globalCounter = document.getElementById('globalOnlineCounter');
+    if (globalCounter) {
+      const recentVisitorsList = Object.values(visitors)
+        .filter(v => (Date.now() - v.lastActivity) < 300000) // 5 минут
+        .sort((a, b) => b.lastActivity - a.lastActivity)
+        .slice(0, 5);
+      
+      if (recentVisitorsList.length > 1) {
+        const timeInfo = recentVisitorsList.map(v => {
+          const minutesAgo = Math.floor((Date.now() - v.lastActivity) / 60000);
+          return minutesAgo === 0 ? 'сейчас' : `${minutesAgo} мин назад`;
+        });
+        globalCounter.title = `Последняя активность: ${timeInfo.join(', ')}`;
+      } else {
+        globalCounter.title = 'Вы единственный посетитель онлайн';
+      }
+    }
+    
+    console.log(`📊 Обновлен счетчик посетителей: ${totalVisitors} онлайн`);
+  }
+
+  // Показать статистику посетителей сайта
+  showVisitorStats() {
+    console.log('📊 Показ статистики посетителей...');
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
+      justify-content: center; align-items: center; padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white; border-radius: 10px; padding: 20px; 
+      max-width: 600px; max-height: 80vh; overflow-y: auto;
+      font-family: monospace; font-size: 12px; line-height: 1.4;
+    `;
+    
+    const visitors = this.cleanupOldVisitors();
+    const totalVisitors = Object.keys(visitors).length;
+    const now = Date.now();
+    
+    // Анализ активности
+    const recentVisitors = Object.values(visitors).filter(v => (now - v.lastActivity) < 120000);
+    const activeVisitors = Object.values(visitors).filter(v => (now - v.lastActivity) < 300000);
+    
+    // Анализ времени посещения
+    const visitDurations = Object.values(visitors).map(v => {
+      const duration = (v.lastActivity - v.visitTime) / 1000 / 60; // минуты
+      return Math.max(duration, 0);
+    });
+    
+    const avgDuration = visitDurations.length > 0 ? 
+      (visitDurations.reduce((a, b) => a + b, 0) / visitDurations.length).toFixed(1) : 0;
+    
+    content.innerHTML = `
+      <h3>📊 Статистика посетителей сайта</h3>
+      <div id="visitorStatsInfo">
+        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <h4 style="margin: 0 0 10px 0; color: #2e7d32;">📈 Текущая активность</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>👥 <strong>Всего онлайн:</strong> ${totalVisitors}</div>
+            <div>🟢 <strong>Активных (2 мин):</strong> ${recentVisitors.length}</div>
+            <div>📱 <strong>На сайте (5 мин):</strong> ${activeVisitors.length}</div>
+            <div>⏱️ <strong>Ср. время:</strong> ${avgDuration} мин</div>
+          </div>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <h4 style="margin: 0 0 10px 0; color: #495057;">👤 Ваша сессия</h4>
+          <div><strong>Session ID:</strong> ${this.sessionId}</div>
+          <div><strong>На сайте с:</strong> ${new Date(this.visitStartTime).toLocaleTimeString()}</div>
+          <div><strong>Последняя активность:</strong> ${new Date(this.lastVisitorActivity).toLocaleTimeString()}</div>
+          <div><strong>Время на сайте:</strong> ${Math.floor((now - this.visitStartTime) / 60000)} мин</div>
+        </div>
+        
+        ${Object.keys(visitors).length > 1 ? `
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <h4 style="margin: 0 0 10px 0; color: #856404;">🌐 Активные посетители</h4>
+            <div style="max-height: 150px; overflow-y: auto;">
+              ${Object.values(visitors)
+                .sort((a, b) => b.lastActivity - a.lastActivity)
+                .map((v, i) => {
+                  const minutesAgo = Math.floor((now - v.lastActivity) / 60000);
+                  const timeOnSite = Math.floor((v.lastActivity - v.visitTime) / 60000);
+                  const isYou = v.sessionId === this.sessionId;
+                  return `
+                    <div style="margin: 5px 0; padding: 5px; background: ${isYou ? '#d4edda' : '#f8f9fa'}; border-radius: 3px; font-size: 11px;">
+                      ${isYou ? '🟢 Вы' : `👤 Посетитель ${i + 1}`} • 
+                      Активность: ${minutesAgo === 0 ? 'сейчас' : minutesAgo + ' мин назад'} • 
+                      На сайте: ${timeOnSite} мин
+                    </div>
+                  `;
+                }).join('')}
+            </div>
+          </div>
+        ` : `
+          <div style="background: #e2e3e5; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="color: #6c757d;">👤 Вы единственный посетитель онлайн</div>
+          </div>
+        `}
+        
+        <div style="background: #d1ecf1; padding: 15px; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #0c5460;">ℹ️ Как работает счетчик</h4>
+          <ul style="margin: 0; padding-left: 20px; font-size: 11px;">
+            <li>Отслеживает реальных посетителей сайта (не Telegram)</li>
+            <li>Считает уникальные сессии браузера</li>
+            <li>Автоматически удаляет неактивных через 10 минут</li>
+            <li>Обновляется каждые 30 секунд</li>
+            <li>Отслеживает активность: клики, скролл, клавиши</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin-top: 15px;">
+        <button onclick="this.closest('[style*=fixed]').remove()" 
+                style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+          Закрыть
+        </button>
+        <button onclick="multiUserChat.updateVisitorCounter(); this.closest('[style*=fixed]').remove();" 
+                style="background: #28a745; color: white; border: none; padding: 10px 20px; margin-left: 10px; border-radius: 5px; cursor: pointer;">
+          🔄 Обновить счетчик
+        </button>
+      </div>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
   }
 
   initFirebase() {
@@ -1271,6 +1584,13 @@ ${text}
 
   // Обновление ГЛОБАЛЬНОГО счетчика на странице
   updateGlobalOnlineCounter(totalOnline, recentUsers) {
+    // Используем счетчик посетителей сайта вместо Telegram пользователей
+    if (this.updateVisitorCounter) {
+      this.updateVisitorCounter();
+      return; // Выходим, так как счетчик уже обновлен через посетителей
+    }
+    
+    // Fallback для старой логики, если система посетителей не инициализирована
     const globalCountElement = document.getElementById('globalOnlineCount');
     const globalStatusElement = document.getElementById('globalOnlineStatus');
     
@@ -2443,8 +2763,10 @@ document.addEventListener('DOMContentLoaded', () => {
         multiUserChat.showActiveUsers();
       }
       
-      // Инициализируем глобальный счетчик онлайн
-      if (multiUserChat && multiUserChat.updateOnlineCounter) {
+      // Инициализируем глобальный счетчик посетителей сайта
+      if (multiUserChat && multiUserChat.updateVisitorCounter) {
+        multiUserChat.updateVisitorCounter();
+      } else if (multiUserChat && multiUserChat.updateOnlineCounter) {
         multiUserChat.updateOnlineCounter();
       }
     }, 1000);
