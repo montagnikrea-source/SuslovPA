@@ -1,0 +1,20 @@
+# Секретные файлы
+config/secrets.js
+*.env
+*.key
+
+# Исходные файлы (оставляем только обфусцированные)
+noninput-source.html
+backup/
+
+# Временные файлы
+*.tmp
+*.log
+.DS_Store
+
+# IDE файлы
+.vscode/
+.idea/
+
+# Локальные настройки
+local-config.js
