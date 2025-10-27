@@ -4,7 +4,16 @@
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Frequency Scanner — Homeostatic Zero-Target (CPU-only, Neuro J→0)</title>
+
+  <title>Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)</title>
+
+  <!-- (Необязательно, но рекомендуется) Укажи аккаунт AdSense для мета-сканеров -->
+  <meta name="google-adsense-account" content="ca-pub-1128500581050725">
+
+  <!-- ✅ Google AdSense Auto Ads (автоматическая реклама) -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1128500581050725"
+          crossorigin="anonymous"></script>
+
   <style>
     :root { --bg:#f3f5f7; --panel:#fff; --muted:#556; --bar:#e8ebef; }
     html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,Segoe UI,Arial}
@@ -22,6 +31,9 @@
     .c{height:100%;background:linear-gradient(90deg,#ff9800 60%,#ffd699);width:0%}
     #info{margin-top:14px;font-family:ui-monospace,Consolas,Menlo,monospace;white-space:pre-wrap;color:#222}
     .hint{color:#444;margin-top:8px}
+
+    /* Резерв высоты под ручной рекламный блок, чтобы верстка не «прыгала» (если решишь включить) */
+    .ad-placeholder { min-height: 250px; display:block; text-align:center; margin:16px 0; background:transparent; }
   </style>
 </head>
 <body>
@@ -44,7 +56,7 @@
     <div class="bar"><div id="confBar" class="c"></div></div>
   </div>
 
-  <!-- === Controls === -->
+  <!-- Панель авт/ручн. настроек нейрообучения -->
   <div class="row controls" style="margin-top:18px;padding:12px;border-radius:12px;background:#f7f9fb;border:1px solid #e7ecf2">
     <div class="lbl" style="margin-top:0">Параметры обучения (онлайн):</div>
     <div style="display:grid;grid-template-columns:180px 1fr 80px 84px;gap:8px;align-items:center">
@@ -66,9 +78,47 @@
     <div class="hint" style="margin-top:8px">AUTO — параметры настраиваются автоматически; снимите флажок, чтобы управлять вручную.</div>
   </div>
 
+  <!-- ────────────────────────────────────────────────────────────────
+       НЕОБЯЗАТЕЛЬНЫЙ ручной рекламный блок (Responsive)
+       ВНИМАНИЕ: Чтобы заработал, замени data-ad-slot на свой в кабинете AdSense.
+       Если хочешь использовать только Auto Ads — оставь этот блок закомментированным.
+  <ins class="adsbygoogle ad-placeholder"
+       data-ad-client="ca-pub-1128500581050725"
+       data-ad-slot="REPLACE_WITH_YOUR_SLOT_ID_1"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  ───────────────────────────────────────────────────────────────── -->
+
   <div id="info"></div>
-  <div class="hint">Цель автоматики — J→0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) → 0. Теперь с онлайновой нейросетью (без обучения на датасете).</div>
+  <div class="hint">Цель автоматики — J→0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) → 0. Нейро-гомеостаз с lock-защитой и авто/ручным управлением lr/l2/mix.</div>
 </div>
+
+<!-- ====== ОПИСАНИЯ (можно оставить как есть) ====== -->
+<section id="how-it-works" style="max-width:960px;margin:24px auto;padding:18px 20px;background:#fff;border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);font:14px/1.55 system-ui,Segoe UI,Arial">
+  <h2 style="margin:0 0 12px">Как это работает</h2>
+  <p>Приложение измеряет «микродрожание» CPU, извлекает частоты (Goertzel), стабилизирует фазу (Kalman) и онлайновой мини-нейросетью подбирает агрессивность регулятора, стремясь к <b>J→0</b>. Встроена lock-защита от переобучения.</p>
+</section>
+
+<section id="use-cases" style="max-width:960px;margin:24px auto;padding:18px 20px;background:#fff;border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);font:14px/1.55 system-ui,Segoe UI,Arial">
+  <h2 style="margin:0 0 12px">Где можно применить</h2>
+  <ul style="margin:6px 0 0 18px">
+    <li>Стабилизация таймеров/процессов (меньше джиттера → меньше лишнего тепла).</li>
+    <li>Мультимедиа/игры: сглаживание лагов и автоподстройка к тикрейту.</li>
+    <li>Электроника/ФАПЧ/ШИМ: онлайн-подстройка коэффициентов.</li>
+  </ul>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────
+     НЕОБЯЗАТЕЛЬНЫЙ ручной рекламный блок внизу страницы (Responsive)
+     Замени data-ad-slot на свой. Для Auto Ads это не нужно.
+<ins class="adsbygoogle ad-placeholder"
+     data-ad-client="ca-pub-1128500581050725"
+     data-ad-slot="REPLACE_WITH_YOUR_SLOT_ID_2"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+────────────────────────────────────────────────────────────────── -->
 
 <script>
 /* ====================== CPU-сэмплер ====================== */
@@ -98,7 +148,7 @@ class CpuJitterSampler {
       const k=Math.max(0.65,Math.min(1.5,1/ratio));
       this.iters=Math.max(this.iters_min, Math.min(this.iters_max, Math.round(this.iters*k)));
       this.actual_fs=1000/Math.max(0.25,this.ema);
-      this.dynamic_n=Math.max(48, Math.min(512, Math.ceil(0.30*this.actual_fs))); // ~0.3s окна
+      this.dynamic_n=Math.max(48, Math.min(512, Math.ceil(0.30*this.actual_fs)));
     }
   }
   checkStall(){
@@ -158,11 +208,7 @@ class Kalman{
   }
 }
 
-/* =================== Нейро-гомеостаз (J→0) =================== */
-/* J = wφ E|φ| + wΔf E|Δf| + wVar sqrt(E[Δf²]) + wU E|u| + wC (1-conf) + wI (1-inertia)
-   Два слоя: x -> tanh(8) -> y_raw -> sigmoid -> aggr∈[0.5..2.0]
-   Обучение онлайн, без данных: псевдо-градиент по агрессивности через
-   темп. производную dJ/daggr ≈ (J - J_prev)/(aggr - aggr_prev + ε). */
+/* =================== Нейро-гомеостаз (с lock) =================== */
 class NeuroHomeo {
   constructor(){
     this.w_phi=1.0; this.w_df=0.8; this.w_var=0.9; this.w_u=0.7; this.w_c=0.9; this.w_i=0.7;
@@ -177,22 +223,18 @@ class NeuroHomeo {
     const r2=Math.sqrt(2/(H)); for(let i=0;i<H;i++) this.W2[i]=(Math.random()*2-1)*r2;
     this.b2=0;
 
-    this.lr=0.03; this.l2=1e-4; this.mix=0.75; // ← будет управляться слайдерами
-
+    this.lr=0.03; this.l2=1e-4; this.mix=0.75; // авто/ручное управление ниже
     this.aggr=1.0; this.I=0; this.Imax=3.0; this.Kp=0.35; this.Ki=0.10;
     this.prevJ=null; this.prevAggr=null; this.eps=1e-6;
     this._x=new Float64Array(D); this._h=new Float64Array(H); this._h_lin=new Float64Array(H);
 
-    // === Lock-защита от переобучения ===
-    this.locked=false; this.lockUntil=0; this.lockMs=3000; // длительность блокировки
+    // lock-защита
+    this.locked=false; this.lockUntil=0; this.lockMs=3000;
     this.lrBase=this.lr; this.lrMin=0.003; this.lrRecoverMs=3000; this.lastUnlockTime=performance.now();
-    this.snap=null; // снапшот весов
-    this.spikeJ=0.25; // порог относительного скачка J
-    this.dropC=0.25;  // порог падения conf/inertia
+    this.snap=null;
+    this.spikeJ=0.25; this.dropC=0.25;
   }
-  snapshot(){
-    this.snap={ W1:new Float64Array(this.W1), b1:new Float64Array(this.b1), W2:new Float64Array(this.W2), b2:this.b2, aggr:this.aggr };
-  }
+  snapshot(){ this.snap={ W1:new Float64Array(this.W1), b1:new Float64Array(this.b1), W2:new Float64Array(this.W2), b2:this.b2, aggr:this.aggr }; }
   restore(){ if(this.snap){ this.W1.set(this.snap.W1); this.b1.set(this.snap.b1); this.W2.set(this.snap.W2); this.b2=this.snap.b2; this.aggr=this.snap.aggr; } }
 
   _features({phi, df, u, conf, inertia, fs, peak}){
@@ -219,7 +261,8 @@ class NeuroHomeo {
   }
   cost(){
     const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
-    return  this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf + this.w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
+    return  this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf
+          + this.w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
   }
   _forward(x){
     const H=this.H, D=this.D; const h=this._h, hl=this._h_lin;
@@ -248,19 +291,18 @@ class NeuroHomeo {
     const relSpike = (J - this.prevJ) / Math.max(1e-6, Math.abs(this.prevJ));
     const poor = ((1-conf) > this.dropC) || ((1-inertia) > this.dropC);
     if(relSpike > this.spikeJ && poor){
-      // rollback + lock
       this.restore();
       this.locked = true; this.lockUntil = now + this.lockMs;
-      this.lr = Math.max(this.lrMin, this.lrBase*0.25); // резко уменьшаем lr
+      this.lr = Math.max(this.lrMin, this.lrBase*0.25);
     }
     if(this.locked && now >= this.lockUntil){
-      this.locked = false; this.lastUnlockTime = now; // начнём восстанавливать lr постепенно в step()
+      this.locked = false; this.lastUnlockTime = now;
     }
   }
   recoverLr(){
     if(this.locked) return;
     const t = Math.min(1, (performance.now() - this.lastUnlockTime)/this.lrRecoverMs);
-    this.lr = this.lrBase*(0.25 + 0.75*t); // плавный возврат к базовому lr
+    this.lr = this.lrBase*(0.25 + 0.75*t);
   }
   step(state){
     const {phi, df, u, conf, inertia, fs, peak} = state;
@@ -274,10 +316,8 @@ class NeuroHomeo {
     let aggr_pi = this.aggr + this.Kp*e + this.I; aggr_pi = Math.max(0.5, Math.min(2.0, aggr_pi));
 
     let aggr;
-    if(this.locked){
-      // во время lock — не учимся, опираемся больше на PI
-      aggr = aggr_pi;
-    } else {
+    if(this.locked){ aggr = aggr_pi; }
+    else {
       const noise = (Math.random()*2-1)*0.03;
       aggr = Math.max(0.5, Math.min(2.0, this.mix*aggr_nn + (1-this.mix)*aggr_pi + noise));
     }
@@ -290,7 +330,7 @@ class NeuroHomeo {
       this._backward(dJdy);
     }
 
-    if(!this.locked) this.snapshot(); // сохраняем best-known веса
+    if(!this.locked) this.snapshot();
     this.recoverLr();
 
     this.prevJ = J; this.prevAggr = aggr; this.aggr = aggr;
@@ -427,12 +467,14 @@ class FrequencyScanner{
     const df_obs = bestF - this.vco;
     let u_ctrl = this.kp*u + this.kv*this.kf.v + this.u_int;
 
-    // ===== Нейро-гомеостаз: берём свежие коэффициенты =====
+    // авто/ручные параметры (берём из UI)
+    // применяются в основном цикле перед processOnce()
+
+    // шаг тюнера (даёт новые kp/kv/ki/slew)
     const neu = this.tuner.step({
       phi:ephi, df:df_obs, u:u_ctrl, conf, inertia:this.inertia, fs:this.fs, peak
     });
 
-    // интегратор по фазе (anti-windup)
     this.u_int += neu.ki * ephi * this.dt;
     const uMax=this.u_int_max * (0.8 + 1.2*conf);
     this.u_int=Math.max(-uMax, Math.min(uMax, this.u_int));
@@ -445,7 +487,7 @@ class FrequencyScanner{
     const maxStep = neu.slew * (dtMs/1000);
 
     const df_applied = Math.max(-maxStep, Math.min(maxStep, u_ctrl));
-    if(df_applied !== u_ctrl) this.u_int *= 0.95; // анти-windup
+    if(df_applied !== u_ctrl) this.u_int *= 0.95;
     this.lastDfApplied = df_applied;
 
     this.vco = Math.max(0, Math.min(this.fmax, this.vco + df_applied));
@@ -463,42 +505,36 @@ document.addEventListener('DOMContentLoaded',()=>{
   const scan=new FrequencyScanner(s);
   const blender=new OutputBlender();
 
-  // === Слайдеры и авто-режимы ===
-  const lrSlider=document.getElementById('lrSlider');
-  const l2Slider=document.getElementById('l2Slider');
-  const mixSlider=document.getElementById('mixSlider');
-  const lrVal=document.getElementById('lrVal');
-  const l2Val=document.getElementById('l2Val');
-  const mixVal=document.getElementById('mixVal');
-  const lrAuto=document.getElementById('lrAuto');
-  const l2Auto=document.getElementById('l2Auto');
-  const mixAuto=document.getElementById('mixAuto');
-
-  // Диапазоны для авто-настройки
-  const AUTO = {
-    lrMin: 0.005, lrMax: 0.080,
-    l2Min: 0.00005, l2Max: 0.0030,
-    mixMin: 0.30, mixMax: 0.95
-  };
-
-  // Вспомогательная оценка нормы весов (для l2)
-  function weightsNorm2(t){
-    let s=0; for(let i=0;i<t.W1.length;i++) s+=t.W1[i]*t.W1[i];
-    for(let i=0;i<t.W2.length;i++) s+=t.W2[i]*t.W2[i];
-    return Math.sqrt(s/(t.W1.length+t.W2.length));
-  }
-
   // Мягкая фоновая активность (CPU worker)
   let worker=null;
   try{
-    const code=`let it=900,tick=12;\nonmessage=e=>{it=e.data.it||it;tick=e.data.dt||tick;};\nfunction step(){let x=1.0001;for(let i=0;i<it;i++){x*=1.00000001;x/=1.000000009;} setTimeout(()=>postMessage(1),tick);}\nsetInterval(step,12);`;
+    const code=`let it=900,tick=12;
+onmessage=e=>{it=e.data.it||it;tick=e.data.dt||tick;};
+function step(){let x=1.0001;for(let i=0;i<it;i++){x*=1.00000001;x/=1.000000009;} setTimeout(()=>postMessage(1),tick);}
+setInterval(step,12);`;
     worker=new Worker(URL.createObjectURL(new Blob([code],{type:'application/javascript'})));
     worker.onmessage=()=>{};
-  }catch(_){/* без воркера — немного эмулируем нагрузку в основном потоке */}
+  }catch(_){}
 
   const $=id=>document.getElementById(id);
   const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
   const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
+
+  // === Слайдеры и авто-режимы ===
+  const lrSlider=$('lrSlider');
+  const l2Slider=$('l2Slider');
+  const mixSlider=$('mixSlider');
+  const lrVal=$('lrVal'); const l2Val=$('l2Val'); const mixVal=$('mixVal');
+  const lrAuto=$('lrAuto'); const l2Auto=$('l2Auto'); const mixAuto=$('mixAuto');
+
+  // Диапазоны для авто-настройки
+  const AUTO = { lrMin:0.005, lrMax:0.080, l2Min:0.00005, l2Max:0.0030, mixMin:0.30, mixMax:0.95 };
+
+  function weightsNorm2(t){
+    let ssum=0; for(let i=0;i<t.W1.length;i++) ssum+=t.W1[i]*t.W1[i];
+    for(let i=0;i<t.W2.length;i++) ssum+=t.W2[i]*t.W2[i];
+    return Math.sqrt(ssum/(t.W1.length+t.W2.length));
+  }
 
   function render(out){
     const fmax=Math.max(1, scan.fmax);
@@ -510,7 +546,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${out.conf.toFixed(2)} | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
-      `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)} | `
+      `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)}`
     );
   }
 
@@ -532,28 +568,14 @@ document.addEventListener('DOMContentLoaded',()=>{
         return setTimeout(loop, 80);
       }
 
-      // применяем значения слайдеров перед шагом обработки
-      if(lrSlider&&l2Slider&&mixSlider){
-        scan.tuner.lrBase=parseFloat(lrSlider.value);
-        scan.tuner.l2=parseFloat(l2Slider.value);
-        scan.tuner.mix=parseFloat(mixSlider.value);
-        lrVal.textContent=scan.tuner.lrBase.toFixed(3);
-        l2Val.textContent=scan.tuner.l2.toFixed(4);
-        mixVal.textContent=scan.tuner.mix.toFixed(2);
-      }
-
       // === AUTO/Manual применение параметров перед шагом ===
-      // Считываем последние метрики для авто-настройки (используем предыдущие выходы)
       const confPrev = scan.out_conf || 0;
       const inerPrev = scan.out_inertia || 0;
       const peakPrev = scan.out_peak || 0;
-      const fsPrev   = s.actual_fs || 60;
-      const Jprev    = scan.tuner.prevJ; // может быть null на старте
+      const Jprev    = scan.tuner.prevJ;
 
-      // Авто-настройка: если включено — вычисляем, иначе берём ручное значение со слайдера
-      // 1) lrBase
+      // lr
       if(lrAuto && lrAuto.checked){
-        // логика: чем выше уверенность/инерция и лучше тренд J (снижается) — тем выше lr (быстрее учимся)
         let trend = 0; if(Jprev!=null && scan.tuner._lastJforAuto!=null){ trend = (scan.tuner._lastJforAuto - Jprev); }
         scan.tuner._lastJforAuto = Jprev==null ? 0 : Jprev;
         const stability = Math.min(1, Math.max(0, 0.5*confPrev + 0.5*inerPrev));
@@ -569,9 +591,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         lrVal.textContent = parseFloat(lrSlider.value).toFixed(3);
       }
 
-      // 2) l2
+      // l2
       if(l2Auto && l2Auto.checked){
-        // логика: при низкой уверенности/инерции, высокой норме весов — поджимаем l2; при стабильности — ослабляем
         const wnorm = weightsNorm2(scan.tuner);
         const poor  = (1-confPrev)+(1-inerPrev);
         let l2AutoVal = AUTO.l2Min + (AUTO.l2Max-AUTO.l2Min)*(0.6*poor + 0.4*Math.min(1, wnorm/0.8));
@@ -585,13 +606,12 @@ document.addEventListener('DOMContentLoaded',()=>{
         l2Val.textContent = parseFloat(l2Slider.value).toFixed(4);
       }
 
-      // 3) mix NN/PI
+      // mix
       if(mixAuto && mixAuto.checked){
-        // логика: при lock/низкой уверенности — больше PI (ниже mix); при стабильности — больше NN (выше mix)
         const stability = Math.min(1, Math.max(0, 0.5*confPrev + 0.5*inerPrev));
-        let mixAutoVal = AUTO.mixMin + (AUTO.mixMax-AUTO.mixMin)*stability;
-        if(scan.tuner.locked) mixAutoVal = Math.max(AUTO.mixMin, mixAutoVal*0.6);
-        mixAutoVal = Math.min(AUTO.mixMax, Math.max(AUTO.mixMin, mixAutoVal));
+        let mixAutoVal = 0.30 + (0.95-0.30)*stability;
+        if(scan.tuner.locked) mixAutoVal = Math.max(0.30, mixAutoVal*0.6);
+        mixAutoVal = Math.min(0.95, Math.max(0.30, mixAutoVal));
         scan.tuner.mix = mixAutoVal;
         mixSlider.value = mixAutoVal.toFixed(2);
         mixVal.textContent = mixAutoVal.toFixed(2) + ' (auto)';
@@ -600,9 +620,10 @@ document.addEventListener('DOMContentLoaded',()=>{
         mixVal.textContent = parseFloat(mixSlider.value).toFixed(2);
       }
 
-      // теперь основной шаг обработки
+      // Основной шаг
       scan.processOnce();
 
+      // авто-нагрузка CPU для устойчивой частоты сэмплирования
       const peak=scan.out_peak||0;
       if(worker){
         const base=700;
@@ -624,64 +645,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   loop();
 });
 </script>
-
-
-<!-- ======================= ОПИСАНИЕ: Как это работает ======================= -->
-<section id="how-it-works" style="max-width:960px;margin:24px auto;padding:18px 20px;background:#fff;border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);font:14px/1.55 system-ui,Segoe UI,Arial">
-  <h2 style="margin:0 0 12px">Как это работает</h2>
-  <p>Приложение измеряет «микродрожание» времени выполнения на CPU и строит из него сигнал, в котором ищет устойчивые частоты. Далее система стремится свести совокупную «стоимость» <code>J</code> к нулю (цель <b>J→0</b>), подстраивая параметры регулятора.</p>
-  <h3 style="margin:14px 0 6px">1) Сэмплинг на CPU</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li><b>CpuJitterSampler</b> запускает крошечный вычислительный цикл и измеряет длительность итераций (<em>dt</em>), извлекая «джиттер» = <em>dt − EMA(dt)</em>.</li>
-    <li>Размер окна и частота сэмплирования адаптируются под текущую скорость CPU.</li>
-  </ul>
-  <h3 style="margin:14px 0 6px">2) Частотный анализ и слежение</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li><b>Goertzel</b> вычисляет спектральную «пикообразность», <b>Kalman</b> стабилизирует фазовую оценку.</li>
-    <li>Состояния: <b>SEARCHING</b> → <b>TRACKING</b> по мере роста «инерции».</li>
-  </ul>
-  <h3 style="margin:14px 0 6px">3) Целевая функция J</h3>
-  <pre style="white-space:pre-wrap;background:#f7f9fb;border:1px solid #e7ecf2;border-radius:10px;padding:10px;margin:8px 0 0">
-J = wφ·E|φ| + wΔf·E|Δf| + wVar·√E[Δf²] + wU·E|u| + wC·(1−conf) + wI·(1−inertia)
-  </pre>
-  <h3 style="margin:14px 0 6px">4) Нейро-гомеостаз (онлайн-обучение)</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li>Мини-сеть 9→8→1 выдаёт «агрессивность» <code>aggr ∈ [0.5..2.0]</code>.</li>
-    <li>Обучение на лету без датасета: оценивается <code>∂J/∂aggr</code>, выполняется SGD + L2.</li>
-    <li>Смешивание с PI-якорем: итоговая агрессивность = <code>mix·NN + (1−mix)·PI</code>.</li>
-    <li>По <code>aggr</code> синтезируются <code>kp, kv, ki, slew</code>.</li>
-  </ul>
-  <h3 style="margin:14px 0 6px">5) Lock-защита</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li>При резком росте <code>J</code> и падении уверенности/инерции — откат к снапшоту весов и временная блокировка обучения, снижение <code>lr</code>.</li>
-    <li>После снятия блокировки — плавное восстановление <code>lr</code>.</li>
-  </ul>
-  <h3 style="margin:14px 0 6px">6) Ползунки</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li><b>lr</b> — скорость обучения; <b>l2</b> — регуляризация; <b>mix</b> — доля NN/PI.</li>
-  </ul>
-</section>
-
-<!-- ======================= ОПИСАНИЕ: Применение ======================= -->
-<section id="use-cases" style="max-width:960px;margin:24px auto;padding:18px 20px;background:#fff;border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);font:14px/1.55 system-ui,Segoe UI,Arial">
-  <h2 style="margin:0 0 12px">Где можно применить</h2>
-  <h3 style="margin:14px 0 6px">Системные таймеры</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li>Диагностика дрейфа QPC/HPET/RTC, выравнивание интервалов, анализ планировщика.</li>
-  </ul>
-  <h3 style="margin:14px 0 6px">Игры и мультимедиа</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li>Слежение за колебаниями FPS, подстройка к тикрейту, компенсация лагов/откатов.</li>
-  </ul>
-  <h3 style="margin:14px 0 6px">Электроника и ФАПЧ</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li>Адаптивные фильтры/регуляторы, стабилизация ШИМ, снижение флуктуаций питания.</li>
-  </ul>
-  <h3 style="margin:14px 0 6px">Исследования и обучение</h3>
-  <ul style="margin:6px 0 0 18px">
-    <li>Демонстрация саморегуляции и гомеостаза, анализ микроосцилляций.</li>
-  </ul>
-</section>
 
 </body>
 </html>
