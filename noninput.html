@@ -171,6 +171,8 @@
   
   <div class="telegram-info" style="margin: 10px 0; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px; font-size: 12px;">
     📱 <strong>Telegram интеграция:</strong> Чат работает через Telegram Bot API для реального интернет-подключения.<br>
+    🔗 <strong>Активный канал:</strong> <a href="https://t.me/noninput" target="_blank" style="color: #1976d2;">t.me/noninput</a> | 
+    🤖 <strong>Бот:</strong> <a href="https://t.me/Inputlagthebot" target="_blank" style="color: #1976d2;">@Inputlagthebot</a><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
       <div style="margin-top: 5px; padding: 5px;">
@@ -245,7 +247,7 @@
         2. Он автоматически покажет chat_id<br>
         3. Удалите @userinfobot после получения ID<br><br>
         
-        <small style="color: #666;">🔴 Сейчас используется демо-конфигурация (может не работать)</small>
+        <small style="color: #4CAF50;">✅ <strong>Настроено:</strong> Бот @Inputlagthebot → Канал t.me/noninput</small>
       </div>
     </details>
   </div>
@@ -327,10 +329,10 @@ class MultiUserChatSystem {
     // Подключение к Telegram Bot API для реального интернет-чата
     console.log('Инициализация Telegram чата');
     
-    // Telegram Bot конфигурация (публичный бот для демонстрации)
+    // Telegram Bot конфигурация (ваш персональный бот и канал)
     this.telegramConfig = {
       botToken: '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I',
-      chatId: '@Inputlagthebot',
+      chatId: '@noninput', // Ваш канал t.me/noninput
       apiUrl: 'https://api.telegram.org/bot',
       pollInterval: 3000 // Проверяем новые сообщения каждые 3 секунды
     };
@@ -356,6 +358,8 @@ class MultiUserChatSystem {
       
       if (botInfo && botInfo.ok) {
         console.log('Telegram бот подключен:', botInfo.result.username);
+        console.log('Канал для чата:', this.telegramConfig.chatId);
+        console.log('Проверьте, что бот добавлен как админ в канал:', 'https://t.me/noninput');
         this.updateConnectionStatus('подключен (Telegram)');
         
         // Загружаем последние сообщения
@@ -542,7 +546,10 @@ class MultiUserChatSystem {
   }
 
   async sendWelcomeMessage() {
-    const welcomeText = `🎵 Новый пользователь присоединился к Frequency Scanner чату!`;
+    const welcomeText = `🎵 Новый пользователь присоединился к Frequency Scanner чату!
+🔗 Telegram канал: t.me/noninput
+🤖 Бот: @Inputlagthebot
+📊 Чат синхронизируется в реальном времени через интернет!`;
     await this.sendMessageToTelegram(welcomeText);
   }
 
