@@ -47,20 +47,23 @@
   <!-- === Controls === -->
   <div class="row controls" style="margin-top:18px;padding:12px;border-radius:12px;background:#f7f9fb;border:1px solid #e7ecf2">
     <div class="lbl" style="margin-top:0">Параметры обучения (онлайн):</div>
-    <div style="display:grid;grid-template-columns:180px 1fr 90px;gap:8px;align-items:center">
+    <div style="display:grid;grid-template-columns:180px 1fr 80px 84px;gap:8px;align-items:center">
       <div>Learning rate (lr)</div>
-      <input id="lrSlider" type="range" min="0.001" max="0.2" step="0.001" value="0.03"/>
+      <input id="lrSlider" type="range" min="0.001" max="0.2" step="0.001" value="0.030"/>
       <div><span id="lrVal">0.030</span></div>
+      <label style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input id="lrAuto" type="checkbox" checked/> AUTO</label>
 
       <div>L2-регуляризация (l2)</div>
       <input id="l2Slider" type="range" min="0.0" max="0.01" step="0.0001" value="0.0001"/>
       <div><span id="l2Val">0.0001</span></div>
+      <label style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input id="l2Auto" type="checkbox" checked/> AUTO</label>
 
       <div>Смешивание NN/PI (mix)</div>
       <input id="mixSlider" type="range" min="0.0" max="1.0" step="0.01" value="0.75"/>
       <div><span id="mixVal">0.75</span></div>
+      <label style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input id="mixAuto" type="checkbox" checked/> AUTO</label>
     </div>
-    <div class="hint" style="margin-top:8px">mix=1 — полностью нейросеть, mix=0 — только PI-якорь. </div>
+    <div class="hint" style="margin-top:8px">AUTO — параметры настраиваются автоматически; снимите флажок, чтобы управлять вручную.</div>
   </div>
 
   <div id="info"></div>
@@ -460,13 +463,30 @@ document.addEventListener('DOMContentLoaded',()=>{
   const scan=new FrequencyScanner(s);
   const blender=new OutputBlender();
 
-  // === Слайдеры для lr/l2/mix ===
+  // === Слайдеры и авто-режимы ===
   const lrSlider=document.getElementById('lrSlider');
   const l2Slider=document.getElementById('l2Slider');
   const mixSlider=document.getElementById('mixSlider');
   const lrVal=document.getElementById('lrVal');
   const l2Val=document.getElementById('l2Val');
   const mixVal=document.getElementById('mixVal');
+  const lrAuto=document.getElementById('lrAuto');
+  const l2Auto=document.getElementById('l2Auto');
+  const mixAuto=document.getElementById('mixAuto');
+
+  // Диапазоны для авто-настройки
+  const AUTO = {
+    lrMin: 0.005, lrMax: 0.080,
+    l2Min: 0.00005, l2Max: 0.0030,
+    mixMin: 0.30, mixMax: 0.95
+  };
+
+  // Вспомогательная оценка нормы весов (для l2)
+  function weightsNorm2(t){
+    let s=0; for(let i=0;i<t.W1.length;i++) s+=t.W1[i]*t.W1[i];
+    for(let i=0;i<t.W2.length;i++) s+=t.W2[i]*t.W2[i];
+    return Math.sqrt(s/(t.W1.length+t.W2.length));
+  }
 
   // Мягкая фоновая активность (CPU worker)
   let worker=null;
@@ -522,6 +542,65 @@ document.addEventListener('DOMContentLoaded',()=>{
         mixVal.textContent=scan.tuner.mix.toFixed(2);
       }
 
+      // === AUTO/Manual применение параметров перед шагом ===
+      // Считываем последние метрики для авто-настройки (используем предыдущие выходы)
+      const confPrev = scan.out_conf || 0;
+      const inerPrev = scan.out_inertia || 0;
+      const peakPrev = scan.out_peak || 0;
+      const fsPrev   = s.actual_fs || 60;
+      const Jprev    = scan.tuner.prevJ; // может быть null на старте
+
+      // Авто-настройка: если включено — вычисляем, иначе берём ручное значение со слайдера
+      // 1) lrBase
+      if(lrAuto && lrAuto.checked){
+        // логика: чем выше уверенность/инерция и лучше тренд J (снижается) — тем выше lr (быстрее учимся)
+        let trend = 0; if(Jprev!=null && scan.tuner._lastJforAuto!=null){ trend = (scan.tuner._lastJforAuto - Jprev); }
+        scan.tuner._lastJforAuto = Jprev==null ? 0 : Jprev;
+        const stability = Math.min(1, Math.max(0, 0.5*confPrev + 0.5*inerPrev));
+        const speedBias = (trend>0 ? 0.2 : (trend<0 ? -0.2 : 0));
+        let lrAutoVal = AUTO.lrMin + (AUTO.lrMax-AUTO.lrMin)*(0.65*stability + 0.35*Math.max(0,peakPrev/2.0)) + speedBias*(AUTO.lrMax-AUTO.lrMin)*0.25;
+        if(scan.tuner.locked) lrAutoVal = Math.max(AUTO.lrMin, lrAutoVal*0.3);
+        lrAutoVal = Math.min(AUTO.lrMax, Math.max(AUTO.lrMin, lrAutoVal));
+        scan.tuner.lrBase = lrAutoVal;
+        lrSlider.value = lrAutoVal.toFixed(3);
+        lrVal.textContent = lrAutoVal.toFixed(3) + ' (auto)';
+      } else {
+        scan.tuner.lrBase = parseFloat(lrSlider.value);
+        lrVal.textContent = parseFloat(lrSlider.value).toFixed(3);
+      }
+
+      // 2) l2
+      if(l2Auto && l2Auto.checked){
+        // логика: при низкой уверенности/инерции, высокой норме весов — поджимаем l2; при стабильности — ослабляем
+        const wnorm = weightsNorm2(scan.tuner);
+        const poor  = (1-confPrev)+(1-inerPrev);
+        let l2AutoVal = AUTO.l2Min + (AUTO.l2Max-AUTO.l2Min)*(0.6*poor + 0.4*Math.min(1, wnorm/0.8));
+        if(scan.tuner.locked) l2AutoVal = Math.min(AUTO.l2Max, l2AutoVal*1.4);
+        l2AutoVal = Math.min(AUTO.l2Max, Math.max(AUTO.l2Min, l2AutoVal));
+        scan.tuner.l2 = l2AutoVal;
+        l2Slider.value = l2AutoVal.toFixed(4);
+        l2Val.textContent = l2AutoVal.toFixed(4) + ' (auto)';
+      } else {
+        scan.tuner.l2 = parseFloat(l2Slider.value);
+        l2Val.textContent = parseFloat(l2Slider.value).toFixed(4);
+      }
+
+      // 3) mix NN/PI
+      if(mixAuto && mixAuto.checked){
+        // логика: при lock/низкой уверенности — больше PI (ниже mix); при стабильности — больше NN (выше mix)
+        const stability = Math.min(1, Math.max(0, 0.5*confPrev + 0.5*inerPrev));
+        let mixAutoVal = AUTO.mixMin + (AUTO.mixMax-AUTO.mixMin)*stability;
+        if(scan.tuner.locked) mixAutoVal = Math.max(AUTO.mixMin, mixAutoVal*0.6);
+        mixAutoVal = Math.min(AUTO.mixMax, Math.max(AUTO.mixMin, mixAutoVal));
+        scan.tuner.mix = mixAutoVal;
+        mixSlider.value = mixAutoVal.toFixed(2);
+        mixVal.textContent = mixAutoVal.toFixed(2) + ' (auto)';
+      } else {
+        scan.tuner.mix = parseFloat(mixSlider.value);
+        mixVal.textContent = parseFloat(mixSlider.value).toFixed(2);
+      }
+
+      // теперь основной шаг обработки
       scan.processOnce();
 
       const peak=scan.out_peak||0;
