@@ -586,13 +586,18 @@ class MultiUserChatSystem {
     // Улучшенная конфигурация API с новыми методами
     this.globalCounter = {
       apiUrls: [
-        // Основные API счетчиков
+        // Проверенные рабочие API
+        'https://api.visitorbadge.io/api',
+        'https://httpbin.org/uuid', // Генерация уникальных ID
+        'https://api.github.com', // GitHub API поддерживает CORS
+        'https://jsonplaceholder.typicode.com', // Тестовый API с CORS
+        'https://reqres.in/api', // Надежный тестовый API
+        'https://api.ipify.org', // IP API с CORS поддержкой
+        // Резервные варианты
         'https://api.countapi.xyz',
         'https://api.counterapi.dev', 
         'https://counter-api.dev',
-        'https://api.visitorbadge.io/api',
         'https://hits.dwyl.com',
-        // Резервные API
         'https://webstats.motigo.com/api',
         'https://api.statcounter.com',
         'https://freecounterstat.com/api',
@@ -697,6 +702,13 @@ class MultiUserChatSystem {
     const config = this.globalCounter;
     
     console.log('🌍 Улучшенное подключение к глобальным API счетчиков...');
+    
+    // Фаза 0: Автоматическая оптимизация порядка API
+    this.updateLoadingStatus('🔧 Оптимизация API порядка...');
+    const optimized = await this.optimizeAPIOrder();
+    if (optimized) {
+      console.log('✅ API порядок оптимизирован для лучшей производительности');
+    }
     
     // Фаза 1: Быстрая проверка соединения с интернетом
     const internetCheck = await this.performQuickInternetCheck();
@@ -914,15 +926,20 @@ class MultiUserChatSystem {
   
   // Получение читаемого имени API
   getAPIName(url) {
-    if (url.includes('countapi.xyz')) return 'CountAPI';
-    if (url.includes('counterapi.dev')) return 'CounterAPI';
-    if (url.includes('counter-api.dev')) return 'Counter-API';
-    if (url.includes('visitorbadge.io')) return 'VisitorBadge';
-    if (url.includes('hits.dwyl.com')) return 'Hits DWYL';
-    if (url.includes('httpbin.org')) return 'HTTPBin';
-    if (url.includes('api.github.com')) return 'GitHub API';
-    if (url.includes('jsonplaceholder')) return 'JSONPlaceholder';
-    return 'API';
+    if (url.includes('visitorbadge.io')) return 'VisitorBadge ✨';
+    if (url.includes('httpbin.org')) return 'HTTPBin 🔗';
+    if (url.includes('api.github.com')) return 'GitHub API 🐙';
+    if (url.includes('jsonplaceholder')) return 'JSONPlaceholder 📝';
+    if (url.includes('reqres.in')) return 'ReqRes API 🧪';
+    if (url.includes('api.ipify.org')) return 'Ipify API 🌐';
+    if (url.includes('countapi.xyz')) return 'CountAPI 📊';
+    if (url.includes('counterapi.dev')) return 'CounterAPI 🔢';
+    if (url.includes('counter-api.dev')) return 'Counter-API ⚡';
+    if (url.includes('hits.dwyl.com')) return 'Hits DWYL 💥';
+    if (url.includes('webstats.motigo.com')) return 'Motigo Stats 📈';
+    if (url.includes('statcounter.com')) return 'StatCounter 📋';
+    if (url.includes('freecounterstat.com')) return 'FreeCounterStat 🆓';
+    return 'API 🔗';
   }
   
   // Попытка альтернативных методов подключения
@@ -1080,6 +1097,67 @@ class MultiUserChatSystem {
     localStorage.setItem(localKey, localCount.toString());
     
     return localCount;
+  }
+
+  // Автоматическая оптимизация порядка API на основе результатов
+  async optimizeAPIOrder() {
+    console.log('🔧 Оптимизация порядка API на основе диагностики...');
+    
+    const config = this.globalCounter;
+    const testResults = [];
+    
+    // Тестируем все API с таймаутом
+    for (let i = 0; i < config.apiUrls.length; i++) {
+      const apiUrl = config.apiUrls[i];
+      try {
+        const startTime = Date.now();
+        const result = await this.testAPIEndpoint(apiUrl, 'get', 3000);
+        const responseTime = Date.now() - startTime;
+        
+        testResults.push({
+          url: apiUrl,
+          success: result.success,
+          responseTime: responseTime,
+          score: result.success ? (1000 - responseTime) : -1000 // Быстрые API получают высокий балл
+        });
+        
+      } catch (error) {
+        testResults.push({
+          url: apiUrl,
+          success: false,
+          responseTime: 99999,
+          score: -1000
+        });
+      }
+    }
+    
+    // Сортируем API по эффективности (успешные и быстрые первыми)
+    testResults.sort((a, b) => b.score - a.score);
+    
+    // Обновляем порядок API
+    config.apiUrls = testResults.map(result => result.url);
+    
+    const workingAPIs = testResults.filter(r => r.success);
+    console.log(`✅ Оптимизация завершена: ${workingAPIs.length}/${testResults.length} API работают`);
+    
+    if (workingAPIs.length > 0) {
+      const bestAPI = workingAPIs[0];
+      console.log(`🚀 Лучший API: ${this.getAPIName(bestAPI.url)} (${bestAPI.responseTime}мс)`);
+      
+      // Переключаемся на лучший API
+      config.currentApiIndex = 0;
+      
+      // Показываем краткое уведомление об оптимизации
+      if (workingAPIs.length >= 3) {
+        console.log(`🎯 Отличная производительность: ${workingAPIs.length} быстрых API доступны`);
+      } else if (workingAPIs.length >= 1) {
+        console.log(`⚡ Найдены рабочие API: ${workingAPIs.length} из ${testResults.length}`);
+      }
+      
+      return true;
+    }
+    
+    return false;
   }
   
   // Планирование попыток переподключения
