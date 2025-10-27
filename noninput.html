@@ -17,7 +17,9 @@
   <style>
     :root { --bg:#f3f5f7; --panel:#fff; --muted:#556; --bar:#e8ebef; }
     html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,Segoe UI,Arial}
-    .wrap{max-width:960px;margin:24px auto;padding:24px;background:var(--panel);border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07)}
+    .main-container{display:flex;gap:24px;max-width:1400px;margin:24px auto;padding:24px}
+    .wrap{flex:1;padding:24px;background:var(--panel);border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07)}
+    .chat-container{width:350px;background:var(--panel);border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);padding:20px;display:flex;flex-direction:column;height:fit-content;position:sticky;top:24px}
     h1{margin:0 0 10px}
     #loading{margin:6px 0 12px}
     #loading .bg{height:18px;border-radius:8px;background:var(--bar);overflow:hidden}
@@ -34,9 +36,31 @@
 
     /* Резерв высоты под ручной рекламный блок, чтобы верстка не «прыгала» (если решишь включить) */
     .ad-placeholder { min-height: 250px; display:block; text-align:center; margin:16px 0; background:transparent; }
+
+    /* Стили чата */
+    .chat-header{text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e8ebef}
+    .chat-header h3{margin:0;color:#333;font-size:18px}
+    .chat-messages{height:400px;overflow-y:auto;border:1px solid #e8ebef;border-radius:8px;padding:12px;margin-bottom:16px;background:#fafbfc}
+    .message{margin-bottom:12px;padding:8px 12px;border-radius:12px;max-width:85%;word-wrap:break-word}
+    .message.user{background:#007bff;color:white;margin-left:auto}
+    .message.other{background:#f1f3f5;color:#333}
+    .message-meta{font-size:11px;opacity:0.7;margin-top:4px}
+    .chat-input{display:flex;gap:8px}
+    .chat-input input{flex:1;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+    .chat-input button{padding:10px 16px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px}
+    .chat-input button:hover{background:#0056b3}
+    .chat-input button:disabled{background:#ccc;cursor:not-allowed}
+    .message-count{text-align:center;color:#666;font-size:12px;margin-bottom:8px}
+    .filter-notice{background:#fff3cd;border:1px solid #ffeaa7;color:#856404;padding:8px;border-radius:6px;font-size:12px;margin-bottom:12px}
+
+    @media (max-width: 1200px) {
+      .main-container{flex-direction:column}
+      .chat-container{width:100%;position:relative;top:0}
+    }
   </style>
 </head>
 <body>
+<div class="main-container">
 <div class="wrap">
   <h1>Frequency Scanner — Homeostatic Zero-Target (CPU-only, Neuro J→0)</h1>
 
@@ -94,6 +118,35 @@
   <div class="hint">Цель автоматики — J→0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) → 0. Нейро-гомеостаз с lock-защитой и авто/ручным управлением lr/l2/mix.</div>
 </div>
 
+<!-- Чат с отзывами -->
+<div class="chat-container">
+  <div class="chat-header">
+    <h3>💬 Отзывы пользователей</h3>
+  </div>
+  
+  <div class="filter-notice">
+    🛡️ Сообщения проверяются автоматическим фильтром
+  </div>
+  
+  <div class="message-count">
+    Сообщений: <span id="messageCount">0</span>
+  </div>
+  
+  <div class="chat-messages" id="chatMessages">
+    <div class="message other">
+      <div>Добро пожаловать в чат! Поделитесь своими впечатлениями о Frequency Scanner.</div>
+      <div class="message-meta">Система • сейчас</div>
+    </div>
+  </div>
+  
+  <div class="chat-input">
+    <input type="text" id="messageInput" placeholder="Напишите отзыв..." maxlength="200">
+    <button id="sendButton" onclick="sendMessage()">Отправить</button>
+  </div>
+</div>
+
+</div>
+
 <!-- ====== ОПИСАНИЯ (можно оставить как есть) ====== -->
 <section id="how-it-works" style="max-width:960px;margin:24px auto;padding:18px 20px;background:#fff;border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);font:14px/1.55 system-ui,Segoe UI,Arial">
   <h2 style="margin:0 0 12px">Как это работает</h2>
@@ -122,6 +175,236 @@
 
 <script>
 /* ====================== CPU-сэмплер ====================== */
+
+// Система чата с фильтром плохих слов
+class ChatSystem {
+  constructor() {
+    this.messages = this.loadMessages();
+    this.badWords = this.initBadWordsFilter();
+    this.updateMessageCount();
+    this.renderMessages();
+  }
+
+  // Многоязычная база плохих слов (основные примеры)
+  initBadWordsFilter() {
+    return [
+      // Русский
+      'дурак', 'идиот', 'тупой', 'дебил', 'урод', 'гад', 'мразь', 'сволочь', 'подонок', 'говно',
+      'хрень', 'фигня', 'блин', 'черт', 'дьявол', 'ублюдок', 'скотина', 'животное', 'зараза',
+      // Английский  
+      'stupid', 'idiot', 'fool', 'moron', 'jerk', 'ass', 'damn', 'shit', 'crap', 'hell',
+      'dumb', 'loser', 'freak', 'retard', 'bitch', 'bastard', 'asshole', 'dickhead',
+      // Испанский
+      'tonto', 'idiota', 'estúpido', 'imbécil', 'pendejo', 'cabrón', 'mierda', 'joder',
+      // Французский
+      'con', 'idiot', 'stupide', 'crétin', 'merde', 'connard', 'salaud', 'putain',
+      // Немецкий
+      'dumm', 'idiot', 'blöd', 'scheisse', 'arschloch', 'verdammt', 'teufel',
+      // Португальский
+      'idiota', 'estúpido', 'burro', 'merda', 'caralho', 'porra', 'desgraça',
+      // Итальянский
+      'stupido', 'idiota', 'cretino', 'merda', 'cazzo', 'stronzo', 'bastardo',
+      // Китайский (пиньинь)
+      'sha', 'ben', 'chun', 'cao', 'ma', 'pi', 'gui', 'dan',
+      // Японский (ромадзи)
+      'baka', 'aho', 'kuso', 'shine', 'uzai', 'kimoi', 'busu',
+      // Арабский (транслитерация)
+      'ahmaq', 'ghabi', 'kalb', 'himar', 'majnun', 'wahsh'
+    ];
+  }
+
+  filterMessage(text) {
+    let filteredText = text.toLowerCase();
+    let hasBlockedWord = false;
+
+    // Проверка на плохие слова
+    for (const word of this.badWords) {
+      const regex = new RegExp('\\b' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+      if (regex.test(filteredText)) {
+        hasBlockedWord = true;
+        filteredText = filteredText.replace(regex, '***');
+      }
+    }
+
+    // Дополнительная проверка на подозрительные паттерны
+    const suspiciousPatterns = [
+      /(.)\1{4,}/g, // Повторяющиеся символы (ааааа)
+      /[!@#$%^&*]{3,}/g, // Много специальных символов
+      /(.)(.)\1\2{2,}/g, // Чередующиеся символы (абабаб)
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(text)) {
+        hasBlockedWord = true;
+        filteredText = filteredText.replace(pattern, '***');
+      }
+    }
+
+    return {
+      text: hasBlockedWord ? filteredText : text,
+      wasFiltered: hasBlockedWord
+    };
+  }
+
+  loadMessages() {
+    try {
+      const saved = localStorage.getItem('chatMessages');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveMessages() {
+    try {
+      localStorage.setItem('chatMessages', JSON.stringify(this.messages));
+    } catch (e) {
+      console.warn('Не удалось сохранить сообщения в localStorage');
+    }
+  }
+
+  addMessage(text, isUser = true) {
+    const filtered = this.filterMessage(text);
+    const message = {
+      id: Date.now() + Math.random(),
+      text: filtered.text,
+      isUser: isUser,
+      timestamp: new Date(),
+      wasFiltered: filtered.wasFiltered
+    };
+
+    this.messages.push(message);
+    
+    // Ограничиваем количество сообщений
+    if (this.messages.length > 100) {
+      this.messages = this.messages.slice(-100);
+    }
+
+    this.saveMessages();
+    this.updateMessageCount();
+    this.renderMessages();
+
+    return filtered.wasFiltered;
+  }
+
+  updateMessageCount() {
+    const countElement = document.getElementById('messageCount');
+    if (countElement) {
+      countElement.textContent = this.messages.length;
+    }
+  }
+
+  renderMessages() {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+
+    // Сохраняем системное сообщение
+    const systemMessage = container.querySelector('.message.other');
+    container.innerHTML = '';
+    
+    if (systemMessage) {
+      container.appendChild(systemMessage);
+    }
+
+    // Показываем последние 20 сообщений
+    const recentMessages = this.messages.slice(-20);
+    
+    recentMessages.forEach(message => {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${message.isUser ? 'user' : 'other'}`;
+      
+      const timeStr = new Date(message.timestamp).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      let filteredIndicator = '';
+      if (message.wasFiltered) {
+        filteredIndicator = ' 🛡️';
+      }
+
+      messageDiv.innerHTML = `
+        <div>${this.escapeHtml(message.text)}</div>
+        <div class="message-meta">${message.isUser ? 'Вы' : 'Пользователь'} • ${timeStr}${filteredIndicator}</div>
+      `;
+
+      container.appendChild(messageDiv);
+    });
+
+    // Прокрутка вниз
+    container.scrollTop = container.scrollHeight;
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+}
+
+// Глобальная система чата
+let chatSystem;
+
+function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const button = document.getElementById('sendButton');
+  
+  if (!input || !chatSystem) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  // Блокируем кнопку на время отправки
+  button.disabled = true;
+  input.disabled = true;
+
+  const wasFiltered = chatSystem.addMessage(text, true);
+
+  // Показываем уведомление если сообщение было отфильтровано
+  if (wasFiltered) {
+    setTimeout(() => {
+      alert('⚠️ Ваше сообщение содержало недопустимый контент и было отфильтровано.');
+    }, 100);
+  }
+
+  // Очищаем поле ввода
+  input.value = '';
+
+  // Разблокируем через небольшую задержку
+  setTimeout(() => {
+    button.disabled = false;
+    input.disabled = false;
+    input.focus();
+  }, 500);
+}
+
+// Инициализация чата при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+  chatSystem = new ChatSystem();
+
+  // Обработка Enter в поле ввода
+  const messageInput = document.getElementById('messageInput');
+  if (messageInput) {
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+
+  // Добавляем несколько примеров сообщений при первом запуске
+  if (chatSystem.messages.length === 0) {
+    setTimeout(() => {
+      chatSystem.addMessage('Отличное приложение для анализа частот! 👍', false);
+    }, 2000);
+    
+    setTimeout(() => {
+      chatSystem.addMessage('Нейро-гомеостаз работает стабильно', false);
+    }, 4000);
+  }
+});
+
 class CpuJitterSampler {
   static RB_SIZE=16384; static MASK=CpuJitterSampler.RB_SIZE-1;
   constructor(){
@@ -501,6 +784,8 @@ class FrequencyScanner{
 
 /* ============================ UI ============================ */
 document.addEventListener('DOMContentLoaded',()=>{
+  // Инициализация чата (уже выполнена выше)
+  
   const s=new CpuJitterSampler();
   const scan=new FrequencyScanner(s);
   const blender=new OutputBlender();
