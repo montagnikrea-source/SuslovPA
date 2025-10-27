@@ -188,6 +188,9 @@
     </button>
     <button onclick="multiUserChat.checkBotToken()" style="margin-left: 5px; padding: 5px 10px; background: #E91E63; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
       🔑 Проверить токен
+    </button>
+    <button onclick="multiUserChat.checkChannelAccess()" style="margin-left: 5px; padding: 5px 10px; background: #00BCD4; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      📢 Проверить канал
     </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
@@ -408,6 +411,25 @@ class MultiUserChatSystem {
       // Добавим детальную проверку токена
       console.log('🔍 Детальная проверка токена:', this.telegramConfig.botToken);
       console.log('🌐 Прямой URL для проверки:', `https://api.telegram.org/bot${this.telegramConfig.botToken}/getMe`);
+      
+      // Проверяем правильность конфигурации
+      if (this.telegramConfig.botToken === 'ВАШ_ТОКЕН_БОТА') {
+        console.error('❌ ТОКЕН НЕ НАСТРОЕН! Замените ВАШ_ТОКЕН_БОТА на реальный токен');
+        this.updateConnectionStatus('токен не настроен');
+        throw new Error('Токен бота не настроен');
+      }
+      
+      if (this.telegramConfig.chatId === '@ваш_канал') {
+        console.error('❌ КАНАЛ НЕ НАСТРОЕН! Замените @ваш_канал на реальный канал');
+        this.updateConnectionStatus('канал не настроен');
+        throw new Error('Канал не настроен');
+      }
+      
+      console.log('✅ Конфигурация выглядит правильно');
+      console.log('📋 Проверяемые данные:', {
+        tokenFormat: this.telegramConfig.botToken.includes(':') ? 'OK' : 'Неверный формат',
+        channelFormat: this.telegramConfig.chatId.startsWith('@') ? 'OK' : 'Должен начинаться с @'
+      });
       
       this.updateConnectionStatus('проверка бота...');
       
@@ -1095,6 +1117,183 @@ ${text}
   simulateUserActivity() {
     localStorage.setItem('chatLastActivity', Date.now().toString());
     this.showActiveUsers();
+  }
+
+  async checkChannelAccess() {
+    console.log('📢 Проверка доступа к каналу @noninput...');
+    
+    // Создаем модальное окно для результатов
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
+      justify-content: center; align-items: center; padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white; border-radius: 10px; padding: 20px; 
+      max-width: 600px; max-height: 80vh; overflow-y: auto;
+      font-family: monospace; font-size: 12px; line-height: 1.4;
+    `;
+    
+    content.innerHTML = `
+      <h3>📢 Проверка доступа к каналу</h3>
+      <div id="channelResults">⏳ Проверяем доступ к каналу @noninput...</div>
+      <button onclick="this.closest('[style*=fixed]').remove()" 
+              style="margin-top: 15px; padding: 10px 20px; background: #f44336; 
+                     color: white; border: none; border-radius: 5px; cursor: pointer;">
+        Закрыть
+      </button>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    const resultsDiv = content.querySelector('#channelResults');
+    
+    try {
+      resultsDiv.innerHTML = `
+        <div style="margin-bottom: 10px;">
+          🎯 <strong>Цель:</strong> Канал @noninput<br>
+          🔗 <strong>Ссылка:</strong> <a href="https://t.me/noninput" target="_blank">https://t.me/noninput</a><br>
+          🤖 <strong>Бот:</strong> @Inputlagthebot
+        </div>
+        <div>⏳ Тестируем отправку сообщения...</div>
+      `;
+      
+      // Пробуем отправить тестовое сообщение
+      const testMessage = `🧪 Тест доступа к каналу - ${new Date().toLocaleString()}`;
+      
+      console.log('📤 Отправляем тестовое сообщение:', testMessage);
+      
+      const result = await this.sendTelegramRequest('sendMessage', {
+        chat_id: this.telegramConfig.chatId,
+        text: testMessage
+      });
+      
+      if (result && result.ok) {
+        // Успех!
+        resultsDiv.innerHTML = `
+          <div style="color: #4CAF50; font-weight: bold; margin-bottom: 15px;">
+            ✅ ДОСТУП К КАНАЛУ ЕСТЬ!
+          </div>
+          
+          <div style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+            <strong>🎉 Отлично!</strong> Бот может отправлять сообщения в канал @noninput<br><br>
+            
+            <strong>📋 Детали отправки:</strong><br>
+            • <strong>ID сообщения:</strong> ${result.result.message_id}<br>
+            • <strong>Дата:</strong> ${new Date(result.result.date * 1000).toLocaleString()}<br>
+            • <strong>Chat ID:</strong> ${result.result.chat.id}<br>
+            • <strong>Тип чата:</strong> ${result.result.chat.type}
+          </div>
+          
+          <div style="background: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+            <strong>🔗 Проверьте канал:</strong><br>
+            Откройте <a href="https://t.me/noninput" target="_blank">t.me/noninput</a> - там должно появиться тестовое сообщение
+          </div>
+          
+          <div style="background: #fff3cd; padding: 10px; border-radius: 5px;">
+            <strong>✅ Все настроено правильно!</strong><br>
+            Если чат все еще показывает "нет доступа к каналу", попробуйте:<br>
+            1. Обновить страницу (F5)<br>
+            2. Нажать "🔄 Переподключиться к Telegram"<br>
+            3. Очистить кэш браузера
+          </div>
+        `;
+        
+        console.log('✅ Доступ к каналу работает:', result);
+        
+      } else {
+        // Ошибка доступа
+        const errorCode = result?.error_code || 'unknown';
+        const errorDesc = result?.description || 'Unknown error';
+        
+        let errorExplanation = '';
+        let solution = '';
+        
+        switch(errorCode) {
+          case 403:
+            errorExplanation = 'Бот не имеет прав на отправку сообщений в канал';
+            solution = `
+              1. Откройте <a href="https://t.me/noninput" target="_blank">канал @noninput</a><br>
+              2. Нажмите на название канала вверху<br>
+              3. Выберите "Управление каналом"<br>
+              4. Перейдите в "Администраторы"<br>
+              5. Найдите @Inputlagthebot или добавьте его<br>
+              6. Убедитесь что у бота есть права:<br>
+              &nbsp;&nbsp;&nbsp;✅ Отправка сообщений<br>
+              &nbsp;&nbsp;&nbsp;✅ Редактирование сообщений канала<br>
+              &nbsp;&nbsp;&nbsp;✅ Удаление сообщений
+            `;
+            break;
+          case 400:
+            if (errorDesc.includes('not found')) {
+              errorExplanation = 'Канал @noninput не найден';
+              solution = `
+                1. Убедитесь что канал существует: <a href="https://t.me/noninput" target="_blank">t.me/noninput</a><br>
+                2. Канал должен быть публичным (не приватным)<br>
+                3. Проверьте правильность написания: @noninput<br>
+                4. Если канала нет - создайте его в Telegram
+              `;
+            } else {
+              errorExplanation = 'Неверный формат chat_id или другая ошибка';
+              solution = 'Проверьте что chat_id указан как @noninput';
+            }
+            break;
+          default:
+            errorExplanation = 'Неизвестная ошибка API';
+            solution = 'Попробуйте позже или проверьте статус серверов Telegram';
+        }
+        
+        resultsDiv.innerHTML = `
+          <div style="color: #f44336; font-weight: bold; margin-bottom: 15px;">
+            ❌ НЕТ ДОСТУПА К КАНАЛУ!
+          </div>
+          
+          <div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+            <strong>🚨 Ошибка API:</strong><br>
+            • <strong>Код ошибки:</strong> ${errorCode}<br>
+            • <strong>Описание:</strong> ${errorDesc}<br>
+            • <strong>Причина:</strong> ${errorExplanation}
+          </div>
+          
+          <div style="background: #fff3cd; padding: 10px; border-radius: 5px;">
+            <strong>🔧 Как исправить:</strong><br>
+            ${solution}
+          </div>
+        `;
+        
+        console.error('❌ Нет доступа к каналу:', result);
+      }
+      
+    } catch (error) {
+      console.error('🚨 Ошибка проверки канала:', error);
+      
+      resultsDiv.innerHTML = `
+        <div style="color: #f44336; font-weight: bold; margin-bottom: 15px;">
+          🚨 ОШИБКА ПРОВЕРКИ!
+        </div>
+        
+        <div style="background: #ffebee; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+          <strong>❌ Техническая ошибка:</strong><br>
+          ${error.message}
+        </div>
+        
+        <div style="background: #fff3cd; padding: 10px; border-radius: 5px;">
+          <strong>💡 Возможные причины:</strong><br>
+          1. Проблемы с интернет-соединением<br>
+          2. Все прокси недоступны<br>
+          3. Временные проблемы с серверами Telegram<br><br>
+          
+          <strong>🔧 Что попробовать:</strong><br>
+          • Проверьте соединение с интернетом<br>
+          • Нажмите "🔄 Переподключиться к Telegram"<br>
+          • Попробуйте позже
+        </div>
+      `;
+    }
   }
 
   async checkBotToken() {
