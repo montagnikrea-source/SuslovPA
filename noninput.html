@@ -122,6 +122,40 @@
       50% { opacity: 0.5; transform: scale(1.2); }
       100% { opacity: 1; transform: scale(1); }
     }
+    
+    .page-counter-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 1000;
+      min-width: 160px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .page-counter-widget:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    
+    .counter-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 2px 0;
+    }
+    
+    .counter-number {
+      font-weight: 600;
+      color: #ffd700;
+    }
   </style>
 </head>
 <body>
@@ -250,6 +284,9 @@
     </button>
     <button onclick="multiUserChat.showVisitorStats()" style="margin-left: 5px; padding: 5px 10px; background: #FF9800; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
       📊 Посетители сайта
+    </button>
+    <button onclick="multiUserChat.showPageStats()" style="margin-left: 5px; padding: 5px 10px; background: #795548; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      📈 Статистика страницы
     </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
@@ -410,6 +447,9 @@ class MultiUserChatSystem {
     
     // Система отслеживания посетителей сайта
     this.initVisitorTracking();
+    
+    // Счетчик просмотров страницы
+    this.initPageCounter();
     
     // Инициализация Firebase (используем публичную конфигурацию для демонстрации)
     this.initFirebase();
@@ -611,6 +651,165 @@ class MultiUserChatSystem {
     }
     
     console.log(`📊 Обновлен счетчик посетителей: ${totalVisitors} онлайн`);
+  }
+
+  // Инициализация счетчика просмотров страницы
+  initPageCounter() {
+    console.log('📈 Инициализация счетчика просмотров страницы...');
+    
+    // Ключи для хранения данных
+    this.pageCounterKeys = {
+      totalViews: 'suslovPA_page_total_views',
+      uniqueVisitors: 'suslovPA_page_unique_visitors', 
+      dailyVisitors: 'suslovPA_daily_visitors',
+      lastResetDate: 'suslovPA_last_reset_date'
+    };
+    
+    // Проверяем сброс ежедневной статистики
+    this.checkDailyReset();
+    
+    // Увеличиваем счетчики
+    this.incrementPageCounters();
+    
+    // Обновляем отображение
+    this.updatePageCounterDisplay();
+    
+    // Обновляем каждые 60 секунд
+    setInterval(() => {
+      this.updatePageCounterDisplay();
+    }, 60000);
+    
+    console.log('✅ Счетчик просмотров инициализирован');
+  }
+
+  // Проверка и сброс ежедневной статистики
+  checkDailyReset() {
+    const today = new Date().toDateString();
+    const lastResetDate = localStorage.getItem(this.pageCounterKeys.lastResetDate);
+    
+    if (lastResetDate !== today) {
+      // Новый день - сбрасываем ежедневные счетчики
+      localStorage.setItem(this.pageCounterKeys.dailyVisitors, JSON.stringify({}));
+      localStorage.setItem(this.pageCounterKeys.lastResetDate, today);
+      console.log('🌅 Сброшена ежедневная статистика');
+    }
+  }
+
+  // Увеличение счетчиков страницы
+  incrementPageCounters() {
+    // Увеличиваем общее количество просмотров
+    let totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
+    totalViews++;
+    localStorage.setItem(this.pageCounterKeys.totalViews, totalViews.toString());
+    
+    // Проверяем уникальных посетителей
+    let uniqueVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}');
+    const visitorFingerprint = this.generateVisitorFingerprint();
+    
+    if (!uniqueVisitors[visitorFingerprint]) {
+      uniqueVisitors[visitorFingerprint] = {
+        firstVisit: Date.now(),
+        lastVisit: Date.now(),
+        visits: 1
+      };
+    } else {
+      uniqueVisitors[visitorFingerprint].lastVisit = Date.now();
+      uniqueVisitors[visitorFingerprint].visits++;
+    }
+    
+    localStorage.setItem(this.pageCounterKeys.uniqueVisitors, JSON.stringify(uniqueVisitors));
+    
+    // Ежедневные уникальные посетители
+    let dailyVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}');
+    dailyVisitors[visitorFingerprint] = Date.now();
+    localStorage.setItem(this.pageCounterKeys.dailyVisitors, JSON.stringify(dailyVisitors));
+    
+    console.log(`📊 Просмотр #${totalViews} зарегистрирован`);
+  }
+
+  // Генерация отпечатка посетителя
+  generateVisitorFingerprint() {
+    const screen = `${window.screen.width}x${window.screen.height}`;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const language = navigator.language;
+    const platform = navigator.platform;
+    
+    // Создаем простой хеш из характеристик браузера
+    const fingerprint = `${screen}_${timezone}_${language}_${platform}`;
+    
+    // Простое хеширование для анонимности
+    let hash = 0;
+    for (let i = 0; i < fingerprint.length; i++) {
+      const char = fingerprint.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Конвертируем в 32-битное число
+    }
+    
+    return `fp_${Math.abs(hash).toString(36)}`;
+  }
+
+  // Обновление отображения счетчика
+  updatePageCounterDisplay() {
+    const totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
+    const uniqueVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}');
+    const dailyVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}');
+    
+    const totalUniqueCount = Object.keys(uniqueVisitors).length;
+    const dailyUniqueCount = Object.keys(dailyVisitors).length;
+    
+    // Обновляем элементы интерфейса
+    const pageViewsElement = document.getElementById('pageViewsCount');
+    const uniqueVisitorsElement = document.getElementById('uniqueVisitorsCount');
+    const lastUpdateElement = document.getElementById('lastUpdateTime');
+    
+    if (pageViewsElement) {
+      pageViewsElement.textContent = this.formatNumber(totalViews);
+    }
+    
+    if (uniqueVisitorsElement) {
+      uniqueVisitorsElement.textContent = this.formatNumber(totalUniqueCount);
+    }
+    
+    if (lastUpdateElement) {
+      const now = new Date();
+      lastUpdateElement.textContent = `Обновлено: ${now.toLocaleTimeString()}`;
+    }
+    
+    // Добавляем тултип с подробной информацией
+    const widget = document.getElementById('pageCounterWidget');
+    if (widget) {
+      widget.title = `Статистика страницы:
+📊 Всего просмотров: ${totalViews}
+👤 Уникальных посетителей: ${totalUniqueCount}
+📅 Сегодня уникальных: ${dailyUniqueCount}
+🕐 Последнее обновление: ${new Date().toLocaleString()}
+
+Данные хранятся локально в браузере`;
+    }
+    
+    console.log(`📈 Счетчик обновлен: ${totalViews} просмотров, ${totalUniqueCount} уникальных`);
+  }
+
+  // Форматирование чисел для отображения
+  formatNumber(num) {
+    if (num < 1000) return num.toString();
+    if (num < 1000000) return (num / 1000).toFixed(1) + 'K';
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+
+  // Получение статистики страницы
+  getPageStats() {
+    const totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
+    const uniqueVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}');
+    const dailyVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}');
+    
+    return {
+      totalViews,
+      uniqueVisitors: Object.keys(uniqueVisitors).length,
+      dailyVisitors: Object.keys(dailyVisitors).length,
+      avgViewsPerVisitor: Object.keys(uniqueVisitors).length > 0 ? 
+        (totalViews / Object.keys(uniqueVisitors).length).toFixed(1) : 0
+    };
   }
 
   // Показать статистику посетителей сайта
@@ -2245,6 +2444,68 @@ ${text}
     document.body.appendChild(modal);
   }
 
+  // Показать детальную статистику страницы
+  showPageStats() {
+    console.log('📈 Показ статистики страницы...');
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
+      justify-content: center; align-items: center; padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white; border-radius: 10px; padding: 20px; 
+      max-width: 700px; max-height: 80vh; overflow-y: auto;
+      font-family: monospace; font-size: 12px; line-height: 1.4;
+    `;
+    
+    const stats = this.getPageStats();
+    const totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
+    
+    content.innerHTML = `
+      <h3>📈 Детальная статистика страницы</h3>
+      
+      <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <h4 style="margin: 0 0 10px 0; color: #1976d2;">📊 Основные показатели</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div>
+            <div style="font-size: 24px; font-weight: bold; color: #1976d2;">${this.formatNumber(totalViews)}</div>
+            <div style="color: #666;">👁️ Всего просмотров</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: bold; color: #388e3c;">${this.formatNumber(stats.uniqueVisitors)}</div>
+            <div style="color: #666;">👤 Уникальных посетителей</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: bold; color: #f57c00;">${this.formatNumber(stats.dailyVisitors)}</div>
+            <div style="color: #666;">📅 Сегодня уникальных</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: bold; color: #7b1fa2;">${stats.avgViewsPerVisitor}</div>
+            <div style="color: #666;">📱 Ср. просмотров/посетитель</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin-top: 15px;">
+        <button onclick="this.closest('[style*=fixed]').remove()" 
+                style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+          Закрыть
+        </button>
+        <button onclick="multiUserChat.updatePageCounterDisplay(); this.closest('[style*=fixed]').remove();" 
+                style="background: #28a745; color: white; border: none; padding: 10px 20px; margin-left: 10px; border-radius: 5px; cursor: pointer;">
+          🔄 Обновить
+        </button>
+      </div>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+  }
+
   async runQuickTests() {
     console.log('🚀 Запуск быстрых тестов Telegram...');
     
@@ -3336,6 +3597,21 @@ setInterval(step,12);`;
   loop();
 });
 </script>
+
+<!-- Виджет счетчика посетителей страницы -->
+<div class="page-counter-widget" id="pageCounterWidget">
+  <div class="counter-row">
+    <span>👁️ Просмотров:</span>
+    <span class="counter-number" id="pageViewsCount">0</span>
+  </div>
+  <div class="counter-row">
+    <span>👤 Уникальных:</span>
+    <span class="counter-number" id="uniqueVisitorsCount">0</span>
+  </div>
+  <div style="font-size: 10px; opacity: 0.8; margin-top: 3px;" id="lastUpdateTime">
+    Обновлено: загрузка...
+  </div>
+</div>
 
 </body>
 </html>
