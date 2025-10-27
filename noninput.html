@@ -44,6 +44,11 @@
     /* Стили чата */
     .chat-header{text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e8ebef}
     .chat-header h3{margin:0;color:#333;font-size:18px}
+    .online-counter{display:flex;justify-content:space-between;align-items:center;margin:10px 0;padding:8px 12px;background:linear-gradient(135deg,#e8f5e8,#f0f8f0);border-radius:8px;border-left:4px solid #4CAF50}
+    .online-users{display:flex;align-items:center;gap:8px;font-size:13px;color:#2e7d32}
+    .online-indicator{width:8px;height:8px;background:#4CAF50;border-radius:50%;animation:pulse 2s infinite}
+    .users-list{font-size:11px;color:#666;margin-top:4px;max-height:40px;overflow-y:auto}
+    @keyframes pulse{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
     .chat-messages{height:400px;overflow-y:auto;border:1px solid #e8ebef;border-radius:8px;padding:12px;margin-bottom:16px;background:#fafbfc}
     .message{margin-bottom:12px;padding:8px 12px;border-radius:12px;max-width:85%;word-wrap:break-word}
     .message.user{background:#007bff;color:white;margin-left:auto}
@@ -166,7 +171,18 @@
   </div>
   
   <div class="online-count" id="onlineCount">
-    👥 Многопользовательский режим: <span id="connectionStatus">подключается...</span>
+    <div class="online-counter">
+      <div class="online-users">
+        <div class="online-indicator"></div>
+        <span id="onlineUsersCount">👥 Онлайн: 1</span>
+      </div>
+      <div style="font-size: 11px;">
+        <span id="connectionStatus">подключается...</span>
+      </div>
+    </div>
+    <div class="users-list" id="onlineUsersList">
+      📱 Вы подключены к чату
+    </div>
     <div id="connectionStability" style="font-size: 10px; margin-top: 2px; color: #666;"></div>
   </div>
   
@@ -720,6 +736,9 @@ class MultiUserChatSystem {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
     }
+    if (this.onlineCounterInterval) {
+      clearInterval(this.onlineCounterInterval);
+    }
     
     console.log('🔄 Запуск Telegram polling с интервалом', this.telegramConfig.pollInterval, 'мс');
     
@@ -732,6 +751,15 @@ class MultiUserChatSystem {
     this.healthCheckInterval = setInterval(() => {
       this.performHealthCheck();
     }, this.telegramConfig.healthCheckInterval);
+    
+    // Обновление счетчика онлайн пользователей
+    this.onlineCounterInterval = setInterval(() => {
+      this.updateOnlineCounter();
+      this.cleanupOldUsers();
+    }, 30000); // Каждые 30 секунд
+    
+    // Первоначальное обновление
+    this.updateOnlineCounter();
     
     console.log('✅ Telegram polling запущен');
   }
@@ -862,6 +890,12 @@ class MultiUserChatSystem {
           if (message && !this.messages.find(existing => existing.id === message.id)) {
             this.messages.push(message);
             newMessagesCount++;
+            
+            // Регистрируем активность пользователя из Telegram
+            if (message.username && message.username !== 'Система' && !message.isCurrentUser) {
+              this.addUserOnline(message.username, message.userId);
+            }
+            
             console.log(`➕ Новое сообщение [${message.source}]: ${message.username}: ${message.text.substring(0, 50)}...`);
           }
         });
@@ -1144,6 +1178,10 @@ ${text}
 
   // Показать количество пользователей онлайн
   showActiveUsers() {
+    // Обновляем счетчик пользователей онлайн
+    this.updateOnlineCounter();
+    
+    // Старая логика для совместимости
     const userCountElement = document.getElementById('userCount');
     if (userCountElement) {
       const activeUsers = this.getUserCount();
@@ -1156,6 +1194,105 @@ ${text}
       
       userCountElement.textContent = `Пользователей онлайн: ${displayCount}`;
       userCountElement.style.color = displayCount > 2 ? '#4CAF50' : '#9e9e9e';
+    }
+  }
+
+  // Обновление счетчика онлайн пользователей
+  updateOnlineCounter() {
+    const onlineCountElement = document.getElementById('onlineUsersCount');
+    const onlineListElement = document.getElementById('onlineUsersList');
+    
+    if (!onlineCountElement) return;
+    
+    // Получаем уникальных пользователей из последних сообщений
+    const recentUsers = this.getRecentActiveUsers();
+    const totalOnline = Math.max(recentUsers.size + 1, 1); // +1 за текущего пользователя
+    
+    // Обновляем счетчик
+    onlineCountElement.textContent = `👥 Онлайн: ${totalOnline}`;
+    
+    // Обновляем список пользователей
+    if (onlineListElement) {
+      const currentUser = document.getElementById('usernameInput')?.value?.trim() || 'Вы';
+      const usersList = Array.from(recentUsers).slice(0, 5); // Показываем максимум 5 пользователей
+      
+      let usersText = `🟢 ${currentUser} (вы)`;
+      if (usersList.length > 0) {
+        usersText += `, ${usersList.join(', ')}`;
+      }
+      
+      if (recentUsers.size > 5) {
+        usersText += ` и еще ${recentUsers.size - 5}...`;
+      }
+      
+      onlineListElement.textContent = usersText;
+    }
+  }
+
+  // Получить активных пользователей из последних сообщений
+  getRecentActiveUsers() {
+    const recentUsers = new Set();
+    const now = Date.now();
+    const fiveMinutesAgo = now - (5 * 60 * 1000); // 5 минут назад
+    
+    // Анализируем последние сообщения за последние 5 минут
+    this.messages.forEach(message => {
+      if (message.timestamp && message.timestamp > fiveMinutesAgo) {
+        if (message.username && message.username !== 'Система' && !message.isCurrentUser) {
+          recentUsers.add(message.username);
+        }
+      }
+    });
+    
+    return recentUsers;
+  }
+
+  // Добавить пользователя в онлайн
+  addUserOnline(username, userId = null) {
+    if (username && username !== 'Система') {
+      this.onlineUsers.add(userId || username);
+      console.log(`👤 Пользователь ${username} подключился`);
+      this.updateOnlineCounter();
+    }
+  }
+
+  // Удалить пользователя из онлайн
+  removeUserOnline(username, userId = null) {
+    this.onlineUsers.delete(userId || username);
+    console.log(`👤 Пользователь ${username} отключился`);
+    this.updateOnlineCounter();
+  }
+
+  // Очистка неактивных пользователей
+  cleanupOldUsers() {
+    const now = Date.now();
+    const tenMinutesAgo = now - (10 * 60 * 1000); // 10 минут назад
+    
+    // Получаем пользователей, которые были активны в последние 10 минут
+    const activeUserIds = new Set();
+    this.messages.forEach(message => {
+      if (message.timestamp && message.timestamp > tenMinutesAgo) {
+        if (message.userId && message.username !== 'Система') {
+          activeUserIds.add(message.userId);
+        }
+      }
+    });
+    
+    // Удаляем пользователей, которые не были активны
+    const usersToRemove = [];
+    this.onlineUsers.forEach(userId => {
+      if (!activeUserIds.has(userId)) {
+        usersToRemove.push(userId);
+      }
+    });
+    
+    usersToRemove.forEach(userId => {
+      this.onlineUsers.delete(userId);
+    });
+    
+    if (usersToRemove.length > 0) {
+      console.log(`🧹 Удалено ${usersToRemove.length} неактивных пользователей`);
+      this.updateOnlineCounter();
     }
   }
   
@@ -2022,6 +2159,10 @@ ${text}
     };
 
     console.log('Создано сообщение:', message); // Отладка
+
+    // Регистрируем активность пользователя
+    this.addUserOnline(currentUsername, this.userId);
+    this.simulateUserActivity();
 
     // Добавляем локально сразу для быстрого отклика
     this.messages.push(message);
