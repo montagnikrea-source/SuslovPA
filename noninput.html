@@ -167,6 +167,7 @@
   
   <div class="online-count" id="onlineCount">
     👥 Многопользовательский режим: <span id="connectionStatus">подключается...</span>
+    <div id="connectionStability" style="font-size: 10px; margin-top: 2px; color: #666;"></div>
   </div>
   
   <div class="telegram-info" style="margin: 10px 0; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px; font-size: 12px;">
@@ -340,7 +341,21 @@ class MultiUserChatSystem {
       botToken: '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I',
       chatId: '@noninput', // Ваш канал t.me/noninput
       apiUrl: 'https://api.telegram.org/bot',
-      pollInterval: 2000 // Проверяем новые сообщения каждые 2 секунды
+      pollInterval: 2000, // Проверяем новые сообщения каждые 2 секунды
+      maxRetries: 3, // Максимум попыток на запрос
+      retryDelay: 1000, // Задержка между попытками (мс)
+      timeout: 10000, // Таймаут запроса (мс)
+      healthCheckInterval: 30000 // Проверка здоровья соединения каждые 30 сек
+    };
+    
+    // Состояние соединения
+    this.connectionState = {
+      isConnected: false,
+      lastSuccessfulRequest: 0,
+      consecutiveFailures: 0,
+      maxConsecutiveFailures: 5,
+      reconnectAttempts: 0,
+      maxReconnectAttempts: 10
     };
     
     // Используем публичные прокси для обхода CORS (попробуем несколько)
@@ -429,67 +444,102 @@ class MultiUserChatSystem {
   async sendTelegramRequest(method, params = {}) {
     console.log(`🌐 Отправка Telegram запроса: ${method}`, params);
     
-    // Пробуем разные прокси по очереди
-    for (let i = 0; i < this.proxyUrls.length; i++) {
-      try {
-        const proxyUrl = this.proxyUrls[this.currentProxyIndex];
-        console.log(`🔄 Попытка ${i + 1}/${this.proxyUrls.length} через прокси: ${proxyUrl}`);
-        
-        let url;
-        
-        if (proxyUrl === '') {
-          // Прямое подключение без прокси
-          url = `${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
-          console.log(`🔗 Прямое подключение к Telegram API`);
-        } else if (proxyUrl.includes('allorigins')) {
-          // Для allorigins нужен другой формат
-          const apiUrl = `${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
-          url = `${proxyUrl}${encodeURIComponent(apiUrl)}`;
-        } else {
-          // Стандартный формат для других прокси
-          url = `${proxyUrl}${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
-        }
-        
-        console.log(`📡 URL запроса: ${url.substring(0, 100)}...`);
-        
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: JSON.stringify(params)
-        });
-        
-        console.log(`📊 Ответ: ${response.status} ${response.statusText}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        let result = await response.json();
-        
-        // Для allorigins результат может быть в contents
-        if (result.contents) {
-          result = JSON.parse(result.contents);
-        }
-        
-        console.log(`✅ Успешный ответ через прокси ${this.currentProxyIndex}:`, result);
-        return result;
-        
-      } catch (error) {
-        console.warn(`❌ Прокси ${this.currentProxyIndex} (${this.proxyUrls[this.currentProxyIndex]}) не работает:`, error.message);
-        this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxyUrls.length;
-        
-        if (i === this.proxyUrls.length - 1) {
-          console.error('🚨 Все прокси недоступны! Последняя ошибка:', error);
-          console.log('💡 Возможные решения:');
-          console.log('1. Проверьте интернет-соединение');
-          console.log('2. Попробуйте позже (прокси могут быть временно недоступны)');
-          console.log('3. Откройте канал t.me/noninput в Telegram напрямую');
-          return null;
+    for (let attempt = 1; attempt <= this.telegramConfig.maxRetries; attempt++) {
+      console.log(`🔄 Попытка ${attempt}/${this.telegramConfig.maxRetries}`);
+      
+      // Пробуем разные прокси по очереди
+      for (let i = 0; i < this.proxyUrls.length; i++) {
+        try {
+          const proxyUrl = this.proxyUrls[this.currentProxyIndex];
+          console.log(`🔄 Прокси ${this.currentProxyIndex + 1}/${this.proxyUrls.length}: ${proxyUrl || 'прямое подключение'}`);
+          
+          let url;
+          
+          if (proxyUrl === '') {
+            // Прямое подключение без прокси
+            url = `${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
+            console.log(`🔗 Прямое подключение к Telegram API`);
+          } else if (proxyUrl.includes('allorigins')) {
+            // Для allorigins нужен другой формат
+            const apiUrl = `${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
+            url = `${proxyUrl}${encodeURIComponent(apiUrl)}`;
+          } else {
+            // Стандартный формат для других прокси
+            url = `${proxyUrl}${this.telegramConfig.apiUrl}${this.telegramConfig.botToken}/${method}`;
+          }
+          
+          // Создаем контроллер для таймаута
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), this.telegramConfig.timeout);
+          
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(params),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          console.log(`📊 Ответ: ${response.status} ${response.statusText}`);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          let result = await response.json();
+          
+          // Для allorigins результат может быть в contents
+          if (result.contents) {
+            result = JSON.parse(result.contents);
+          }
+          
+          if (result && result.ok) {
+            console.log(`✅ Успешный ответ через прокси ${this.currentProxyIndex}:`, result);
+            
+            // Обновляем состояние соединения
+            this.connectionState.isConnected = true;
+            this.connectionState.lastSuccessfulRequest = Date.now();
+            this.connectionState.consecutiveFailures = 0;
+            this.connectionState.reconnectAttempts = 0;
+            
+            return result;
+          } else {
+            throw new Error(`Telegram API error: ${result?.description || 'Unknown error'}`);
+          }
+          
+        } catch (error) {
+          console.warn(`❌ Прокси ${this.currentProxyIndex} (${this.proxyUrls[this.currentProxyIndex] || 'прямое'}) не работает:`, error.message);
+          
+          // Записываем ошибку
+          this.connectionState.consecutiveFailures++;
+          
+          // Переключаемся на следующий прокси
+          this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxyUrls.length;
+          
+          if (i === this.proxyUrls.length - 1) {
+            console.error(`🚨 Все прокси недоступны на попытке ${attempt}`);
+            
+            if (attempt < this.telegramConfig.maxRetries) {
+              console.log(`⏳ Ожидание ${this.telegramConfig.retryDelay}мс перед следующей попыткой...`);
+              await new Promise(resolve => setTimeout(resolve, this.telegramConfig.retryDelay * attempt));
+            }
+          }
         }
       }
+    }
+    
+    // Все попытки исчерпаны
+    this.connectionState.isConnected = false;
+    console.error('🚨 Все попытки подключения исчерпаны!');
+    
+    // Если слишком много неудач подряд - переходим в локальный режим
+    if (this.connectionState.consecutiveFailures >= this.connectionState.maxConsecutiveFailures) {
+      console.warn('⚠️ Слишком много неудачных попыток. Переход в локальный режим.');
+      this.fallbackToLocal();
     }
     
     return null;
@@ -554,10 +604,59 @@ class MultiUserChatSystem {
   }
 
   startTelegramPolling() {
+    // Очищаем старые интервалы
+    if (this.telegramPollInterval) {
+      clearInterval(this.telegramPollInterval);
+    }
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+    
+    console.log('🔄 Запуск Telegram polling с интервалом', this.telegramConfig.pollInterval, 'мс');
+    
     // Периодически проверяем новые сообщения
     this.telegramPollInterval = setInterval(() => {
       this.checkTelegramUpdates();
     }, this.telegramConfig.pollInterval);
+    
+    // Мониторинг здоровья соединения
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthCheck();
+    }, this.telegramConfig.healthCheckInterval);
+    
+    console.log('✅ Telegram polling запущен');
+  }
+
+  async performHealthCheck() {
+    console.log('🏥 Проверка здоровья Telegram соединения...');
+    
+    const timeSinceLastSuccess = Date.now() - this.connectionState.lastSuccessfulRequest;
+    
+    if (timeSinceLastSuccess > this.telegramConfig.healthCheckInterval * 2) {
+      console.warn('⚠️ Долго не было успешных запросов к Telegram');
+      this.updateConnectionStatus('проверка соединения...');
+      
+      // Пробуем простой запрос для проверки
+      const healthCheck = await this.sendTelegramRequest('getMe');
+      
+      if (healthCheck && healthCheck.ok) {
+        console.log('✅ Соединение с Telegram восстановлено');
+        this.updateConnectionStatus('подключен (Telegram)');
+      } else {
+        console.error('❌ Health check failed');
+        this.connectionState.reconnectAttempts++;
+        
+        if (this.connectionState.reconnectAttempts >= this.connectionState.maxReconnectAttempts) {
+          console.error('🚨 Слишком много неудачных переподключений. Переход в локальный режим.');
+          this.fallbackToLocal();
+        } else {
+          console.log('🔄 Попытка переподключения...');
+          this.retryTelegramConnection();
+        }
+      }
+    } else {
+      console.log('✅ Соединение стабильно');
+    }
   }
 
   async checkTelegramUpdates() {
@@ -939,8 +1038,38 @@ ${text}
 
   updateConnectionStatus(status) {
     const statusElement = document.getElementById('connectionStatus');
+    const stabilityElement = document.getElementById('connectionStability');
+    
     if (statusElement) {
       statusElement.textContent = status;
+      
+      // Обновляем индикатор стабильности
+      if (stabilityElement && this.connectionState) {
+        const failureRate = this.connectionState.consecutiveFailures;
+        const timeSinceLastSuccess = Date.now() - this.connectionState.lastSuccessfulRequest;
+        
+        let stabilityText = '';
+        let stabilityColor = '#666';
+        
+        if (status.includes('подключен (Telegram)')) {
+          if (failureRate === 0 && timeSinceLastSuccess < 30000) {
+            stabilityText = '🟢 Стабильно';
+            stabilityColor = '#4CAF50';
+          } else if (failureRate <= 2) {
+            stabilityText = '🟡 Умеренно';
+            stabilityColor = '#FF9800';
+          } else {
+            stabilityText = '🔴 Нестабильно';
+            stabilityColor = '#F44336';
+          }
+          
+          const proxy = this.proxyUrls[this.currentProxyIndex] || 'прямое';
+          stabilityText += ` | ${proxy.split('/')[2] || 'прямое'}`;
+        }
+        
+        stabilityElement.textContent = stabilityText;
+        stabilityElement.style.color = stabilityColor;
+      }
       
       // Меняем цвет в зависимости от статуса
       const container = statusElement.closest('.online-count');
