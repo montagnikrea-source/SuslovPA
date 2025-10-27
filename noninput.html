@@ -91,6 +91,37 @@
       background: #007bff;
       color: white;
     }
+    
+    .global-online-counter {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      padding: 8px 15px;
+      margin: 10px auto;
+      border-radius: 25px;
+      text-align: center;
+      max-width: 300px;
+      box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .global-online-pulse {
+      width: 10px;
+      height: 10px;
+      background: #ffffff;
+      border-radius: 50%;
+      animation: globalPulse 2s infinite;
+    }
+    
+    @keyframes globalPulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+      100% { opacity: 1; transform: scale(1); }
+    }
   </style>
 </head>
 <body>
@@ -100,6 +131,12 @@
   <a href="../about.html">📖 О нас</a>
   <a href="../contact.html">📧 Контакты</a>
   <a href="../privacy-policy.html">🔒 Конфиденциальность</a>
+</div>
+
+<div class="global-online-counter" id="globalOnlineCounter">
+  <div class="global-online-pulse"></div>
+  <span id="globalOnlineCount">👥 Пользователей онлайн: 1</span>
+  <span id="globalOnlineStatus" style="font-size: 12px; opacity: 0.9;">• Подключение...</span>
 </div>
 
 <div class="main-container">
@@ -1202,14 +1239,17 @@ ${text}
     const onlineCountElement = document.getElementById('onlineUsersCount');
     const onlineListElement = document.getElementById('onlineUsersList');
     
-    if (!onlineCountElement) return;
-    
     // Получаем уникальных пользователей из последних сообщений
     const recentUsers = this.getRecentActiveUsers();
     const totalOnline = Math.max(recentUsers.size + 1, 1); // +1 за текущего пользователя
     
-    // Обновляем счетчик
-    onlineCountElement.textContent = `👥 Онлайн: ${totalOnline}`;
+    // Обновляем локальный счетчик в чате
+    if (onlineCountElement) {
+      onlineCountElement.textContent = `👥 Онлайн: ${totalOnline}`;
+    }
+    
+    // Обновляем ГЛОБАЛЬНЫЙ счетчик на странице
+    this.updateGlobalOnlineCounter(totalOnline, recentUsers);
     
     // Обновляем список пользователей
     if (onlineListElement) {
@@ -1226,6 +1266,53 @@ ${text}
       }
       
       onlineListElement.textContent = usersText;
+    }
+  }
+
+  // Обновление ГЛОБАЛЬНОГО счетчика на странице
+  updateGlobalOnlineCounter(totalOnline, recentUsers) {
+    const globalCountElement = document.getElementById('globalOnlineCount');
+    const globalStatusElement = document.getElementById('globalOnlineStatus');
+    
+    if (globalCountElement) {
+      // Получаем статус подключения
+      const connectionStatus = document.getElementById('connectionStatus')?.textContent || 'подключается...';
+      
+      // Обновляем основной счетчик
+      globalCountElement.textContent = `👥 Пользователей онлайн: ${totalOnline}`;
+      
+      // Обновляем статус подключения
+      if (globalStatusElement) {
+        let statusText = '';
+        let statusColor = '';
+        
+        if (connectionStatus.includes('подключен')) {
+          statusText = '• Активный чат';
+          statusColor = '#28a745';
+        } else if (connectionStatus.includes('подключается')) {
+          statusText = '• Подключение...';
+          statusColor = '#ffc107';
+        } else if (connectionStatus.includes('ошибка') || connectionStatus.includes('нет доступа')) {
+          statusText = '• Локальный режим';
+          statusColor = '#dc3545';
+        } else {
+          statusText = `• ${connectionStatus}`;
+          statusColor = '#6c757d';
+        }
+        
+        globalStatusElement.textContent = statusText;
+        globalStatusElement.style.color = statusColor;
+      }
+      
+      // Добавляем тултип с подробной информацией
+      const globalCounter = document.getElementById('globalOnlineCounter');
+      if (globalCounter && recentUsers && recentUsers.size > 0) {
+        const usersList = Array.from(recentUsers).slice(0, 3).join(', ');
+        const moreUsers = recentUsers.size > 3 ? ` и еще ${recentUsers.size - 3}...` : '';
+        globalCounter.title = `Активные пользователи: ${usersList}${moreUsers}`;
+      } else if (globalCounter) {
+        globalCounter.title = 'Вы единственный активный пользователь';
+      }
     }
   }
 
@@ -1957,6 +2044,9 @@ ${text}
     if (statusElement) {
       statusElement.textContent = status;
       
+      // Обновляем глобальный счетчик при изменении статуса
+      this.updateOnlineCounter();
+      
       // Обновляем индикатор стабильности
       if (stabilityElement && this.connectionState) {
         const failureRate = this.connectionState.consecutiveFailures;
@@ -2351,6 +2441,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       if (multiUserChat && multiUserChat.showActiveUsers) {
         multiUserChat.showActiveUsers();
+      }
+      
+      // Инициализируем глобальный счетчик онлайн
+      if (multiUserChat && multiUserChat.updateOnlineCounter) {
+        multiUserChat.updateOnlineCounter();
       }
     }, 1000);
     
