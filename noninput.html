@@ -798,6 +798,12 @@ class MultiUserChatSystem {
       const finalCount = baseCount + activityBonus;
       
       this.globalCounter.simulatedCount = finalCount;
+      
+      // Показываем специальное уведомление о блокировке API (не симуляции)
+      setTimeout(() => {
+        this.showAPIBlockedNotice();
+      }, 3000);
+      
       return finalCount;
       
     } catch (error) {
@@ -880,6 +886,75 @@ class MultiUserChatSystem {
         }
       }, 15000);
     }, 2000);
+  }
+
+  // Показать уведомление о блокировке API счетчиков
+  showAPIBlockedNotice() {
+    // Проверяем, показывали ли уже это уведомление
+    if (localStorage.getItem('api_blocked_notice_shown')) {
+      return;
+    }
+    
+    setTimeout(() => {
+      const notice = document.createElement('div');
+      notice.style.cssText = `
+        position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #f44336, #d32f2f); 
+        color: white; padding: 16px; border-radius: 12px; z-index: 1000;
+        font-family: system-ui; font-size: 12px; max-width: 340px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+      `;
+      
+      notice.innerHTML = `
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+          <div style="font-size: 20px; margin-right: 8px;">🚫</div>
+          <div style="font-weight: bold; font-size: 14px;">API счетчиков заблокированы</div>
+        </div>
+        <div style="margin-bottom: 12px; line-height: 1.4;">
+          Интернет работает, но все API счетчиков недоступны. Возможные причины:
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px;">
+          <strong>🚫 Причины блокировки:</strong><br>
+          • Корпоративный файрвол блокирует API<br>
+          • Провайдер ограничивает доступ к счетчикам<br>
+          • Геоблокировка в вашем регионе<br>
+          • Антивирус блокирует внешние счетчики<br>
+          • Настройки роутера/прокси
+        </div>
+        <div style="background: rgba(76,175,80,0.3); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px;">
+          <strong>✅ Альтернативное решение:</strong><br>
+          • Используется локальный счетчик с реалистичными данными<br>
+          • Автоматические обновления работают<br>
+          • Данные сохраняются в браузере
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="multiUserChat.diagnoseAPIIssues()" 
+                  style="flex: 1; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; 
+                         padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px;">
+            🔍 Подробная диагностика
+          </button>
+          <button onclick="this.closest('[style*=fixed]').remove(); localStorage.setItem('api_blocked_notice_shown', 'true')" 
+                  style="flex: 1; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; 
+                         padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px;">
+            ✅ Понятно
+          </button>
+        </div>
+      `;
+      
+      document.body.appendChild(notice);
+      
+      // Автоматически скрыть через 20 секунд
+      setTimeout(() => {
+        if (notice.parentElement) {
+          notice.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+          notice.style.opacity = '0';
+          notice.style.transform = 'translateX(100%)';
+          setTimeout(() => {
+            notice.remove();
+            localStorage.setItem('api_blocked_notice_shown', 'true');
+          }, 500);
+        }
+      }, 20000);
+    }, 1000);
   }
 
   // Получить случайную страну для симуляции
@@ -3748,9 +3823,22 @@ ${text}
       });
     }
     
-    // Все API недоступны
+    // Все API недоступны при рабочем интернете
     const workingAPIs = results.apiTests.filter(test => test.success).length;
-    if (workingAPIs === 0) {
+    if (workingAPIs === 0 && results.internetTest?.success) {
+      recommendations.push({
+        type: 'api-blocked',
+        title: '🚫 Специфичная блокировка API счетчиков',
+        solutions: [
+          'Интернет работает, но счетчики заблокированы',
+          'Корпоративный файрвол блокирует только API счетчиков',
+          'Попробуйте мобильный интернет для проверки',
+          'Обратитесь к системному администратору',
+          'Используйте VPN для обхода геоблокировки',
+          'Проверьте настройки антивируса/файрвола'
+        ]
+      });
+    } else if (workingAPIs === 0) {
       recommendations.push({
         type: 'apis',
         title: '🚫 Все API счетчиков недоступны',
