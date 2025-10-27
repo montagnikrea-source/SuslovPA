@@ -44,6 +44,25 @@
     <div class="bar"><div id="confBar" class="c"></div></div>
   </div>
 
+  <!-- === Controls === -->
+  <div class="row controls" style="margin-top:18px;padding:12px;border-radius:12px;background:#f7f9fb;border:1px solid #e7ecf2">
+    <div class="lbl" style="margin-top:0">Параметры обучения (онлайн):</div>
+    <div style="display:grid;grid-template-columns:180px 1fr 90px;gap:8px;align-items:center">
+      <div>Learning rate (lr)</div>
+      <input id="lrSlider" type="range" min="0.001" max="0.2" step="0.001" value="0.03"/>
+      <div><span id="lrVal">0.030</span></div>
+
+      <div>L2-регуляризация (l2)</div>
+      <input id="l2Slider" type="range" min="0.0" max="0.01" step="0.0001" value="0.0001"/>
+      <div><span id="l2Val">0.0001</span></div>
+
+      <div>Смешивание NN/PI (mix)</div>
+      <input id="mixSlider" type="range" min="0.0" max="1.0" step="0.01" value="0.75"/>
+      <div><span id="mixVal">0.75</span></div>
+    </div>
+    <div class="hint" style="margin-top:8px">mix=1 — полностью нейросеть, mix=0 — только PI-якорь. </div>
+  </div>
+
   <div id="info"></div>
   <div class="hint">Цель автоматики — J→0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) → 0. Теперь с онлайновой нейросетью (без обучения на датасете).</div>
 </div>
@@ -143,35 +162,36 @@ class Kalman{
    темп. производную dJ/daggr ≈ (J - J_prev)/(aggr - aggr_prev + ε). */
 class NeuroHomeo {
   constructor(){
-    // веса (стабильные по умолчанию)
     this.w_phi=1.0; this.w_df=0.8; this.w_var=0.9; this.w_u=0.7; this.w_c=0.9; this.w_i=0.7;
-
-    this.a = 0.12; // скорость EMA метрик
+    this.a = 0.12;
     this.emaAbsPhi=0; this.emaAbsDf=0; this.emaVarDf=0; this.emaAbsU=0; this.emaOneMinConf=1; this.emaOneMinIner=1;
 
-    // Нейросеть: 9→8→1
     const H=8; const D=9; this.H=H; this.D=D;
     this.W1=new Float64Array(H*D); this.b1=new Float64Array(H);
     this.W2=new Float64Array(H);     this.b2=0;
-    // инициализация He/Glorot
     const r1=Math.sqrt(2/(D)); for(let i=0;i<H*D;i++) this.W1[i]=(Math.random()*2-1)*r1;
     for(let i=0;i<H;i++) this.b1[i]=0;
     const r2=Math.sqrt(2/(H)); for(let i=0;i<H;i++) this.W2[i]=(Math.random()*2-1)*r2;
     this.b2=0;
 
-    this.lr=0.03;      // шаг обучения
-    this.l2=1e-4;      // регуляризация
+    this.lr=0.03; this.l2=1e-4; this.mix=0.75; // ← будет управляться слайдерами
 
-    this.aggr=1.0; this.I=0; this.Imax=3.0; // интегральный канал как якорь стабильности
-    this.Kp=0.35; this.Ki=0.10;            // для смешивания с PI по J
-
+    this.aggr=1.0; this.I=0; this.Imax=3.0; this.Kp=0.35; this.Ki=0.10;
     this.prevJ=null; this.prevAggr=null; this.eps=1e-6;
-
-    // последние фичи/активации
     this._x=new Float64Array(D); this._h=new Float64Array(H); this._h_lin=new Float64Array(H);
-  }
 
-  // нормализация признаков для устойчивости обучения
+    // === Lock-защита от переобучения ===
+    this.locked=false; this.lockUntil=0; this.lockMs=3000; // длительность блокировки
+    this.lrBase=this.lr; this.lrMin=0.003; this.lrRecoverMs=3000; this.lastUnlockTime=performance.now();
+    this.snap=null; // снапшот весов
+    this.spikeJ=0.25; // порог относительного скачка J
+    this.dropC=0.25;  // порог падения conf/inertia
+  }
+  snapshot(){
+    this.snap={ W1:new Float64Array(this.W1), b1:new Float64Array(this.b1), W2:new Float64Array(this.W2), b2:this.b2, aggr:this.aggr };
+  }
+  restore(){ if(this.snap){ this.W1.set(this.snap.W1); this.b1.set(this.snap.b1); this.W2.set(this.snap.W2); this.b2=this.snap.b2; this.aggr=this.snap.aggr; } }
+
   _features({phi, df, u, conf, inertia, fs, peak}){
     const clip=(v,a,b)=>Math.max(a,Math.min(b,v));
     const mphi=clip(Math.abs(phi)/Math.PI, 0, 1);
@@ -182,11 +202,9 @@ class NeuroHomeo {
     const mfs =clip(fs/240, 0, 1);
     const mpk =clip(peak/2.5, 0, 1);
     const sDf =clip(Math.sqrt(Math.max(0,this.emaVarDf))/50, 0, 1);
-    // x0 — bias
     this._x.set([1, mphi, mdf, sDf, mu, mc, mi, mfs, mpk]);
     return this._x;
   }
-
   updateMetrics({phi, df, u, conf, inertia}){
     const a=this.a;
     this.emaAbsPhi = (1-a)*this.emaAbsPhi + a*Math.abs(phi);
@@ -196,111 +214,89 @@ class NeuroHomeo {
     this.emaOneMinConf = (1-a)*this.emaOneMinConf + a*(1 - Math.max(0,Math.min(1,conf)));
     this.emaOneMinIner = (1-a)*this.emaOneMinIner + a*(1 - Math.max(0,Math.min(1,inertia)));
   }
-
   cost(){
     const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
-    return  this.w_phi*this.emaAbsPhi
-          + this.w_df *this.emaAbsDf
-          + this.w_var*sigmaDf
-          + this.w_u  *this.emaAbsU
-          + this.w_c  *this.emaOneMinConf
-          + this.w_i  *this.emaOneMinIner;
+    return  this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf + this.w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
   }
-
-  // прямой проход сети → aggr
   _forward(x){
     const H=this.H, D=this.D; const h=this._h, hl=this._h_lin;
-    // h = tanh(W1 x + b1)
     for(let i=0;i<H;i++){
-      let s=this.b1[i];
-      const off=i*D; for(let j=0;j<D;j++) s+=this.W1[off+j]*x[j];
+      let s=this.b1[i]; const off=i*D; for(let j=0;j<D;j++) s+=this.W1[off+j]*x[j];
       hl[i]=s; h[i]=Math.tanh(s);
     }
-    // y_raw = W2·h + b2
-    let y= this.b2; for(let i=0;i<H;i++) y+=this.W2[i]*h[i];
-    // squashing to [0.5..2.0]
+    let y=this.b2; for(let i=0;i<H;i++) y+=this.W2[i]*h[i];
     const aggr = 0.5 + 1.5*(1/(1+Math.exp(-y)));
     return {y, aggr};
   }
-
-  // обратный проход по surrogate-градиенту (цель — снизить J через изменение aggr)
   _backward(dJdy){
     const H=this.H, D=this.D, x=this._x, h=this._h, hl=this._h_lin;
-    // y = b2 + W2·h, h = tanh(hl), hl = W1 x + b1
-    // dJ/dy → dJ/dW2, dJ/db2, dJ/dh, dJ/dhl → dJ/dW1, dJ/db1
-    // также учитываем сигмоиду, т.к. y здесь — пред-логит, но dJdy уже для y (логита)
-    const dJdb2 = dJdy;
-    for(let i=0;i<H;i++){
-      // dJ/dW2[i]
-      const dW2 = dJdy * h[i] + this.l2*this.W2[i];
-      this.W2[i] -= this.lr * dW2;
-    }
+    const dJdb2 = dJdy; for(let i=0;i<H;i++){ const dW2 = dJdy * h[i] + this.l2*this.W2[i]; this.W2[i] -= this.lr * dW2; }
     this.b2 -= this.lr * dJdb2;
-
-    // dJ/dh = dJ/dy * W2
-    const dJdh = new Float64Array(H);
-    for(let i=0;i<H;i++) dJdh[i] = dJdy * this.W2[i];
-
-    // dJ/dhl = dJ/dh * (1 - tanh^2)
+    const dJdh = new Float64Array(H); for(let i=0;i<H;i++) dJdh[i] = dJdy * this.W2[i];
     for(let i=0;i<H;i++){
-      const sech2 = 1 - Math.tanh(hl[i])**2;
-      const g = dJdh[i]*sech2;
-      // W1, b1
-      const off=i*D;
-      for(let j=0;j<D;j++){
-        const dW1 = g * x[j] + this.l2*this.W1[off+j];
-        this.W1[off+j] -= this.lr * dW1;
-      }
+      const sech2 = 1 - Math.tanh(hl[i])**2; const g = dJdh[i]*sech2; const off=i*D;
+      for(let j=0;j<D;j++){ const dW1 = g * x[j] + this.l2*this.W1[off+j]; this.W1[off+j] -= this.lr * dW1; }
       this.b1[i] -= this.lr * g;
     }
   }
-
+  maybeLock(J, conf, inertia){
+    const now=performance.now();
+    if(this.prevJ==null){ this.snapshot(); return; }
+    const relSpike = (J - this.prevJ) / Math.max(1e-6, Math.abs(this.prevJ));
+    const poor = ((1-conf) > this.dropC) || ((1-inertia) > this.dropC);
+    if(relSpike > this.spikeJ && poor){
+      // rollback + lock
+      this.restore();
+      this.locked = true; this.lockUntil = now + this.lockMs;
+      this.lr = Math.max(this.lrMin, this.lrBase*0.25); // резко уменьшаем lr
+    }
+    if(this.locked && now >= this.lockUntil){
+      this.locked = false; this.lastUnlockTime = now; // начнём восстанавливать lr постепенно в step()
+    }
+  }
+  recoverLr(){
+    if(this.locked) return;
+    const t = Math.min(1, (performance.now() - this.lastUnlockTime)/this.lrRecoverMs);
+    this.lr = this.lrBase*(0.25 + 0.75*t); // плавный возврат к базовому lr
+  }
   step(state){
-    // 1) аггр через NN
     const {phi, df, u, conf, inertia, fs, peak} = state;
     const x = this._features({phi, df, u, conf, inertia, fs, peak});
     const {y, aggr:aggr_nn} = this._forward(x);
 
-    // 2) классический PI по J для страховки и стабильности
     const J = this.cost();
-    const e = -J; // хотим J→0
-    this.I = Math.max(-this.Imax, Math.min(this.Imax, this.I + this.Ki*e));
-    let aggr_pi = this.aggr + this.Kp*e + this.I; // приращение
-    aggr_pi = Math.max(0.5, Math.min(2.0, aggr_pi));
+    this.maybeLock(J, conf, inertia);
 
-    // 3) смешивание NN и PI (+ лёгкая эксплорация)
-    const mix = 0.75; // NN приоритетен, PI защищает
-    const noise = (Math.random()*2-1)*0.03; // малая эксплорация
-    const aggr = Math.max(0.5, Math.min(2.0, mix*aggr_nn + (1-mix)*aggr_pi + noise));
+    const e = -J; this.I = Math.max(-this.Imax, Math.min(this.Imax, this.I + this.Ki*e));
+    let aggr_pi = this.aggr + this.Kp*e + this.I; aggr_pi = Math.max(0.5, Math.min(2.0, aggr_pi));
 
-    // 4) surrogate-градиент: dJ/daggr и dJ/dy (через сигмоиду)
-    if(this.prevJ!==null && this.prevAggr!==null){
+    let aggr;
+    if(this.locked){
+      // во время lock — не учимся, опираемся больше на PI
+      aggr = aggr_pi;
+    } else {
+      const noise = (Math.random()*2-1)*0.03;
+      aggr = Math.max(0.5, Math.min(2.0, this.mix*aggr_nn + (1-this.mix)*aggr_pi + noise));
+    }
+
+    if(!this.locked && this.prevJ!==null && this.prevAggr!==null){
       const dJdaggr = (J - this.prevJ) / (aggr - this.prevAggr + this.eps);
-      // y→σ(y)→aggr: aggr = 0.5 + 1.5*σ(y) → daggr/dy = 1.5*σ(y)*(1-σ(y))
       const sig = 1/(1+Math.exp(-y));
       const daggr_dy = 1.5*sig*(1-sig) + 1e-6;
-      let dJdy = dJdaggr * daggr_dy;
-      // клиппинг для устойчивости
-      dJdy = Math.max(-5, Math.min(5, dJdy));
-      this._backward(dJdy); // SGD шаг
+      let dJdy = dJdaggr * daggr_dy; dJdy = Math.max(-5, Math.min(5, dJdy));
+      this._backward(dJdy);
     }
+
+    if(!this.locked) this.snapshot(); // сохраняем best-known веса
+    this.recoverLr();
+
     this.prevJ = J; this.prevAggr = aggr; this.aggr = aggr;
 
-    // 5) преобразование aggr → коэффициенты
     const snr = Math.max(0.05, Math.min(1.0, conf));
-    const baseFrac = 0.035 + 0.025*snr;    // 3.5..6.0% fs
-    let bw = fs * baseFrac * aggr;         // итоговая полоса
-    bw = Math.max(1.5, Math.min(fs/3, bw));
-
-    const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - aggr)/1.5;  // ≈0.8..1.2
-    const twoPiBw = 2*Math.PI*bw;
-    const scale = 1/Math.max(40, fs);
-    let kp = (2*zeta*twoPiBw) * scale;
-    let kv = (twoPiBw*twoPiBw) * scale * 0.25;
-    let ki = kp * 0.12 * (0.25 + 0.75*snr);
-    const slew = 10 + 140 * snr * aggr; // 10..~290 Hz/s
-    const eco = 0.88 + 0.12*snr; kp*=eco; kv*=eco; ki*=eco;
-
+    const baseFrac = 0.035 + 0.025*snr; let bw = fs * baseFrac * aggr; bw = Math.max(1.5, Math.min(fs/3, bw));
+    const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - aggr)/1.5; const twoPiBw = 2*Math.PI*bw; const scale = 1/Math.max(40, fs);
+    let kp = (2*zeta*twoPiBw) * scale; let kv = (twoPiBw*twoPiBw) * scale * 0.25; let ki = kp * 0.12 * (0.25 + 0.75*snr);
+    const slew = 10 + 140 * snr * aggr; const eco = 0.88 + 0.12*snr; kp*=eco; kv*=eco; ki*=eco;
     return { J, aggr, kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew };
   }
 }
@@ -464,6 +460,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   const scan=new FrequencyScanner(s);
   const blender=new OutputBlender();
 
+  // === Слайдеры для lr/l2/mix ===
+  const lrSlider=document.getElementById('lrSlider');
+  const l2Slider=document.getElementById('l2Slider');
+  const mixSlider=document.getElementById('mixSlider');
+  const lrVal=document.getElementById('lrVal');
+  const l2Val=document.getElementById('l2Val');
+  const mixVal=document.getElementById('mixVal');
+
   // Мягкая фоновая активность (CPU worker)
   let worker=null;
   try{
@@ -506,6 +510,16 @@ document.addEventListener('DOMContentLoaded',()=>{
         setT('statusText', `Плавное накопление… (${fill.toFixed(0)}%)`);
         render(blender.hold());
         return setTimeout(loop, 80);
+      }
+
+      // применяем значения слайдеров перед шагом обработки
+      if(lrSlider&&l2Slider&&mixSlider){
+        scan.tuner.lrBase=parseFloat(lrSlider.value);
+        scan.tuner.l2=parseFloat(l2Slider.value);
+        scan.tuner.mix=parseFloat(mixSlider.value);
+        lrVal.textContent=scan.tuner.lrBase.toFixed(3);
+        l2Val.textContent=scan.tuner.l2.toFixed(4);
+        mixVal.textContent=scan.tuner.mix.toFixed(2);
       }
 
       scan.processOnce();
