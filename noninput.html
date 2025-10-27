@@ -545,6 +545,9 @@ class MultiUserChatSystem {
   async initGlobalCounter() {
     console.log('🌍 Подключение к глобальному счетчику посетителей...');
     
+    // Показываем индикатор загрузки
+    this.showGlobalCounterLoadingState();
+    
     // Конфигурация API
     this.globalCounter = {
       apiUrls: [
@@ -590,6 +593,49 @@ class MultiUserChatSystem {
     
     // Запускаем периодическое обновление
     this.startGlobalCounterUpdates();
+  }
+
+  // Показать состояние загрузки глобального счетчика
+  showGlobalCounterLoadingState() {
+    const widget = document.getElementById('globalStatsWidget');
+    if (!widget) return;
+    
+    widget.innerHTML = `
+      <div style="text-align: center; padding: 15px; font-family: system-ui;">
+        <div style="font-size: 16px; margin-bottom: 10px;">🌍 Глобальный счетчик</div>
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+          <div class="loading-spinner"></div>
+          <span style="margin-left: 8px; font-size: 13px;">Инициализация...</span>
+        </div>
+        <div style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">
+          <div class="loading-status">📡 Получение геоданных...</div>
+        </div>
+        <div style="background: #e3f2fd; padding: 8px; border-radius: 4px; font-size: 10px;">
+          ⏱️ Процесс может занять до 30 секунд<br>
+          🔗 Тестируется 8 API серверов
+        </div>
+      </div>
+      
+      <style>
+        .loading-spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid #e3f2fd;
+          border-top: 2px solid #1976d2;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .loading-status {
+          transition: all 0.3s ease;
+        }
+      </style>
+    `;
   }
 
   // Подключение к глобальному API счетчика
@@ -661,6 +707,26 @@ class MultiUserChatSystem {
     this.getVisitorInfo();
     
     return true; // Всегда возвращаем true чтобы система считала себя работающей
+  }
+
+  // Обновить статус загрузки
+  updateLoadingStatus(message) {
+    const widget = document.getElementById('globalStatsWidget');
+    if (!widget) return;
+    
+    const statusElement = widget.querySelector('.loading-status');
+    if (statusElement) {
+      statusElement.textContent = message;
+    } else {
+      // Если элемент статуса не найден, создаем его
+      const loadingDiv = widget.querySelector('div[style*="text-align: center"]');
+      if (loadingDiv) {
+        const statusDiv = loadingDiv.querySelector('div[style*="opacity: 0.7"]');
+        if (statusDiv) {
+          statusDiv.innerHTML = `<div class="loading-status">${message}</div>`;
+        }
+      }
+    }
   }
 
   // Тестирование резервных API
@@ -764,31 +830,55 @@ class MultiUserChatSystem {
     setTimeout(() => {
       const notice = document.createElement('div');
       notice.style.cssText = `
-        position: fixed; top: 20px; right: 20px; background: #ff9800; 
-        color: white; padding: 15px; border-radius: 8px; z-index: 1000;
-        font-family: system-ui; font-size: 12px; max-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #ff9800, #f57c00); 
+        color: white; padding: 16px; border-radius: 12px; z-index: 1000;
+        font-family: system-ui; font-size: 12px; max-width: 320px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
       `;
       
       notice.innerHTML = `
-        <div style="font-weight: bold; margin-bottom: 8px;">🎭 Режим симуляции</div>
-        <div style="margin-bottom: 8px;">Внешние API недоступны. Счетчик работает локально с реалистичными данными.</div>
-        <button onclick="this.parentElement.remove(); localStorage.setItem('simulation_notice_shown', 'true')" 
-                style="background: rgba(255,255,255,0.2); border: none; color: white; 
-                       padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
-          Понятно
-        </button>
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+          <div style="font-size: 20px; margin-right: 8px;">🎭</div>
+          <div style="font-weight: bold; font-size: 14px;">Режим симуляции активен</div>
+        </div>
+        <div style="margin-bottom: 12px; line-height: 1.4;">
+          Все внешние API счетчиков недоступны. Система автоматически переключилась в режим симуляции с реалистичными данными.
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px;">
+          <strong>📊 Что работает:</strong><br>
+          • Локальный счетчик посещений<br>
+          • Геолокация и статистика<br>
+          • Автоматические обновления<br>
+          • Сохранение данных в браузере
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="multiUserChat.diagnoseAPIIssues()" 
+                  style="flex: 1; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; 
+                         padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px;">
+            🔍 Диагностика
+          </button>
+          <button onclick="this.closest('[style*=fixed]').remove(); localStorage.setItem('simulation_notice_shown', 'true')" 
+                  style="flex: 1; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; 
+                         padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px;">
+            ✅ Понятно
+          </button>
+        </div>
       `;
       
       document.body.appendChild(notice);
       
-      // Автоматически скрыть через 10 секунд
+      // Автоматически скрыть через 15 секунд
       setTimeout(() => {
         if (notice.parentElement) {
-          notice.remove();
-          localStorage.setItem('simulation_notice_shown', 'true');
+          notice.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+          notice.style.opacity = '0';
+          notice.style.transform = 'translateX(100%)';
+          setTimeout(() => {
+            notice.remove();
+            localStorage.setItem('simulation_notice_shown', 'true');
+          }, 500);
         }
-      }, 10000);
+      }, 15000);
     }, 2000);
   }
 
