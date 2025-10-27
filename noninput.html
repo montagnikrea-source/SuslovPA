@@ -184,8 +184,8 @@
   </div>
   
   <div class="chat-input">
-    <input type="text" id="messageInput" placeholder="Напишите отзыв..." maxlength="200">
-    <button id="sendButton" onclick="sendMessage()">Отправить</button>
+    <input type="text" id="messageInput" placeholder="Напишите сообщение..." maxlength="200">
+    <button id="sendButton">Отправить</button>
   </div>
 </div>
 
@@ -236,30 +236,9 @@ class MultiUserChatSystem {
   }
 
   initFirebase() {
-    // Временная конфигурация Firebase для демонстрации
-    // В продакшне следует использовать собственный проект Firebase
-    const firebaseConfig = {
-      apiKey: "demo-key",
-      authDomain: "demo-project.firebaseapp.com", 
-      databaseURL: "https://demo-project-default-rtdb.firebaseio.com/",
-      projectId: "demo-project"
-    };
-
-    try {
-      // Попытка инициализации Firebase
-      if (typeof firebase !== 'undefined') {
-        firebase.initializeApp(firebaseConfig);
-        this.database = firebase.database();
-        this.setupRealtimeListeners();
-        this.trackOnlineUsers();
-      } else {
-        console.warn('Firebase не загружен, используется локальный режим');
-        this.fallbackToLocal();
-      }
-    } catch (error) {
-      console.warn('Ошибка Firebase, используется локальный режим:', error);
-      this.fallbackToLocal();
-    }
+    // Временно отключаем Firebase и используем только локальный режим для стабильности
+    console.log('Используется локальный режим чата');
+    this.fallbackToLocal();
   }
 
   fallbackToLocal() {
@@ -407,6 +386,8 @@ class MultiUserChatSystem {
   }
 
   addMessage(text) {
+    console.log('addMessage вызвана с текстом:', text); // Отладка
+    
     const filtered = this.filterMessage(text);
     const currentUsername = document.getElementById('usernameInput').value.trim() || 'Анонимный';
     
@@ -420,15 +401,14 @@ class MultiUserChatSystem {
       wasFiltered: filtered.wasFiltered
     };
 
-    if (this.database && !this.isLocalMode) {
-      // Отправляем в Firebase
-      this.database.ref('chat/messages').push(message);
-    } else {
-      // Локальное сохранение
-      this.messages.push(message);
-      this.saveLocalMessages();
-      this.addMessageToUI(message);
-    }
+    console.log('Создано сообщение:', message); // Отладка
+
+    // Всегда используем локальное сохранение для стабильности
+    this.messages.push(message);
+    this.saveLocalMessages();
+    this.addMessageToUI(message);
+
+    console.log('Сообщение добавлено в массив, всего сообщений:', this.messages.length); // Отладка
 
     return filtered.wasFiltered;
   }
@@ -499,29 +479,53 @@ class MultiUserChatSystem {
 let multiUserChat;
 
 function sendMessage() {
+  console.log('sendMessage вызвана'); // Отладка
+  
   const input = document.getElementById('messageInput');
   const button = document.getElementById('sendButton');
   
-  if (!input || !multiUserChat) return;
-
-  const text = input.value.trim();
-  if (!text) return;
-
-  button.disabled = true;
-  input.disabled = true;
-
-  const wasFiltered = multiUserChat.addMessage(text);
-
-  if (wasFiltered) {
-    setTimeout(() => {
-      alert('⚠️ Ваше сообщение содержало недопустимый контент и было отфильтровано.');
-    }, 100);
+  if (!input) {
+    console.error('Элемент messageInput не найден');
+    return;
+  }
+  
+  if (!multiUserChat) {
+    console.error('multiUserChat не инициализирован');
+    return;
   }
 
-  input.value = '';
+  const text = input.value.trim();
+  console.log('Текст сообщения:', text); // Отладка
+  
+  if (!text) {
+    console.log('Пустое сообщение');
+    return;
+  }
 
+  // Блокируем элементы
+  if (button) button.disabled = true;
+  input.disabled = true;
+
+  try {
+    const wasFiltered = multiUserChat.addMessage(text);
+
+    if (wasFiltered) {
+      setTimeout(() => {
+        alert('⚠️ Ваше сообщение содержало недопустимый контент и было отфильтровано.');
+      }, 100);
+    }
+
+    // Очищаем поле ввода
+    input.value = '';
+    console.log('Сообщение отправлено успешно');
+    
+  } catch (error) {
+    console.error('Ошибка при отправке сообщения:', error);
+  }
+
+  // Разблокируем элементы
   setTimeout(() => {
-    button.disabled = false;
+    if (button) button.disabled = false;
     input.disabled = false;
     input.focus();
   }, 500);
@@ -531,6 +535,13 @@ function sendMessage() {
 document.addEventListener('DOMContentLoaded', () => {
   multiUserChat = new MultiUserChatSystem();
 
+  // Привязка кнопки отправки
+  const sendButton = document.getElementById('sendButton');
+  if (sendButton) {
+    sendButton.addEventListener('click', sendMessage);
+  }
+
+  // Обработка Enter в поле ввода
   const messageInput = document.getElementById('messageInput');
   if (messageInput) {
     messageInput.addEventListener('keypress', (e) => {
