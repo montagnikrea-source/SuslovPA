@@ -51,8 +51,9 @@
     .message-meta{font-size:11px;opacity:0.7;margin-top:4px}
     .chat-input{display:flex;gap:8px}
     .chat-input input{flex:1;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
-    .chat-input button{padding:10px 16px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px}
+    .chat-input button{padding:10px 16px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;transition:background-color 0.3s}
     .chat-input button:hover{background:#0056b3}
+    .chat-input button:disabled{background:#6c757d;cursor:wait;opacity:0.7}
     .chat-input button:disabled{background:#ccc;cursor:not-allowed}
     .message-count{text-align:center;color:#666;font-size:12px;margin-bottom:8px}
     .filter-notice{background:#fff3cd;border:1px solid #ffeaa7;color:#856404;padding:8px;border-radius:6px;font-size:12px;margin-bottom:12px}
@@ -491,6 +492,8 @@ function sendMessage() {
   
   if (!multiUserChat) {
     console.error('multiUserChat не инициализирован');
+    // Разблокируем кнопку даже при ошибке
+    if (button) button.disabled = false;
     return;
   }
 
@@ -502,8 +505,11 @@ function sendMessage() {
     return;
   }
 
-  // Блокируем элементы
-  if (button) button.disabled = true;
+  // Блокируем элементы на короткое время
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Отправка...';
+  }
   input.disabled = true;
 
   try {
@@ -523,22 +529,38 @@ function sendMessage() {
     console.error('Ошибка при отправке сообщения:', error);
   }
 
-  // Разблокируем элементы
+  // Быстро разблокируем элементы
   setTimeout(() => {
-    if (button) button.disabled = false;
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Отправить';
+    }
     input.disabled = false;
     input.focus();
-  }, 500);
+  }, 300); // Уменьшили время блокировки
 }
 
 // Инициализация многопользовательского чата
 document.addEventListener('DOMContentLoaded', () => {
-  multiUserChat = new MultiUserChatSystem();
+  console.log('DOM загружен, инициализируем чат'); // Отладка
+  
+  try {
+    multiUserChat = new MultiUserChatSystem();
+    console.log('Чат инициализирован успешно'); // Отладка
+  } catch (error) {
+    console.error('Ошибка инициализации чата:', error);
+  }
 
   // Привязка кнопки отправки
   const sendButton = document.getElementById('sendButton');
   if (sendButton) {
-    sendButton.addEventListener('click', sendMessage);
+    sendButton.addEventListener('click', function() {
+      console.log('Кнопка нажата'); // Отладка
+      sendMessage();
+    });
+    console.log('Кнопка отправки привязана'); // Отладка
+  } else {
+    console.error('Кнопка отправки не найдена');
   }
 
   // Обработка Enter в поле ввода
@@ -547,9 +569,13 @@ document.addEventListener('DOMContentLoaded', () => {
     messageInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
+        console.log('Enter нажат'); // Отладка
         sendMessage();
       }
     });
+    console.log('Поле ввода привязано'); // Отладка
+  } else {
+    console.error('Поле ввода не найдено');
   }
 });
 
