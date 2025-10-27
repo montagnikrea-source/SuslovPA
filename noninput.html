@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Frequency Scanner — Homeostatic Zero-Target (CPU-only)</title>
+  <title>Frequency Scanner — Homeostatic Zero-Target (CPU-only, Neuro J→0)</title>
   <style>
     :root { --bg:#f3f5f7; --panel:#fff; --muted:#556; --bar:#e8ebef; }
     html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,Segoe UI,Arial}
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Frequency Scanner — Homeostatic Zero-Target (CPU-only)</h1>
+  <h1>Frequency Scanner — Homeostatic Zero-Target (CPU-only, Neuro J→0)</h1>
 
   <div id="loading">
     <div class="bg"><div id="loadingBar" class="fill"></div></div>
@@ -45,7 +45,7 @@
   </div>
 
   <div id="info"></div>
-  <div class="hint">Цель автоматики — J→0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) → 0. Полностью автономно.</div>
+  <div class="hint">Цель автоматики — J→0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) → 0. Теперь с онлайновой нейросетью (без обучения на датасете).</div>
 </div>
 
 <script>
@@ -136,46 +136,63 @@ class Kalman{
   }
 }
 
-/* =================== Homeostatic tuner (J→0) =================== */
-/* Совокупная «стоимость»:
-   J = wφ*E|φ| + wΔf*E|Δf| + wVar*sqrt(E[Δf²]) + wU*E|u| + wC*(1-conf) + wI*(1-inertia)
-   Цель: J → 0. PI-регулятор подстраивает агрессивность aggr и, через неё, полосу, демпфирование и slew.
-*/
-class HomeoTuner {
+/* =================== Нейро-гомеостаз (J→0) =================== */
+/* J = wφ E|φ| + wΔf E|Δf| + wVar sqrt(E[Δf²]) + wU E|u| + wC (1-conf) + wI (1-inertia)
+   Два слоя: x -> tanh(8) -> y_raw -> sigmoid -> aggr∈[0.5..2.0]
+   Обучение онлайн, без данных: псевдо-градиент по агрессивности через
+   темп. производную dJ/daggr ≈ (J - J_prev)/(aggr - aggr_prev + ε). */
+class NeuroHomeo {
   constructor(){
-    this.aggr = 1.0;                   // 0.5..2.0
-    this.I = 0;                        // интеграл ошибки по J
-    this.Imax = 3.0;
+    // веса (стабильные по умолчанию)
+    this.w_phi=1.0; this.w_df=0.8; this.w_var=0.9; this.w_u=0.7; this.w_c=0.9; this.w_i=0.7;
 
-    // EMA характеристик
-    this.emaAbsPhi = 0;
-    this.emaAbsDf  = 0;
-    this.emaVarDf  = 0;
-    this.emaAbsU   = 0;
-    this.emaOneMinConf = 1;
-    this.emaOneMinIner = 1;
+    this.a = 0.12; // скорость EMA метрик
+    this.emaAbsPhi=0; this.emaAbsDf=0; this.emaVarDf=0; this.emaAbsU=0; this.emaOneMinConf=1; this.emaOneMinIner=1;
 
-    this.a = 0.12;                     // скорость EMA метрик
+    // Нейросеть: 9→8→1
+    const H=8; const D=9; this.H=H; this.D=D;
+    this.W1=new Float64Array(H*D); this.b1=new Float64Array(H);
+    this.W2=new Float64Array(H);     this.b2=0;
+    // инициализация He/Glorot
+    const r1=Math.sqrt(2/(D)); for(let i=0;i<H*D;i++) this.W1[i]=(Math.random()*2-1)*r1;
+    for(let i=0;i<H;i++) this.b1[i]=0;
+    const r2=Math.sqrt(2/(H)); for(let i=0;i<H;i++) this.W2[i]=(Math.random()*2-1)*r2;
+    this.b2=0;
 
-    // веса (масштабированы так, чтобы вклад был сопоставим)
-    this.w_phi = 1.0;
-    this.w_df  = 0.8;
-    this.w_var = 0.9;
-    this.w_u   = 0.7;
-    this.w_c   = 0.9;
-    this.w_i   = 0.7;
+    this.lr=0.03;      // шаг обучения
+    this.l2=1e-4;      // регуляризация
 
-    // PI по J: aggr += Kp*(-J) + Ki*∫(-J)
-    this.Kp = 0.35;
-    this.Ki = 0.10;
+    this.aggr=1.0; this.I=0; this.Imax=3.0; // интегральный канал как якорь стабильности
+    this.Kp=0.35; this.Ki=0.10;            // для смешивания с PI по J
+
+    this.prevJ=null; this.prevAggr=null; this.eps=1e-6;
+
+    // последние фичи/активации
+    this._x=new Float64Array(D); this._h=new Float64Array(H); this._h_lin=new Float64Array(H);
+  }
+
+  // нормализация признаков для устойчивости обучения
+  _features({phi, df, u, conf, inertia, fs, peak}){
+    const clip=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const mphi=clip(Math.abs(phi)/Math.PI, 0, 1);
+    const mdf =clip(Math.abs(df)/50, 0, 1);
+    const mu  =clip(Math.abs(u)/300, 0, 1);
+    const mc  =clip(1-conf, 0, 1);
+    const mi  =clip(1-inertia, 0, 1);
+    const mfs =clip(fs/240, 0, 1);
+    const mpk =clip(peak/2.5, 0, 1);
+    const sDf =clip(Math.sqrt(Math.max(0,this.emaVarDf))/50, 0, 1);
+    // x0 — bias
+    this._x.set([1, mphi, mdf, sDf, mu, mc, mi, mfs, mpk]);
+    return this._x;
   }
 
   updateMetrics({phi, df, u, conf, inertia}){
     const a=this.a;
-    this.emaAbsPhi     = (1-a)*this.emaAbsPhi     + a*Math.abs(phi);
-    this.emaAbsDf      = (1-a)*this.emaAbsDf      + a*Math.abs(df);
-    this.emaVarDf      = (1-a)*this.emaVarDf      + a*(df*df);
-    this.emaAbsU       = (1-a)*this.emaAbsU       + a*Math.abs(u);
+    this.emaAbsPhi = (1-a)*this.emaAbsPhi + a*Math.abs(phi);
+    this.emaAbsDf  = (1-a)*this.emaAbsDf  + a*Math.abs(df);
+    this.emaVarDf  = (1-a)*this.emaVarDf  + a*(df*df);
+    this.emaAbsU   = (1-a)*this.emaAbsU   + a*Math.abs(u);
     this.emaOneMinConf = (1-a)*this.emaOneMinConf + a*(1 - Math.max(0,Math.min(1,conf)));
     this.emaOneMinIner = (1-a)*this.emaOneMinIner + a*(1 - Math.max(0,Math.min(1,inertia)));
   }
@@ -190,43 +207,101 @@ class HomeoTuner {
           + this.w_i  *this.emaOneMinIner;
   }
 
-  step(){
-    const J = this.cost();             // целевой 0
-    const e = -J;                      // хотим J→0 → e = -J
-    this.I = Math.max(-this.Imax, Math.min(this.Imax, this.I + this.Ki*e));
-    this.aggr += this.Kp*e + this.I;
-
-    // границы агрессивности
-    this.aggr = Math.max(0.5, Math.min(2.0, this.aggr));
-    return { J, aggr: this.aggr };
+  // прямой проход сети → aggr
+  _forward(x){
+    const H=this.H, D=this.D; const h=this._h, hl=this._h_lin;
+    // h = tanh(W1 x + b1)
+    for(let i=0;i<H;i++){
+      let s=this.b1[i];
+      const off=i*D; for(let j=0;j<D;j++) s+=this.W1[off+j]*x[j];
+      hl[i]=s; h[i]=Math.tanh(s);
+    }
+    // y_raw = W2·h + b2
+    let y= this.b2; for(let i=0;i<H;i++) y+=this.W2[i]*h[i];
+    // squashing to [0.5..2.0]
+    const aggr = 0.5 + 1.5*(1/(1+Math.exp(-y)));
+    return {y, aggr};
   }
 
-  // преобразование (aggr → kp/kv/ki/slew) с учётом fs, conf
-  gains(fs, conf){
+  // обратный проход по surrogate-градиенту (цель — снизить J через изменение aggr)
+  _backward(dJdy){
+    const H=this.H, D=this.D, x=this._x, h=this._h, hl=this._h_lin;
+    // y = b2 + W2·h, h = tanh(hl), hl = W1 x + b1
+    // dJ/dy → dJ/dW2, dJ/db2, dJ/dh, dJ/dhl → dJ/dW1, dJ/db1
+    // также учитываем сигмоиду, т.к. y здесь — пред-логит, но dJdy уже для y (логита)
+    const dJdb2 = dJdy;
+    for(let i=0;i<H;i++){
+      // dJ/dW2[i]
+      const dW2 = dJdy * h[i] + this.l2*this.W2[i];
+      this.W2[i] -= this.lr * dW2;
+    }
+    this.b2 -= this.lr * dJdb2;
+
+    // dJ/dh = dJ/dy * W2
+    const dJdh = new Float64Array(H);
+    for(let i=0;i<H;i++) dJdh[i] = dJdy * this.W2[i];
+
+    // dJ/dhl = dJ/dh * (1 - tanh^2)
+    for(let i=0;i<H;i++){
+      const sech2 = 1 - Math.tanh(hl[i])**2;
+      const g = dJdh[i]*sech2;
+      // W1, b1
+      const off=i*D;
+      for(let j=0;j<D;j++){
+        const dW1 = g * x[j] + this.l2*this.W1[off+j];
+        this.W1[off+j] -= this.lr * dW1;
+      }
+      this.b1[i] -= this.lr * g;
+    }
+  }
+
+  step(state){
+    // 1) аггр через NN
+    const {phi, df, u, conf, inertia, fs, peak} = state;
+    const x = this._features({phi, df, u, conf, inertia, fs, peak});
+    const {y, aggr:aggr_nn} = this._forward(x);
+
+    // 2) классический PI по J для страховки и стабильности
+    const J = this.cost();
+    const e = -J; // хотим J→0
+    this.I = Math.max(-this.Imax, Math.min(this.Imax, this.I + this.Ki*e));
+    let aggr_pi = this.aggr + this.Kp*e + this.I; // приращение
+    aggr_pi = Math.max(0.5, Math.min(2.0, aggr_pi));
+
+    // 3) смешивание NN и PI (+ лёгкая эксплорация)
+    const mix = 0.75; // NN приоритетен, PI защищает
+    const noise = (Math.random()*2-1)*0.03; // малая эксплорация
+    const aggr = Math.max(0.5, Math.min(2.0, mix*aggr_nn + (1-mix)*aggr_pi + noise));
+
+    // 4) surrogate-градиент: dJ/daggr и dJ/dy (через сигмоиду)
+    if(this.prevJ!==null && this.prevAggr!==null){
+      const dJdaggr = (J - this.prevJ) / (aggr - this.prevAggr + this.eps);
+      // y→σ(y)→aggr: aggr = 0.5 + 1.5*σ(y) → daggr/dy = 1.5*σ(y)*(1-σ(y))
+      const sig = 1/(1+Math.exp(-y));
+      const daggr_dy = 1.5*sig*(1-sig) + 1e-6;
+      let dJdy = dJdaggr * daggr_dy;
+      // клиппинг для устойчивости
+      dJdy = Math.max(-5, Math.min(5, dJdy));
+      this._backward(dJdy); // SGD шаг
+    }
+    this.prevJ = J; this.prevAggr = aggr; this.aggr = aggr;
+
+    // 5) преобразование aggr → коэффициенты
     const snr = Math.max(0.05, Math.min(1.0, conf));
-    // базовая доля полосы от fs
-    const baseFrac = 0.035 + 0.025*snr;    // 3.5..6.0% fs (чем чище — шире)
-    let bw = fs * baseFrac * this.aggr;    // итоговая полоса
+    const baseFrac = 0.035 + 0.025*snr;    // 3.5..6.0% fs
+    let bw = fs * baseFrac * aggr;         // итоговая полоса
     bw = Math.max(1.5, Math.min(fs/3, bw));
 
-    // демпфирование ζ: больше при шуме (снижает колебания)
-    const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - this.aggr)/1.5;  // ≈0.8..1.2
-
-    // непрямой синтез коэффициентов
+    const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - aggr)/1.5;  // ≈0.8..1.2
     const twoPiBw = 2*Math.PI*bw;
     const scale = 1/Math.max(40, fs);
     let kp = (2*zeta*twoPiBw) * scale;
     let kv = (twoPiBw*twoPiBw) * scale * 0.25;
     let ki = kp * 0.12 * (0.25 + 0.75*snr);
+    const slew = 10 + 140 * snr * aggr; // 10..~290 Hz/s
+    const eco = 0.88 + 0.12*snr; kp*=eco; kv*=eco; ki*=eco;
 
-    // предел скорости: при чистом сигнале и высокой aggr — выше
-    const slew = 10 + 140 * snr * this.aggr; // 10..~290 Hz/s
-
-    // анти-срывы: лёгкое энергосбережение
-    const eco = 0.88 + 0.12*snr;
-    kp*=eco; kv*=eco; ki*=eco;
-
-    return { kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew };
+    return { J, aggr, kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew };
   }
 }
 
@@ -237,7 +312,6 @@ class FrequencyScanner{
     this.vco=0; this.phi=0; this.inertia=0; this.state='SEARCHING';
 
     this.r=0; this.N=this.s.dynamic_n;
-    // авто hopRatio: меньше при высокой fs
     this.hopRatio = Math.min(0.4, Math.max(0.1, 0.9 / Math.sqrt((this.s.actual_fs||60)/60)));
     this.hop=Math.max(8, Math.floor(this.N*this.hopRatio));
     this.booted=false;
@@ -258,10 +332,9 @@ class FrequencyScanner{
     this.u_int=0; this.u_int_max=3.0;
     this.lastUpdateMs=performance.now();
 
-    // динамические усиления (задаёт тюнер)
     this.kp=0.1; this.kv=0.01; this.ki=0.002; this.slew=40;
 
-    this.tuner = new HomeoTuner();
+    this.tuner = new NeuroHomeo();
     this.lastDfApplied = 0;
   }
 
@@ -302,7 +375,6 @@ class FrequencyScanner{
   processOnce(){
     if(!this._grab()) return;
 
-    // сетка частот
     this.fmax = Math.min(100, this.s.actual_fs/2);
     this.fstep= Math.max(0.02, this.fmax/260);
 
@@ -316,7 +388,6 @@ class FrequencyScanner{
     let steps=Math.floor((fmax-fmin)/fstep);
     if(steps>this.maxPoints) fstep=(fmax-fmin)/this.maxPoints;
 
-    // скан и метрики
     let bestF=this.vco, bestMag=-1, best=null, sumMag=0, cnt=0;
     for(let f=fmin; f<=fmax+1e-9; f+=fstep){
       const r=this._evalAt(f);
@@ -326,14 +397,12 @@ class FrequencyScanner{
     const avgMag=cnt?(sumMag/cnt):0;
     const cur=best || this._evalAt(this.vco);
 
-    // уверенность/пикообразность
     let local=Number.EPSILON;
     for(let df=-2; df<=2; ++df) local += this._evalAt(this.vco + df*fstep).mag;
     const conf=Math.max(0, Math.min(1, (local>0 ? cur.mag/local : 0)));
     const peak=(avgMag>0)?(cur.mag/avgMag):0;
     this.out_peak=peak;
 
-    // инерция (захват/срыв)
     if(conf>0.07 || peak>1.05) this.inertia += 0.40*(1 - this.inertia);
     else this.inertia *= 0.988;
     this.inertia=Math.max(0, Math.min(1, this.inertia));
@@ -341,7 +410,6 @@ class FrequencyScanner{
     if(this.inertia<0.05 && this.state==='TRACKING') this.state='SEARCHING';
     else if(this.inertia>0.34 && this.state==='SEARCHING'){ this.state='TRACKING'; this.kf.reset(0,0); }
 
-    // в поиске — EMA к лучшей частоте
     if(this.state!=='TRACKING'){
       if(!this.f_ema) this.f_ema=bestF;
       const searchGain=Math.min(0.6, 0.08 + 0.52*Math.min(1,peak/1.2));
@@ -349,53 +417,44 @@ class FrequencyScanner{
       this.vco=this.f_ema;
     }
 
-    // φ-ошибка (с dead-zone)
     let ephi = this._wrap(cur.ph - this.phi);
     if(Math.abs(ephi) < this.phase_dead) ephi = 0;
 
-    // Калман по фазе
     this.kf.predict(this.dt);
     const rMeas = 0.05 + (1 - conf)*3.0 + (1 - this.inertia)*10.0;
     this.kf.update(ephi, rMeas);
-    const u = this.kf.x; // «фазовая» управляемая ошибка
+    const u = this.kf.x;
 
-    // ==== Homeostasis: обновление метрик, шаг PI и вычисление усилений ====
-    // Шустрость стремления: наблюдаемый «желательный» сдвиг к пиковой частоте
     const df_obs = bestF - this.vco;
-    // Управляющее воздействие до ограничения (для метрики усилия)
     let u_ctrl = this.kp*u + this.kv*this.kf.v + this.u_int;
 
-    this.tuner.updateMetrics({ phi:ephi, df:df_obs, u:u_ctrl, conf, inertia:this.inertia });
-    const { J, aggr } = this.tuner.step(); // J→0, получаем новую агрессивность
-    const g = this.tuner.gains(this.fs, conf); // и коэффициенты из aggr+fs+conf
-    this.kp=g.kp; this.kv=g.kv; this.ki=g.ki; const slew=g.slew;
+    // ===== Нейро-гомеостаз: берём свежие коэффициенты =====
+    const neu = this.tuner.step({
+      phi:ephi, df:df_obs, u:u_ctrl, conf, inertia:this.inertia, fs:this.fs, peak
+    });
 
-    // интегратор по фазе (дрейф), с анти-windup
-    this.u_int += this.ki * ephi * this.dt;
+    // интегратор по фазе (anti-windup)
+    this.u_int += neu.ki * ephi * this.dt;
     const uMax=this.u_int_max * (0.8 + 1.2*conf);
     this.u_int=Math.max(-uMax, Math.min(uMax, this.u_int));
 
-    // обновлённое воздействие + ограничение скорости
-    u_ctrl = this.kp*u + this.kv*this.kf.v + this.u_int;
+    u_ctrl = neu.kp*u + neu.kv*this.kf.v + this.u_int;
 
     const now=performance.now();
     const dtMs=Math.max(1, now - this.lastUpdateMs);
     this.lastUpdateMs = now;
-    const maxStep = slew * (dtMs/1000);
+    const maxStep = neu.slew * (dtMs/1000);
 
     const df_applied = Math.max(-maxStep, Math.min(maxStep, u_ctrl));
     if(df_applied !== u_ctrl) this.u_int *= 0.95; // анти-windup
     this.lastDfApplied = df_applied;
 
-    // шаг частоты и фазы
     this.vco = Math.max(0, Math.min(this.fmax, this.vco + df_applied));
     this.phi = this._wrap(this.phi + 2*Math.PI*this.vco*this.dt);
 
-    // выходы
-    this.out_f=this.vco; this.out_conf=conf; this.out_inertia=this.inertia; this.out_state=this.state;
+    this.kp=neu.kp; this.kv=neu.kv; this.ki=neu.ki; this.slew=neu.slew;
 
-    // (опционально можно логировать J/aggr, но не засоряем консоль)
-    // if ((Math.random()<0.02)) console.log(`J=${J.toFixed(4)} aggr=${aggr.toFixed(2)} kp=${this.kp.toFixed(4)} kv=${this.kv.toFixed(5)} ki=${this.ki.toFixed(5)} slew=${slew.toFixed(0)}`);
+    this.out_f=this.vco; this.out_conf=conf; this.out_inertia=this.inertia; this.out_state=this.state;
   }
 }
 
@@ -408,13 +467,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Мягкая фоновая активность (CPU worker)
   let worker=null;
   try{
-    const code=`let it=900,tick=12;
-onmessage=e=>{it=e.data.it||it;tick=e.data.dt||tick;};
-function step(){let x=1.0001;for(let i=0;i<it;i++){x*=1.00000001;x/=1.000000009;} setTimeout(()=>postMessage(1),tick);}
-setInterval(step,12);`;
+    const code=`let it=900,tick=12;\nonmessage=e=>{it=e.data.it||it;tick=e.data.dt||tick;};\nfunction step(){let x=1.0001;for(let i=0;i<it;i++){x*=1.00000001;x/=1.000000009;} setTimeout(()=>postMessage(1),tick);}\nsetInterval(step,12);`;
     worker=new Worker(URL.createObjectURL(new Blob([code],{type:'application/javascript'})));
     worker.onmessage=()=>{};
-  }catch(_){}
+  }catch(_){/* без воркера — немного эмулируем нагрузку в основном потоке */}
 
   const $=id=>document.getElementById(id);
   const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
@@ -426,7 +482,6 @@ setInterval(step,12);`;
     setT('inertiaValue', (out.inertia*100).toFixed(0)); setW('inertiaBar', out.inertia*100);
     setT('confValue', out.conf.toFixed(2)); setW('confBar', out.conf*100);
 
-    const nowStr=new Date().toLocaleTimeString('ru-RU');
     setT('info',
       `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${out.conf.toFixed(2)} | `+
@@ -455,7 +510,6 @@ setInterval(step,12);`;
 
       scan.processOnce();
 
-      // авто-нагрузка по выраженности пика
       const peak=scan.out_peak||0;
       if(worker){
         const base=700;
@@ -464,7 +518,7 @@ setInterval(step,12);`;
       }
 
       if(s.actual_fs < 45) setT('statusText','Низкая частота сэмплирования (<45 Гц). Добавьте лёгкой активности.');
-      else setT('statusText','Анализируется… (homeostasis J→0)');
+      else setT('statusText','Анализируется… (neuro-homeostasis J→0)');
 
       render(blender.blend({ f:scan.out_f, conf:scan.out_conf, inertia:scan.out_inertia, state:scan.out_state }));
       setTimeout(loop, 160);
