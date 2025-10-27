@@ -182,6 +182,9 @@
     </button>
     <button onclick="multiUserChat.testTelegramSending()" style="margin-left: 5px; padding: 5px 10px; background: #FF9800; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
       🧪 Тест отправки
+    </button>
+    <button onclick="multiUserChat.showTelegramDiagnostics()" style="margin-left: 5px; padding: 5px 10px; background: #9C27B0; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+      🔍 Диагностика Telegram
     </button><br>
     <details style="margin-top: 5px;">
       <summary style="cursor: pointer; color: #1976d2;">🔧 Настройка собственного бота и канала</summary>
@@ -252,10 +255,26 @@
         &nbsp;&nbsp;&nbsp;• Перейдите по ссылке: https://api.telegram.org/botВАШ_ТОКЕН/getUpdates<br>
         &nbsp;&nbsp;&nbsp;• Найдите "chat":{"id":-числовой_id} и используйте это число<br><br>
         
-        <strong>⚡ Быстрый способ получить chat_id:</strong><br>
-        1. Добавьте бота @userinfobot в свою группу/канал<br>
-        2. Он автоматически покажет chat_id<br>
-        3. Удалите @userinfobot после получения ID<br><br>
+        <strong>🔍 ЕСЛИ НЕ ПОДКЛЮЧАЕТСЯ - ПРОВЕРЬТЕ:</strong><br><br>
+        
+        <strong style="color: #d32f2f;">❌ Проблема: "Не подключается к Telegram"</strong><br>
+        <strong>Решение:</strong><br>
+        1. Нажмите кнопку "🔍 Диагностика Telegram" выше<br>
+        2. Откройте консоль браузера (F12) и посмотрите ошибки<br>
+        3. Проверьте что бот @Inputlagthebot отвечает на /start<br><br>
+        
+        <strong style="color: #d32f2f;">❌ Проблема: "Бот не может отправлять в канал"</strong><br>
+        <strong>Решение:</strong><br>
+        1. Откройте <a href="https://t.me/noninput" target="_blank">t.me/noninput</a><br>
+        2. Нажмите на название канала → "Управление каналом"<br>
+        3. Перейдите в "Администраторы"<br>
+        4. Добавьте @Inputlagthebot с правами отправки сообщений<br><br>
+        
+        <strong style="color: #d32f2f;">❌ Проблема: "Канал не найден"</strong><br>
+        <strong>Решение:</strong><br>
+        1. Убедитесь что канал @noninput существует<br>
+        2. Канал должен быть публичным (не приватным)<br>
+        3. Попробуйте создать новый канал и обновить chatId в коде<br><br>
         
         <small style="color: #4CAF50;">✅ <strong>Настроено:</strong> Бот @Inputlagthebot → Канал t.me/noninput</small>
       </div>
@@ -383,6 +402,8 @@ class MultiUserChatSystem {
         proxyUrls: this.proxyUrls.length + ' прокси доступно'
       });
       
+      this.updateConnectionStatus('проверка бота...');
+      
       // Проверяем подключение к боту
       const botInfo = await this.sendTelegramRequest('getMe');
       
@@ -390,33 +411,70 @@ class MultiUserChatSystem {
         console.log('✅ Telegram бот подключен:', botInfo.result.username);
         console.log('📢 Канал для чата:', this.telegramConfig.chatId);
         console.log('🔗 Проверьте, что бот добавлен как админ в канал:', 'https://t.me/noninput');
-        this.updateConnectionStatus('подключен (Telegram)');
+        
+        this.updateConnectionStatus('проверка канала...');
         
         // Проверяем доступ к каналу
-        await this.testChannelAccess();
+        const channelTest = await this.testChannelAccess();
         
-        // Загружаем последние сообщения
-        this.loadTelegramMessages();
-        
-        // Запускаем периодическую проверку новых сообщений
-        this.startTelegramPolling();
-        
-        // Отправляем приветственное сообщение
-        this.sendWelcomeMessage();
+        if (channelTest) {
+          this.updateConnectionStatus('подключен (Telegram)');
+          
+          // Загружаем последние сообщения
+          this.loadTelegramMessages();
+          
+          // Запускаем периодическую проверку новых сообщений
+          this.startTelegramPolling();
+          
+          // Отправляем приветственное сообщение
+          this.sendWelcomeMessage();
+        } else {
+          console.warn('⚠️ Проблемы с доступом к каналу');
+          this.updateConnectionStatus('нет доступа к каналу');
+          
+          // Показываем подсказку через 3 секунды
+          setTimeout(() => {
+            console.log('💡 Нажмите "🔍 Диагностика Telegram" для решения проблем');
+          }, 3000);
+        }
         
       } else {
         console.error('❌ Ошибка подключения к боту:', botInfo);
+        this.updateConnectionStatus('ошибка подключения к боту');
+        
+        // Показываем детали ошибки
+        if (botInfo?.error_code === 401) {
+          console.error('🔑 Неверный токен бота');
+          this.updateConnectionStatus('неверный токен');
+        } else if (botInfo?.error_code === 404) {
+          console.error('🚫 Бот не найден');
+          this.updateConnectionStatus('бот не найден');
+        }
+        
         throw new Error('Не удалось подключиться к Telegram боту: ' + (botInfo?.description || 'неизвестная ошибка'));
       }
       
     } catch (error) {
       console.error('🚨 Критическая ошибка Telegram подключения:', error);
-      console.log('🔧 Возможные причины:');
-      console.log('1. CORS блокировка - все прокси недоступны');
-      console.log('2. Неверный токен бота');
-      console.log('3. Бот заблокирован или удален');
-      console.log('4. Проблемы с интернет-соединением');
-      console.log('5. Бот не добавлен как админ в канал @noninput');
+      console.log('🔧 Причины и решения:');
+      
+      if (error.message.includes('Failed to fetch')) {
+        console.log('🌐 Сетевая ошибка - все прокси недоступны');
+        console.log('💡 Решение: Проверьте интернет или попробуйте позже');
+        this.updateConnectionStatus('сетевая ошибка');
+      } else if (error.message.includes('401')) {
+        console.log('🔑 Неверный токен бота');
+        console.log('💡 Решение: Проверьте токен в @BotFather');
+        this.updateConnectionStatus('неверный токен');
+      } else if (error.message.includes('404')) {
+        console.log('🚫 Бот или канал не найден');
+        console.log('💡 Решение: Проверьте существование @Inputlagthebot и @noninput');
+        this.updateConnectionStatus('не найден');
+      } else {
+        console.log('❓ Неизвестная ошибка');
+        console.log('💡 Решение: Нажмите "🔍 Диагностика Telegram"');
+        this.updateConnectionStatus('неизвестная ошибка');
+      }
       
       this.fallbackToLocal();
     }
@@ -432,15 +490,25 @@ class MultiUserChatSystem {
       
       if (testMessage && testMessage.ok) {
         console.log('✅ Доступ к каналу работает');
+        return true;
       } else {
         console.warn('⚠️ Проблема с доступом к каналу:', testMessage);
         console.log('💡 Убедитесь, что:');
-        console.log('- Канал @noninput существует');
+        console.log('- Канал @noninput существует и публичный');
         console.log('- Бот @Inputlagthebot добавлен как администратор');
         console.log('- У бота есть права на отправку сообщений');
+        
+        if (testMessage?.error_code === 403) {
+          console.error('🚫 Бот не имеет прав на отправку в канал');
+        } else if (testMessage?.error_code === 400) {
+          console.error('📝 Канал не найден или неверный chat_id');
+        }
+        
+        return false;
       }
     } catch (error) {
       console.warn('⚠️ Не удалось протестировать канал:', error);
+      return false;
     }
   }
 
@@ -1020,6 +1088,133 @@ ${text}
   simulateUserActivity() {
     localStorage.setItem('chatLastActivity', Date.now().toString());
     this.showActiveUsers();
+  }
+
+  showTelegramDiagnostics() {
+    const diagnostics = `
+🔍 ДИАГНОСТИКА TELEGRAM НАСТРОЕК
+
+📋 ТЕКУЩАЯ КОНФИГУРАЦИЯ:
+• Токен бота: ${this.telegramConfig.botToken.substring(0, 20)}...
+• ID канала: ${this.telegramConfig.chatId}
+• Статус соединения: ${this.connectionState.isConnected ? '✅ Подключен' : '❌ Отключен'}
+• Неудачных попыток: ${this.connectionState.consecutiveFailures}
+• Активный прокси: ${this.proxyUrls[this.currentProxyIndex] || 'прямое подключение'}
+
+🔧 ПОШАГОВАЯ ПРОВЕРКА НАСТРОЕК:
+
+1️⃣ ПРОВЕРКА БОТА @Inputlagthebot:
+   • Откройте https://t.me/Inputlagthebot
+   • Нажмите "Запустить" или отправьте /start
+   • Бот должен ответить
+   ❌ Если не отвечает → бот заблокирован или удален
+
+2️⃣ ПРОВЕРКА КАНАЛА @noninput:
+   • Откройте https://t.me/noninput
+   • Канал должен быть доступен и публичный
+   ❌ Если "канал не найден" → неверное имя или канал приватный
+
+3️⃣ ПРОВЕРКА ПРАВ БОТА В КАНАЛЕ:
+   • Зайдите в канал https://t.me/noninput
+   • Нажмите на название канала вверху
+   • Выберите "Управление каналом"
+   • Перейдите в "Администраторы"
+   • Найдите @Inputlagthebot в списке
+   ❌ Если бота нет → добавьте его как администратора
+
+4️⃣ НАСТРОЙКА ПРАВ БОТА:
+   • В списке администраторов нажмите на @Inputlagthebot
+   • Убедитесь что включены права:
+     ✅ Отправка сообщений
+     ✅ Редактирование сообщений канала
+     ✅ Удаление сообщений
+   ❌ Если прав нет → включите их
+
+5️⃣ ПРОВЕРКА ТОКЕНА БОТА:
+   • Откройте https://t.me/BotFather
+   • Отправьте /mybots
+   • Найдите Inputlagthebot
+   • Нажмите "API Token"
+   • Сравните с: ${this.telegramConfig.botToken}
+   ❌ Если не совпадает → обновите токен в коде
+
+💡 БЫСТРЫЕ ТЕСТЫ:
+• Нажмите "🧪 Тест отправки" выше
+• Проверьте консоль браузера (F12) на ошибки
+• Попробуйте написать в канал напрямую через Telegram
+
+🌐 ПРОВЕРКА СЕТИ:
+• Попробуйте открыть: https://api.telegram.org/bot${this.telegramConfig.botToken}/getMe
+• Должен показать информацию о боте
+❌ Если ошибка → проблемы с интернетом или токеном
+`;
+
+    // Создаем модальное окно с диагностикой
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
+      justify-content: center; align-items: center; padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white; border-radius: 10px; padding: 20px; 
+      max-width: 600px; max-height: 80vh; overflow-y: auto;
+      font-family: monospace; font-size: 12px; line-height: 1.4;
+    `;
+    
+    content.innerHTML = `
+      <pre style="white-space: pre-wrap; margin: 0;">${diagnostics}</pre>
+      <button onclick="this.closest('[style*=fixed]').remove()" 
+              style="margin-top: 15px; padding: 10px 20px; background: #f44336; 
+                     color: white; border: none; border-radius: 5px; cursor: pointer;">
+        Закрыть
+      </button>
+      <button onclick="multiUserChat.runQuickTests(); this.closest('[style*=fixed]').remove();" 
+              style="margin-left: 10px; padding: 10px 20px; background: #4CAF50; 
+                     color: white; border: none; border-radius: 5px; cursor: pointer;">
+        🚀 Запустить быстрые тесты
+      </button>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+  }
+
+  async runQuickTests() {
+    console.log('🚀 Запуск быстрых тестов Telegram...');
+    
+    // Тест 1: Проверка бота
+    console.log('1️⃣ Тест подключения к боту...');
+    const botTest = await this.sendTelegramRequest('getMe');
+    if (botTest && botTest.ok) {
+      console.log('✅ Бот отвечает:', botTest.result.username);
+    } else {
+      console.error('❌ Бот не отвечает:', botTest);
+    }
+    
+    // Тест 2: Проверка отправки в канал
+    console.log('2️⃣ Тест отправки в канал...');
+    const messageTest = await this.sendMessageToTelegram('🧪 Автотест - ' + new Date().toLocaleTimeString(), 'Система');
+    if (messageTest) {
+      console.log('✅ Отправка в канал работает');
+    } else {
+      console.error('❌ Отправка в канал не работает');
+    }
+    
+    // Тест 3: Проверка получения сообщений
+    console.log('3️⃣ Тест получения сообщений...');
+    await this.loadTelegramMessages();
+    
+    // Показываем результаты
+    setTimeout(() => {
+      alert(`🧪 Быстрые тесты завершены!
+      
+✅ Проверьте консоль (F12) для подробных результатов
+📱 Проверьте канал t.me/noninput на наличие тестового сообщения
+🔄 Если тесты не прошли - проверьте настройки выше`);
+    }, 2000);
   }
 
   async testTelegramSending() {
