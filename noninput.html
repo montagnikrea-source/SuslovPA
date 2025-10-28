@@ -3041,7 +3041,7 @@ class MultiUserChatSystem {
         });
         
         this.messages.sort((a, b) => a.timestamp - b.timestamp);
-        this.messages = this.messages.slice(-50); // Последние 50 сообщений
+        // Не обрезаем - сохраняем все!
         
         // Сохраняем в localStorage
         this.saveMessagesToStorage();
@@ -3214,7 +3214,7 @@ class MultiUserChatSystem {
           console.log(`✨ Добавлено ${newMessagesCount} новых сообщений`);
           
           this.messages.sort((a, b) => a.timestamp - b.timestamp);
-          this.messages = this.messages.slice(-50);
+          // Не обрезаем - сохраняем все!
           
           // Сохраняем в localStorage
           this.saveMessagesToStorage();
