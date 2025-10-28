@@ -2953,23 +2953,6 @@ class MultiUserChatSystem {
     // Никогда не возвращаем реальный токен на клиента
     return null;
   }
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.token;
-      } else {
-        console.warn('⚠️ Не удалось получить токен с сервера, используем локальный режим');
-        return null;
-      }
-    } catch (error) {
-      console.warn('⚠️ Ошибка получения токена:', error.message);
-      return null;
-    }
-  }
 
   async initTelegramConnection() {
     try {
