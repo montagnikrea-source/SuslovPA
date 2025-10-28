@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="ru" style="background-color:#f3f5f7!important;color:#1a1a1a!important">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+  <meta name="theme-color" content="#0a7cff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <meta http-equiv="cache-control" content="no-cache,no-store,must-revalidate">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  
+  <!-- Security Headers for Mobile -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self' 'unsafe-inline' 'unsafe-eval';
+    connect-src 'self' 
+      https://pavell.vercel.app
+      https://api.telegram.org 
+      https://api.countapi.xyz 
+      https://api.counterapi.dev 
+      https://counter-api.dev 
+      https://api.allorigins.win 
+      https://cors.bridged.cc 
+      https://yacdn.org 
+      https://api.ipify.org 
+      https://ipapi.co 
+      https://ipinfo.io 
+      https://freegeoip.app 
+      https://api.db-ip.com
+      https://httpbin.org 
+      https://api.github.com 
+      https://jsonplaceholder.typicode.com
+      https://www.google.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:
+      https://pagead2.googlesyndication.com 
+      https://www.gstatic.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self' https:;
+    frame-src 'self' https:;
+    worker-src 'self' blob:;
+  ">
+  
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+  
+  <title>Frequency Scanner — Mobile</title>
+  
+  <!-- Theme Script -->
+  <script>
+    (function() {
+      const saved = localStorage.getItem('theme-preference');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const hour = new Date().getHours();
+      
+      let theme = 'light';
+      if (saved) {
+        theme = saved;
+      } else if (prefersDark || hour >= 21 || hour < 6 || (hour >= 18 && hour < 21)) {
+        theme = 'dark';
+      }
+      
+      document.documentElement.setAttribute('data-theme', theme);
+      if (theme === 'dark') {
+        document.documentElement.style.backgroundColor = '#0d1117';
+        document.documentElement.style.color = '#e6edf3';
+      } else {
+        document.documentElement.style.backgroundColor = '#f3f5f7';
+        document.documentElement.style.color = '#1a1a1a';
+      }
+    })();
+  </script>
+  
+  <style>
+    /* ===== CSS Variables - Light Theme ===== */
+    :root {
+      --bg: #f3f5f7;
+      --bg-secondary: #e8ebef;
+      --panel: #ffffff;
+      --panel-hover: #f8f9fa;
+      --text: #1a1a1a;
+      --text-secondary: #666666;
+      --text-muted: #999999;
+      --border: #e0e0e0;
+      --shadow: rgba(0, 0, 0, 0.07);
+      --primary: #0a7cff;
+      --primary-light: #69b7ff;
+      --success: #18b56c;
+      --warning: #ff9800;
+      --info: #007bff;
+      --danger: #dc3545;
+      --transition: all 0.3s ease;
+    }
+    
+    /* ===== Dark Theme ===== */
+    html[data-theme="dark"] {
+      --bg: #0d1117;
+      --bg-secondary: #161b22;
+      --panel: #1a1f26;
+      --panel-hover: #21262d;
+      --text: #e6edf3;
+      --text-secondary: #a0a8b8;
+      --text-muted: #8b949e;
+      --border: #30363d;
+      --shadow: rgba(0, 0, 0, 0.3);
+      --primary: #58a6ff;
+      --primary-light: #79c0ff;
+      --success: #3fb950;
+      --warning: #ffa657;
+      --info: #58a6ff;
+      --danger: #f85149;
+    }
+    
+    /* ===== Base Styles ===== */
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+    }
+    
+    /* ===== Scrollbar ===== */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    
+    /* ===== Safe Area ===== */
+    body {
+      padding: env(safe-area-inset-bottom, 0);
+    }
+    
+    /* ===== Header ===== */
+    .mobile-header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: env(safe-area-inset-top, 0) 12px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 50px;
+    }
+    
+    .mobile-header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .header-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .theme-toggle-mobile {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: var(--transition);
+      color: var(--text);
+    }
+    
+    .theme-toggle-mobile:active {
+      background: var(--panel-hover);
+      border-color: var(--primary);
+    }
+    
+    /* ===== Main Container ===== */
+    .mobile-container {
+      max-width: 100%;
+      margin: 0;
+      padding: 12px;
+      padding-bottom: env(safe-area-inset-bottom, 12px);
+    }
+    
+    /* ===== Card Layout ===== */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+    
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin: 0 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .card-content {
+      display: grid;
+      gap: 8px;
+    }
+    
+    /* ===== Progress Bars ===== */
+    .progress-item {
+      display: grid;
+      gap: 4px;
+    }
+    
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .progress-bar {
+      height: 16px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 60%, var(--primary-light));
+      width: 0%;
+      transition: width 0.25s ease-out;
+    }
+    
+    .progress-fill.success {
+      background: linear-gradient(90deg, var(--success) 60%, #56d364);
+    }
+    
+    .progress-fill.warning {
+      background: linear-gradient(90deg, var(--warning) 60%, var(--warning-light));
+    }
+    
+    /* ===== Sliders ===== */
+    .slider-item {
+      display: grid;
+      gap: 6px;
+    }
+    
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    
+    .slider-value {
+      font-weight: 600;
+      color: var(--primary);
+      font-family: ui-monospace, monospace;
+      min-width: 50px;
+      text-align: right;
+    }
+    
+    input[type="range"] {
+      width: 100%;
+      height: 24px;
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .slider-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+    
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+    
+    /* ===== Chat Section ===== */
+    .chat-section {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 0;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      transition: height 0.3s ease;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    
+    .chat-section.open {
+      height: 50vh;
+    }
+    
+    .chat-header-mobile {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 44px;
+      background: var(--panel);
+      position: sticky;
+      top: 0;
+    }
+    
+    .chat-header-mobile h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+    
+    .chat-toggle-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .chat-toggle-btn:active {
+      opacity: 0.8;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .message {
+      padding: 8px;
+      border-radius: 8px;
+      max-width: 90%;
+      word-wrap: break-word;
+      font-size: 14px;
+    }
+    
+    .message.user {
+      background: var(--primary);
+      color: white;
+      align-self: flex-end;
+      border-radius: 12px 4px 12px 12px;
+    }
+    
+    .message.other {
+      background: var(--bg-secondary);
+      color: var(--text);
+      align-self: flex-start;
+      border: 1px solid var(--border);
+      border-radius: 4px 12px 12px 12px;
+    }
+    
+    .message.system {
+      background: var(--border);
+      color: var(--text-secondary);
+      align-self: center;
+      font-size: 12px;
+      font-style: italic;
+      padding: 4px 8px;
+    }
+    
+    .message-meta {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+    
+    .chat-input-area {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+    
+    .chat-input-area input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--panel);
+      color: var(--text);
+    }
+    
+    .chat-input-area input::placeholder {
+      color: var(--text-muted);
+    }
+    
+    .chat-input-area button {
+      padding: 8px 12px;
+      background: var(--info);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    
+    .chat-input-area button:active {
+      opacity: 0.8;
+    }
+    
+    /* ===== Chat Toggle Button (Bottom) ===== */
+    .chat-fab {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      bottom: calc(env(safe-area-inset-bottom, 0) + 12px);
+      width: 56px;
+      height: 56px;
+      background: var(--info);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 150;
+      transition: var(--transition);
+    }
+    
+    .chat-fab:active {
+      transform: scale(0.95);
+    }
+    
+    .chat-fab.open {
+      background: var(--danger);
+    }
+    
+    /* ===== Stats Widget ===== */
+    .stats-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 12px;
+    }
+    
+    .stat-item {
+      background: var(--bg);
+      padding: 8px;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    
+    /* ===== Buttons ===== */
+    .btn {
+      padding: 10px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      display: block;
+      width: 100%;
+      text-align: center;
+      margin-top: 8px;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:active {
+      opacity: 0.8;
+    }
+    
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:active {
+      background: var(--bg-secondary);
+    }
+    
+    /* ===== Hint ===== */
+    .hint {
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    
+    /* ===== Footer Navigation ===== */
+    .mobile-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    
+    .mobile-nav a {
+      flex: 1;
+      min-width: 80px;
+      padding: 8px;
+      text-align: center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--info);
+      text-decoration: none;
+      font-size: 12px;
+      transition: var(--transition);
+    }
+    
+    .mobile-nav a:active {
+      background: var(--info);
+      color: white;
+    }
+    
+    /* ===== Skip Mobile Redirect ===== */
+    .desktop-link {
+      text-align: center;
+      padding: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .desktop-link a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="mobile-header">
+  <h1>📊 Scanner</h1>
+  <div class="header-controls">
+    <button class="theme-toggle-mobile" id="themeToggleMobile" title="Переключить тему">
+      <span id="themeIconMobile">🌙</span>
+    </button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="mobile-container">
+  <!-- Status Card -->
+  <div class="card">
+    <div class="card-title">Статус</div>
+    <div class="stats-box">
+      <div class="stat-item">
+        <div class="stat-value" id="freqValueMobile">0</div>
+        <div class="stat-label">Частота (Гц)</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="inertiaValueMobile">0%</div>
+        <div class="stat-label">Стабильность</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="confValueMobile">0%</div>
+        <div class="stat-label">Уверенность</div>
+      </div>
+      <div class="stat-item" id="globalCounterMobile">
+        <div class="stat-value">-</div>
+        <div class="stat-label">Онлайн</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Progress Card -->
+  <div class="card">
+    <div class="card-title">Прогресс</div>
+    <div class="card-content">
+      <div class="progress-item">
+        <div class="progress-label">
+          <span>Частота</span>
+          <span id="freqPercentMobile">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div id="freqBarMobile" class="progress-fill"></div>
+        </div>
+      </div>
+      
+      <div class="progress-item">
+        <div class="progress-label">
+          <span>Стабильность</span>
+          <span id="inertiaPercentMobile">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div id="inertiaBarMobile" class="progress-fill success"></div>
+        </div>
+      </div>
+      
+      <div class="progress-item">
+        <div class="progress-label">
+          <span>Уверенность</span>
+          <span id="confPercentMobile">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div id="confBarMobile" class="progress-fill warning"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Learning Parameters Card -->
+  <div class="card">
+    <div class="card-title">Параметры обучения</div>
+    <div class="card-content">
+      <div class="slider-item">
+        <div class="slider-label">
+          <span>Learning Rate (lr)</span>
+          <span class="slider-value" id="lrValMobile">0.030</span>
+        </div>
+        <input type="range" id="lrSliderMobile" min="0.001" max="0.2" step="0.001" value="0.030">
+        <label class="slider-checkbox">
+          <input type="checkbox" id="lrAutoMobile" checked>
+          <span>Авто</span>
+        </label>
+      </div>
+      
+      <div class="slider-item">
+        <div class="slider-label">
+          <span>L2-регуляризация (l2)</span>
+          <span class="slider-value" id="l2ValMobile">0.0001</span>
+        </div>
+        <input type="range" id="l2SliderMobile" min="0.0" max="0.01" step="0.0001" value="0.0001">
+        <label class="slider-checkbox">
+          <input type="checkbox" id="l2AutoMobile" checked>
+          <span>Авто</span>
+        </label>
+      </div>
+      
+      <div class="slider-item">
+        <div class="slider-label">
+          <span>Смешивание NN/PI (mix)</span>
+          <span class="slider-value" id="mixValMobile">0.75</span>
+        </div>
+        <input type="range" id="mixSliderMobile" min="0.0" max="1.0" step="0.01" value="0.75">
+        <label class="slider-checkbox">
+          <input type="checkbox" id="mixAutoMobile" checked>
+          <span>Авто</span>
+        </label>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Info Card -->
+  <div class="card">
+    <div class="card-title">Информация</div>
+    <div id="infoMobile" style="font-size: 13px; line-height: 1.6; color: var(--text-secondary); font-family: ui-monospace, monospace; white-space: pre-wrap;"></div>
+    <div class="hint">
+      Цель: J→0. Автоматическое управление параметрами нейросети для минимизации целевой функции.
+    </div>
+  </div>
+  
+  <!-- Navigation -->
+  <div class="mobile-nav">
+    <a href="../">🏠 Главная</a>
+    <a href="../about.html">📖 О нас</a>
+    <a href="../contact.html">📧 Контакты</a>
+    <a href="../privacy-policy.html">🔒 Privacy</a>
+  </div>
+  
+  <!-- Desktop Link -->
+  <div class="desktop-link">
+    <a href="noninput.html?skip=mobile">💻 Полная версия</a>
+  </div>
+  
+  <!-- Spacer for Chat FAB -->
+  <div style="height: 80px;"></div>
+</div>
+
+<!-- Chat Section -->
+<div class="chat-section" id="chatSection">
+  <div class="chat-header-mobile">
+    <h2>💬 Чат</h2>
+    <button class="chat-toggle-btn" id="closeChatBtn">Закрыть</button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="message system">Добро пожаловать в чат!</div>
+  </div>
+  <div class="chat-input-area">
+    <input type="text" id="messageInputMobile" placeholder="Сообщение..." maxlength="200">
+    <button id="sendButtonMobile">Отправить</button>
+  </div>
+</div>
+
+<!-- Chat FAB Button -->
+<button class="chat-fab" id="chatFab" title="Открыть чат">💬</button>
+
+<!-- AdSense -->
+<meta name="google-adsense-account" content="ca-pub-1128500581050725">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1128500581050725" crossorigin="anonymous"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+'use strict';
+
+// Theme Management
+function initThemeMobile() {
+  function getPreferredTheme() {
+    const saved = localStorage.getItem('theme-preference');
+    if (saved) return saved;
+    
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    
+    const hour = new Date().getHours();
+    if (hour >= 21 || hour < 6 || (hour >= 18 && hour < 21)) {
+      return 'dark';
+    }
+    return 'light';
+  }
+  
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const icon = document.getElementById('themeIconMobile');
+    if (icon) {
+      icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+    localStorage.setItem('theme-preference', theme);
+  }
+  
+  const preferredTheme = getPreferredTheme();
+  applyTheme(preferredTheme);
+  
+  const themeToggle = document.getElementById('themeToggleMobile');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+    });
+  }
+}
+
+// Chat Management
+function initChatMobile() {
+  const chatSection = document.getElementById('chatSection');
+  const chatFab = document.getElementById('chatFab');
+  const closeBtn = document.getElementById('closeChatBtn');
+  const messageInput = document.getElementById('messageInputMobile');
+  const sendBtn = document.getElementById('sendButtonMobile');
+  const messagesDiv = document.getElementById('chatMessages');
+  
+  // Toggle chat
+  function toggleChat() {
+    chatSection.classList.toggle('open');
+    chatFab.classList.toggle('open');
+  }
+  
+  chatFab.addEventListener('click', toggleChat);
+  closeBtn.addEventListener('click', toggleChat);
+  
+  // Send message
+  function sendMessage() {
+    const text = messageInput.value.trim();
+    if (!text) return;
+    
+    // Add message to chat
+    const msg = document.createElement('div');
+    msg.className = 'message user';
+    msg.textContent = text;
+    messagesDiv.appendChild(msg);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    
+    messageInput.value = '';
+    
+    // Simulate response
+    setTimeout(() => {
+      const response = document.createElement('div');
+      response.className = 'message other';
+      response.textContent = 'Спасибо за сообщение! 👍';
+      messagesDiv.appendChild(response);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }, 500);
+  }
+  
+  sendBtn.addEventListener('click', sendMessage);
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+}
+
+// Slider Management
+function initSlidersMobile() {
+  const sliders = [
+    { id: 'lrSlider', valId: 'lrVal', autoId: 'lrAuto' },
+    { id: 'l2Slider', valId: 'l2Val', autoId: 'l2Auto' },
+    { id: 'mixSlider', valId: 'mixVal', autoId: 'mixAuto' }
+  ];
+  
+  sliders.forEach(({ id, valId, autoId }) => {
+    const slider = document.getElementById(id + 'Mobile');
+    const valSpan = document.getElementById(valId + 'Mobile');
+    const autoCheck = document.getElementById(autoId + 'Mobile');
+    
+    if (slider) {
+      slider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        valSpan.textContent = val.toFixed(4);
+      });
+    }
+  });
+}
+
+// Demo Data Updater
+function updateDemoData() {
+  // Update frequency
+  const freq = Math.random() * 100;
+  document.getElementById('freqValueMobile').textContent = freq.toFixed(1);
+  document.getElementById('freqPercentMobile').textContent = Math.round(freq) + '%';
+  document.getElementById('freqBarMobile').style.width = freq + '%';
+  
+  // Update inertia
+  const inertia = 50 + Math.random() * 50;
+  document.getElementById('inertiaValueMobile').textContent = inertia.toFixed(0) + '%';
+  document.getElementById('inertiaPercentMobile').textContent = Math.round(inertia) + '%';
+  document.getElementById('inertiaBarMobile').style.width = inertia + '%';
+  
+  // Update confidence
+  const conf = 30 + Math.random() * 70;
+  document.getElementById('confValueMobile').textContent = conf.toFixed(0) + '%';
+  document.getElementById('confPercentMobile').textContent = Math.round(conf) + '%';
+  document.getElementById('confBarMobile').style.width = conf + '%';
+  
+  // Update info
+  const info = document.getElementById('infoMobile');
+  info.textContent = `Статус: Анализ\nДлительность: ${(Math.random() * 100).toFixed(1)}сек\nСигнал/Шум: ${(Math.random() * 20).toFixed(2)}dB`;
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+  initThemeMobile();
+  initChatMobile();
+  initSlidersMobile();
+  updateDemoData();
+  
+  // Update demo data every 2 seconds
+  setInterval(updateDemoData, 2000);
+});
+
+// Prevent zoom on iOS
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 1) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Security Manager (same as desktop)
+window.SecurityManager = {
+  sanitizeHtml(str) {
+    if (typeof str !== 'string') return '';
+    const map = {
+      '&': '&amp;', '<': '&lt;', '>': '&gt;',
+      '"': '&quot;', "'": '&#39;', '/': '&#x2F;'
+    };
+    return str.replace(/[&<>"'\/]/g, char => map[char]);
+  },
+  validateMessage(msg) {
+    if (typeof msg !== 'string') return false;
+    if (msg.length < 1 || msg.length > 2000) return false;
+    if (/script|javascript:|onerror|onload|eval/i.test(msg)) return false;
+    return true;
+  }
+};
+
+// Prevent console.log spam
+console.log('%c✅ Mobile Frequency Scanner загружена', 'color: green; font-size: 14px; font-weight: bold;');
+</script>
+
+</body>
+</html>
