@@ -757,102 +757,39 @@ class MultiUserChatSystem {
   // Улучшенный коннект с приоритетом «реальные счётчики» → «пинги» → «симуляция»
   // Вариант v1: простой приоритет реальных счётчиков → пинг → симуляция
   async connectToGlobalAPI_v1() {
+    // Используем только локальную симуляцию (CORS блокирует реальные API)
+    console.log('🎭 Подключение к глобальному счетчику (режим симуляции)');
+    
     const cfg = this.globalCounter;
-    const apis = cfg.apis;
-
-    // 1) Сначала пытаемся найти живой «counter» с HIT
-    for (let i = 0; i < apis.length; i++) {
-      const api = apis[i];
-      if (api.type !== 'counter') continue;
-      const r = await this.requestCounter(api, 'hit'); // try increment
-      if (r.ok && typeof r.value === 'number') {
-        cfg.isOnline = true;
-        cfg.currentApiIndex = i;
-        cfg.lastWorkingAPI = api;
-        cfg.lastUpdate = Date.now();
-        cfg.retryCount = 0;
-        this.updateGlobalStatsWidget(r.value, true, null, 'api');
-        // Параллельно получаем геоданные (не блокируя UI)
-        this.getVisitorInfo?.();
-        return true;
-      } else {
-        cfg.failedAPIs.add(api.name);
-      }
-    }
-
-    // 2) Нет живых счётчиков → проверяем интернет CORS-«пингами»
-    for (let i = 0; i < apis.length; i++) {
-      const api = apis[i];
-      if (api.type !== 'ping') continue;
-      const r = await this.requestCounter(api, 'ping');
-      if (r.ok) {
-        // Интернет есть, но счётчики недоступны → гибрид/симуляция
-        cfg.isOnline = true;                 // онлайн с точки зрения «связи»
-        cfg.currentApiIndex = i;
-        cfg.lastWorkingAPI = api;
-        cfg.lastUpdate = Date.now();
-        if (cfg.useHybridMode) {
-          // Поднимаем симулированный счётчик и показываем как «симуляция»
-          const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
-          this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
-          this.getVisitorInfo?.();
-          return true;
-        } else {
-          // Просто оффлайн-режим без счётчика
-          this.updateGlobalStatsWidget(0, false, null, 'демо-режим');
-          this.getVisitorInfo?.();
-          return false;
-        }
-      } else {
-        cfg.failedAPIs.add(api.name);
-      }
-    }
-
-    // 3) Совсем ничего не отвечает → жёсткая симуляция
-    cfg.isOnline = true; // считаем онлайн для UI
-    const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
+    const sim = await this.simulateGlobalCounter();
+    
+    cfg.isOnline = true;
     cfg.lastUpdate = Date.now();
+    cfg.retryCount = 0;
+    
     this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
     this.getVisitorInfo?.();
+    
     return true;
   }
 
-  // Обновление по расписанию (использует «counter» если есть; иначе — симуляция)
-  // Планировщик обновлений (v1): при живом счётчике — только GET, иначе — симуляция
+  // Обновление по расписанию (только симуляция)
   startGlobalCounterUpdates_v1() {
     const tick = async () => {
-      const cfg = this.globalCounter;
-      const api = cfg.apis[cfg.currentApiIndex];
-
       try {
-        if (api && api.type === 'counter') {
-          // регулярный GET без инкремента (отображение актуального значения)
-          const res = await this.requestCounter(api, 'get');
-          if (res.ok && typeof res.value === 'number') {
-            cfg.lastUpdate = Date.now();
-            this.updateGlobalStatsWidget(res.value, true, null, 'api');
-            return;
-          }
-        }
-        // если счётчик не активен — гибрид/симуляция
-        if (cfg.useHybridMode) {
-          const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
-          cfg.lastUpdate = Date.now();
-          this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
-        }
+        // Используем только симуляцию
+        const sim = await this.simulateGlobalCounter?.() ?? (this.globalCounter.simulatedCount += 1);
+        this.globalCounter.lastUpdate = Date.now();
+        this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
       } catch (e) {
-        // при ошибке просто продолжаем симулировать
-        if (cfg.useHybridMode) {
-          const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
-          this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
-        }
+        console.debug('Update error:', e.message);
       }
     };
 
     // первый запуск сразу
     tick();
 
-    // далее по интервалу
+    // далее по интервалу (каждые 15 секунд)
     this._globalCounterTimer && clearInterval(this._globalCounterTimer);
     this._globalCounterTimer = setInterval(tick, 15000);
   }
@@ -2047,49 +1984,20 @@ class MultiUserChatSystem {
   async updateGlobalCounter() {
     const config = this.globalCounter;
     
-    // Всегда пробуем обновить, даже если ранее были ошибки
     try {
-      // Если работаем в режиме симуляции
-      if (config.simulatedCount > 0) {
-        const updatedCount = await this.simulateGlobalCounter();
-        config.isOnline = true; // Всегда онлайн для симуляции
-        config.lastUpdate = Date.now();
-        
-        console.log(`📊 Обновлен симулированный счетчик: ${updatedCount} посещений`);
-        this.updateGlobalStatsWidget(updatedCount, true, null, 'симуляция');
-        return;
-      }
-      
-      // Пробуем обновить через реальные API
-      const apiUrl = config.apiUrls[config.currentApiIndex];
-      
-      // Получаем текущее значение счетчика без увеличения
-      const response = await this.makeAPIRequest(apiUrl, 'get');
-      
-      if (response && (response.value !== undefined || response.simulated)) {
-        config.lastUpdate = Date.now();
-        config.retryCount = 0;
-        config.isOnline = true;
-        
-        const mode = response.simulated ? 'симуляция' : 'api';
-        console.log(`📊 Обновлен глобальный счетчик (${mode}): ${response.value} посещений`);
-        this.updateGlobalStatsWidget(response.value, true, null, mode);
-        
-      } else {
-        throw new Error('Неверный ответ API');
-      }
-      
-    } catch (error) {
-      console.warn('⚠️ Ошибка обновления, переключаемся на симуляцию:', error.message);
-      config.retryCount++;
-      
-      // Вместо отключения переключаемся на симуляцию
-      const simulatedCount = await this.simulateGlobalCounter();
-      config.isOnline = true; // Остаемся онлайн
+      // Используем только симуляцию (реальные API блокируются CORS)
+      const updatedCount = await this.simulateGlobalCounter();
+      config.isOnline = true;
       config.lastUpdate = Date.now();
       
+      console.log(`📊 Обновлен счетчик: ${updatedCount} посещений`);
+      this.updateGlobalStatsWidget(updatedCount, true, null, 'симуляция');
+      
+    } catch (error) {
+      console.debug('Ошибка обновления:', error.message);
+      // Всё равно показываем симулированное значение
+      const simulatedCount = this.globalCounter.simulatedCount || 1247;
       this.updateGlobalStatsWidget(simulatedCount, true, null, 'симуляция');
-      console.log(`🎭 Переключение на симуляцию: ${simulatedCount} посещений`);
     }
   }
 
