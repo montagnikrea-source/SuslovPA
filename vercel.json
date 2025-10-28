@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "public": true,
+  "buildCommand": "npm install",
   "functions": {
     "api/**/*.js": {
       "runtime": "nodejs18.x"
@@ -9,9 +11,12 @@
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
     }
   ],
-  "buildCommand": "npm install",
   "env": {
     "TELEGRAM_BOT_TOKEN": "@TELEGRAM_BOT_TOKEN"
   }
