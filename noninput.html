@@ -728,6 +728,8 @@ this.connectToGlobalAPI_v1 = async () => {
       cfg.lastUpdate = Date.now();
       cfg.retryCount = 0;
       this.updateGlobalStatsWidget(r.value, true, null, 'api');
+      // Параллельно получаем геоданные (не блокируя UI)
+      this.getVisitorInfo?.();
       return true;
     } else {
       cfg.failedAPIs.add(api.name);
@@ -749,10 +751,12 @@ this.connectToGlobalAPI_v1 = async () => {
         // Поднимаем симулированный счётчик и показываем как «симуляция»
         const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
         this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+        this.getVisitorInfo?.();
         return true;
       } else {
         // Просто оффлайн-режим без счётчика
         this.updateGlobalStatsWidget(0, false, null, 'демо-режим');
+        this.getVisitorInfo?.();
         return false;
       }
     } else {
@@ -765,6 +769,7 @@ this.connectToGlobalAPI_v1 = async () => {
   const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
   cfg.lastUpdate = Date.now();
   this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+  this.getVisitorInfo?.();
   return true;
 };
 
@@ -1800,53 +1805,62 @@ this.connectToGlobalAPIImproved = async function() {
 
   // Получение информации о посетителе (страна, город)
   async getVisitorInfo() {
-    try {
-      console.log('🌍 Получение информации о местоположении...');
-      
-      // Используем бесплатный API для определения местоположения
-      const geoUrls = [
-        'https://ipapi.co/json/',
-        'https://ipinfo.io/json',
-        'https://freegeoip.app/json/'
-      ];
-      
-      for (const url of geoUrls) {
-        try {
-          const response = await fetch(url, { 
-            timeout: 5000,
-            headers: { 'Accept': 'application/json' }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            this.visitorInfo = {
-              country: data.country || data.country_name || 'Unknown',
-              city: data.city || 'Unknown',
-              ip: data.ip || 'Unknown',
-              timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-              isp: data.org || data.isp || 'Unknown'
-            };
-            
-            console.log('📍 Информация о посетителе:', this.visitorInfo);
-            this.updateGlobalStatsWidget(null, true, this.visitorInfo);
-            break;
-          }
-        } catch (error) {
-          console.warn(`⚠️ Geo API ${url} недоступен:`, error.message);
-        }
+    console.log('🌍 Получение информации о местоположении...');
+
+    const geoUrls = [
+      'https://ipapi.co/json/',
+      'https://ipinfo.io/json',
+      'https://freegeoip.app/json/'
+    ];
+
+    // Вспомогательный fetch с таймаутом через AbortController
+    const fetchWithTimeout = (url, ms = 6000) => {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), ms);
+      return fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } })
+        .finally(() => clearTimeout(to));
+    };
+
+    for (const url of geoUrls) {
+      try {
+        const res = await fetchWithTimeout(url, 6000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const countryCode = data.country || data.country_code || data.countryCode || null;
+        const countryName = data.country_name || data.countryName || null;
+        const tz = data.timezone || data.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const ip = data.ip || data.query || 'Unknown';
+        const isp = data.org || data.isp || data.asn || 'Unknown';
+
+        this.visitorInfo = {
+          countryCode: countryCode || undefined,
+          countryName: countryName || undefined,
+          country: countryName || countryCode || 'Unknown',
+          city: data.city || 'Unknown',
+          ip,
+          timezone: tz,
+          isp
+        };
+
+        console.log('📍 Информация о посетителе:', this.visitorInfo);
+        // Обновляем только инфоблок (счётчик придёт из другого потока)
+        this.updateGlobalStatsWidget(undefined, true, this.visitorInfo);
+        return;
+      } catch (e) {
+        console.warn(`⚠️ Geo API сбой ${url}:`, e.message || e);
       }
-      
-    } catch (error) {
-      console.warn('⚠️ Не удалось получить информацию о местоположении:', error);
-      this.visitorInfo = {
-        country: 'Unknown',
-        city: 'Unknown', 
-        ip: 'Unknown',
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        isp: 'Unknown'
-      };
     }
+
+    // Fallback, если все сервисы не ответили
+    this.visitorInfo = {
+      country: 'Unknown',
+      city: 'Unknown',
+      ip: 'Unknown',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      isp: 'Unknown'
+    };
+    this.updateGlobalStatsWidget(undefined, true, this.visitorInfo);
   }
 
   // Запуск обновления глобального счетчика
@@ -1976,10 +1990,12 @@ this.connectToGlobalAPIImproved = async function() {
     }
     
     // Определяем флаг страны
-    const countryFlag = this.getCountryFlag(info.country);
+  const countryFlag = this.getCountryFlag(info.countryCode || info.country);
     
     // Форматируем число посещений
-    const formattedCount = globalCount ? globalCount.toLocaleString() : '---';
+    const formattedCount = (globalCount !== null && globalCount !== undefined)
+      ? Number(globalCount).toLocaleString()
+      : '---';
     
     widget.innerHTML = `
       <div style="display: flex; align-items: center; margin-bottom: 5px;">
@@ -1995,7 +2011,7 @@ this.connectToGlobalAPIImproved = async function() {
       
       ${info.country && info.country !== 'Unknown' ? `
         <div class="world-map-mini">
-          ${countryFlag} ${info.city}, ${info.country}
+          ${countryFlag} ${info.city || 'Определяется...'}, ${info.countryName || info.country || 'Определяется...'}
         </div>
       ` : `
         <div class="world-map-mini">
