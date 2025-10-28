@@ -538,6 +538,7 @@
 class MultiUserChatSystem {
   constructor() {
     this.messages = [];
+    this.loadMessagesFromStorage(); // Загружаем сохраненные сообщения
     this.badWords = this.initBadWordsFilter();
     this.username = '';
     this.userId = this.generateUserId();
@@ -3042,6 +3043,9 @@ class MultiUserChatSystem {
         this.messages.sort((a, b) => a.timestamp - b.timestamp);
         this.messages = this.messages.slice(-50); // Последние 50 сообщений
         
+        // Сохраняем в localStorage
+        this.saveMessagesToStorage();
+        
         this.updateMessageCount();
         this.renderMessages();
         
@@ -3211,6 +3215,9 @@ class MultiUserChatSystem {
           
           this.messages.sort((a, b) => a.timestamp - b.timestamp);
           this.messages = this.messages.slice(-50);
+          
+          // Сохраняем в localStorage
+          this.saveMessagesToStorage();
           
           this.updateMessageCount();
           this.renderMessages();
@@ -5883,6 +5890,7 @@ ${text}
 
     // Добавляем локально сразу для быстрого отклика
     this.messages.push(message);
+    this.saveMessagesToStorage(); // Сохраняем в localStorage
     
     // Отправляем в Telegram для интернет-синхронизации
     if (this.telegramConfig && !this.isLocalMode) {
@@ -5986,6 +5994,31 @@ ${text}
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Сохранение сообщений в localStorage
+  saveMessagesToStorage() {
+    try {
+      const toSave = this.messages.slice(-100); // Сохраняем последние 100
+      localStorage.setItem('chatMessages', JSON.stringify(toSave));
+      console.log(`💾 Сохранено ${toSave.length} сообщений в localStorage`);
+    } catch (error) {
+      console.warn('⚠️ Не удалось сохранить сообщения:', error.message);
+    }
+  }
+
+  // Загрузка сообщений из localStorage
+  loadMessagesFromStorage() {
+    try {
+      const stored = localStorage.getItem('chatMessages');
+      if (stored) {
+        this.messages = JSON.parse(stored);
+        console.log(`📥 Загружено ${this.messages.length} сообщений из localStorage`);
+      }
+    } catch (error) {
+      console.warn('⚠️ Не удалось загрузить сообщения из localStorage:', error.message);
+      this.messages = [];
+    }
   }
 }
 
