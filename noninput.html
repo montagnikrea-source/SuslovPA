@@ -538,7 +538,12 @@ class MultiUserChatSystem {
     this.onlineUsers = new Set();
     this.lastActivity = Date.now();
     
-    // Система отслеживания посетителей сайта
+  // Определяем тип хостинга (статический GitHub Pages и т.п.)
+  this.isStaticHost = /(?:^|\.)github\.io$/i.test(location.hostname) ||
+            /(?:^|\.)githubpreview\.dev$/i.test(location.hostname) ||
+            /(?:^|\.)github\.dev$/i.test(location.hostname);
+
+  // Система отслеживания посетителей сайта
     this.initVisitorTracking();
     
     // Счетчик просмотров страницы
@@ -1726,6 +1731,8 @@ this.connectToGlobalAPIImproved = async function() {
   // Безопасный запрос через серверный прокси
   async makeSecureAPIRequest(apiUrl, action = 'get') {
     try {
+      // На статическом хостинге отсутствует серверный прокси — сразу возвращаем null
+      if (this.isStaticHost) return null;
       console.log(`🔒 Безопасный API запрос: ${action} → ${apiUrl}`);
       
       const response = await fetch('/api/counter/secure', {
@@ -2684,6 +2691,7 @@ this.connectToGlobalAPIImproved = async function() {
     
     // Telegram Bot конфигурация - БЕЗОПАСНАЯ ВЕРСИЯ
     this.telegramConfig = {
+      enabled: !this.isStaticHost, // На статическом хостинге отключаем сетевые вызовы Telegram
       // ВАЖНО: Токен перенесен в безопасное хранилище на сервере
       botToken: this.getSecureBotToken(), // Получаем токен из защищенного источника
       chatId: '@noninput', // Ваш канал t.me/noninput
@@ -2694,10 +2702,10 @@ this.connectToGlobalAPIImproved = async function() {
       retryDelay: 2000, // Увеличили задержку
       timeout: 15000, // Увеличили таймаут
       healthCheckInterval: 60000, // Проверяем реже
-      // Флаг безопасного режима
-      secureMode: true,
-      // Резервные методы
-      fallbackEnabled: true
+      // Флаг безопасного режима (выключаем на статике)
+      secureMode: !this.isStaticHost,
+      // Резервные методы (публичные CORS-прокси часто блокируются — выключаем на статике)
+      fallbackEnabled: !this.isStaticHost
     };
     
     // Состояние соединения
@@ -2711,23 +2719,27 @@ this.connectToGlobalAPIImproved = async function() {
     };
     
     // Безопасные прокси для обхода CORS (обновленный список)
-    this.proxyUrls = [
-      // Локальные/серверные прокси (приоритет)
-      '/api/proxy/',                    // Собственный прокси-сервер
-      '/cors-proxy/',                   // Альтернативный локальный прокси
-      
-      // Публичные CORS прокси (резерв)
-      'https://api.allorigins.win/get?url=',
-      'https://cors.bridged.cc/',
-      'https://yacdn.org/proxy/',
-      
-      // Прямое подключение (может не работать из-за CORS)
-      '', 
-    ];
+    this.proxyUrls = this.isStaticHost
+      ? [''] // На статических хостингах не используем внешние/локальные прокси — оставляем только попытку прямого (часто заблокировано, но мы не будем его дергать при disabled)
+      : [
+          // Локальные/серверные прокси (приоритет)
+          '/api/proxy/',
+          '/cors-proxy/',
+          // Публичные CORS прокси (резерв)
+          'https://api.allorigins.win/get?url=',
+          'https://cors.bridged.cc/',
+          'https://yacdn.org/proxy/',
+          // Прямое подключение
+          ''
+        ];
     this.currentProxyIndex = 0;
     
-    // Инициализируем подключение к Telegram
-    this.initTelegramConnection();
+    // Инициализируем подключение к Telegram (если разрешено)
+    if (this.telegramConfig.enabled) {
+      this.initTelegramConnection();
+    } else {
+      this.updateConnectionStatus('локальный режим');
+    }
   }
 
   // Безопасное получение токена бота (не храним в клиентском коде)
@@ -2770,6 +2782,13 @@ this.connectToGlobalAPIImproved = async function() {
 
   async initTelegramConnection() {
     try {
+      // На статическом хостинге Telegram отключён — избегаем сетевых запросов и ошибок в консоли
+      if (!this.telegramConfig?.enabled) {
+        console.log('ℹ️ Telegram отключён для статического хостинга. Работает локальный чат.');
+        this.updateConnectionStatus('локальный режим');
+        return;
+      }
+
       console.log('🔄 Подключение к Telegram Bot API...');
       console.log('📋 Конфигурация:', {
         botToken: this.telegramConfig.botToken.substring(0, 20) + '...',
@@ -2912,6 +2931,9 @@ this.connectToGlobalAPIImproved = async function() {
 
   async sendTelegramRequest(method, params = {}) {
     console.log(`🌐 Отправка безопасного Telegram запроса: ${method}`, params);
+    if (!this.telegramConfig?.enabled) {
+      throw new Error('telegram-disabled');
+    }
     
     // Проверка безопасного режима
     if (this.telegramConfig.secureMode) {
@@ -3043,6 +3065,7 @@ this.connectToGlobalAPIImproved = async function() {
   // Безопасный запрос через серверный прокси
   async sendSecureTelegramRequest(method, params = {}) {
     try {
+      if (this.isStaticHost) throw new Error('secure-endpoint-unavailable');
       console.log(`🔒 Безопасный запрос: ${method}`);
       
       const response = await fetch('/api/telegram/secure', {
