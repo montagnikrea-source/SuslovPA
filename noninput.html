@@ -48,7 +48,7 @@
 
   <title>Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)</title>
 
-  <!-- Immediate theme application to prevent flash -->
+  <!-- Immediate theme application to prevent flash - INLINE CRITICAL STYLES -->
   <script>
     (function() {
       const saved = localStorage.getItem('theme-preference');
@@ -68,7 +68,34 @@
       }
       
       document.documentElement.setAttribute('data-theme', theme);
-      console.log('🎨 Theme applied immediately:', theme);
+      
+      // Critical inline styles for immediate visibility
+      if (theme === 'dark') {
+        document.documentElement.style.backgroundColor = '#0d1117';
+        document.documentElement.style.color = '#e6edf3';
+      } else {
+        document.documentElement.style.backgroundColor = '#f3f5f7';
+        document.documentElement.style.color = '#1a1a1a';
+      }
+      
+      console.log('🎨 Theme applied immediately (inline):', theme);
+      
+      // Update debug badge
+      document.addEventListener('DOMContentLoaded', () => {
+        const badge = document.getElementById('theme-debug-value');
+        if (badge) badge.textContent = theme.toUpperCase();
+      }, false);
+      
+      // Immediate update (in case DOM is ready)
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          const badge = document.getElementById('theme-debug-value');
+          if (badge) badge.textContent = theme.toUpperCase();
+        }, { once: true });
+      } else {
+        const badge = document.getElementById('theme-debug-value');
+        if (badge) badge.textContent = theme.toUpperCase();
+      }
     })();
   </script>
 
@@ -762,6 +789,11 @@
   </style>
 </head>
 <body>
+
+<!-- ===== DEBUG: Theme Status Badge ===== -->
+<div id="theme-debug-badge" style="position: fixed; top: 5px; left: 5px; z-index: 99999; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; background: #ff6b6b; border: 2px solid #ff0000;">
+  🎨 THEME: <span id="theme-debug-value">loading</span>
+</div>
 
 <!-- ===== ТОП-БАР С ПЕРЕКЛЮЧАТЕЛЕМ ТЕМ ===== -->
 <div class="theme-header">
