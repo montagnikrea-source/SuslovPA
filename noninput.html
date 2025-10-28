@@ -1969,63 +1969,43 @@ class MultiUserChatSystem {
   async getVisitorInfo() {
     console.log('🌍 Получение информации о местоположении...');
 
-    const geoUrls = [
-      // CORS-friendly API сервисы (только те, что поддерживают CORS)
-      'https://ipapi.co/json/',
-      'https://ipinfo.io/json',
-      'https://api.db-ip.com/v2/free/self'
-    ];
+    // Используем только API которые работают с CORS
+    const geoUrl = 'https://api.db-ip.com/v2/free/self';
 
-    // Вспомогательный fetch с таймаутом
-    const fetchWithTimeout = (url, ms = 4000) => {
-      const ctrl = new AbortController();
-      const to = setTimeout(() => ctrl.abort(), ms);
-      return fetch(url, { 
-        signal: ctrl.signal, 
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      const response = await fetch(geoUrl, { 
+        signal: controller.signal, 
         headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-        cache: 'no-cache'
-      })
-        .finally(() => clearTimeout(to));
-    };
-
-    for (const url of geoUrls) {
-      try {
-        const res = await fetchWithTimeout(url, 4000);
-        if (!res.ok) continue;
-        
-        const data = await res.json();
-        const countryCode = data.country || data.country_code || data.countryCode;
-        const countryName = data.country_name || data.countryName;
-        const tz = data.timezone || data.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const ip = data.ip || data.query || 'Unknown';
-        const isp = data.org || data.isp || data.asn || 'Unknown';
-
+        mode: 'cors'
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
         this.visitorInfo = {
-          countryCode: countryCode || undefined,
-          countryName: countryName || undefined,
-          country: countryName || countryCode || 'Unknown',
+          country: data.countryName || data.countryCode || 'Unknown',
+          countryCode: data.countryCode,
           city: data.city || 'Unknown',
-          ip,
-          timezone: tz,
-          isp
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          isp: data.isp || 'Unknown'
         };
-
-        console.log('✅ Информация о посетителе получена');
+        console.log('✅ Геолокация получена');
         this.updateGlobalStatsWidget(undefined, true, this.visitorInfo);
         return;
-      } catch (e) {
-        // Молча пропускаем ошибки - пробуем следующий URL
-        continue;
       }
+    } catch (error) {
+      // Молчаливо пропускаем - используем fallback
     }
 
-    // Fallback при ошибках всех сервисов
-    console.log('💡 Использую локальные данные для геолокации');
+    // Fallback - локальные данные
+    console.log('💡 Используются локальные данные для геолокации');
     this.visitorInfo = {
       country: 'Unknown',
       city: 'Unknown',
-      ip: 'Unknown',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       isp: 'Unknown'
     };
@@ -4625,49 +4605,21 @@ ${text}
     this.updateGlobalStatsWidget(0, true, null, 'подключение');
     
     try {
-      // Сначала пробуем реальные API с безопасной обработкой
-      console.log('🌐 Попытка подключения к реальным API...');
+      // Используем локальную симуляцию (реальные API блокируются CORS на GitHub Pages)
+      console.log('🎭 Режим работы: локальная симуляция (CORS блокирует внешние API)');
       
-      let realAPIWorked = false;
       const config = this.globalCounter;
+      const simulatedCount = await this.simulateGlobalCounter();
       
-      for (let i = 0; i < Math.min(1, config.apiUrls.length); i++) {
-        try {
-          const apiUrl = config.apiUrls[i];
-          // Используем специальный безопасный метод
-          const response = await this.safeMakeAPIRequest(apiUrl, 'hit');
-          
-          if (response && response.value !== undefined && !response.simulated) {
-            config.isOnline = true;
-            config.currentApiIndex = i;
-            config.lastUpdate = Date.now();
-            
-            this.updateGlobalStatsWidget(response.value, true, null, 'api');
-            console.log(`✅ Реальный API работает: ${response.value} посещений`);
-            realAPIWorked = true;
-            break;
-          }
-        } catch (error) {
-          console.debug(`⚠️ API ${i + 1} не доступен`);
-        }
-      }
+      // Помечаем как онлайн в режиме симуляции
+      config.isOnline = true;
+      config.lastUpdate = Date.now();
       
-      if (!realAPIWorked) {
-        // Если реальные API не работают, используем симуляцию
-        console.log('🎭 Реальные API недоступны. Используем симуляцию...');
-        
-        const simulatedCount = await this.simulateGlobalCounter();
-        
-        // Помечаем как онлайн в режиме симуляции
-        config.isOnline = true;
-        config.lastUpdate = Date.now();
-        
-        this.updateGlobalStatsWidget(simulatedCount, true, null, 'симуляция');
-        
-        console.log(`✅ Симуляция запущена: ${simulatedCount} посещений`);
-      }
+      this.updateGlobalStatsWidget(simulatedCount, true, null, 'симуляция');
       
-      // Получаем геолокацию
+      console.log(`✅ Счетчик инициализирован: ${simulatedCount} посещений`);
+      
+      // Получаем геолокацию (если возможно)
       await this.getVisitorInfo();
       
       // Показываем уведомление
