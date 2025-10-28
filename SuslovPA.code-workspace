@@ -1,0 +1,5 @@
+{
+    "settings": {
+        "chat.agent.maxRequests": 100
+    }
+}

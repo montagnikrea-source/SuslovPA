@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Testing noninput.html</h1>
+    <iframe src="noninput.html" width="100%" height="600px"></iframe>
+    <script>
+        // Check for JavaScript errors
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript Error:', e.message, 'at', e.filename, 'line', e.lineno);
+        });
+
+        // Check when iframe loads
+        document.querySelector('iframe').addEventListener('load', function() {
+            console.log('noninput.html loaded successfully');
+        });
+    </script>
+</body>
+</html>
