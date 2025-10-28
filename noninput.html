@@ -16,6 +16,7 @@
       https://api.allorigins.win 
       https://cors.bridged.cc 
       https://yacdn.org 
+      https://api.ipify.org 
       https://ipapi.co 
       https://ipinfo.io 
       https://freegeoip.app 
@@ -681,17 +682,44 @@ this.requestCounter = async (api, action /* 'hit' | 'get' | 'ping' */) => {
 
   try {
     if (api.type === 'counter') {
-      // Счётчики: строим URL для hit/get
-      const path = action === 'hit' ? _fmtPath(api.hit, ns, key)
-                                    : _fmtPath(api.get, ns, key);
-      const url = api.base + path;
-      const res = await _fetchWithTimeout(url, this.globalCounter.connectionTimeout);
-      if (!res.ok) throw new Error(`${api.name} HTTP ${res.status}`);
-      const data = await res.json();
-      if (typeof data.value === 'number') {
-        return { ok: true, value: data.value, mode: 'api', api: api.name };
+      // Счётчики: формируем список кандидатов URL в зависимости от провайдера
+      const urlCandidates = [];
+      if (api.name === 'CountAPI') {
+        urlCandidates.push(api.base + (action === 'hit' ? _fmtPath(api.hit, ns, key) : _fmtPath(api.get, ns, key)));
+      } else if (api.name === 'CounterAPI.dev') {
+        // Известные варианты эндпоинтов CounterAPI.dev
+        if (action === 'hit') {
+          urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/up`);
+          urlCandidates.push(`${api.base}/hit/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
+          urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/increase`);
+        } else {
+          urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
+          urlCandidates.push(`${api.base}/get/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
+        }
+      } else {
+        // По умолчанию — схема как у CountAPI
+        urlCandidates.push(api.base + (action === 'hit' ? _fmtPath(api.hit, ns, key) : _fmtPath(api.get, ns, key)));
       }
-      throw new Error(`${api.name} bad payload`);
+
+      let lastErr = null;
+      for (const url of urlCandidates) {
+        try {
+          const res = await _fetchWithTimeout(url, this.globalCounter.connectionTimeout);
+          if (!res.ok) { lastErr = new Error(`${api.name} HTTP ${res.status}`); continue; }
+          const data = await res.json().catch(() => ({}));
+          const value = Number(
+            data.value ?? data.count ?? data.hits ?? data.total
+          );
+          if (Number.isFinite(value)) {
+            return { ok: true, value, mode: 'api', api: api.name, url };
+          }
+          lastErr = new Error(`${api.name} bad payload`);
+        } catch (e) {
+          lastErr = e;
+          continue;
+        }
+      }
+      throw lastErr || new Error(`${api.name} unreachable`);
     }
 
     // Пинги: просто проверяем доступность (без value)
@@ -1984,7 +2012,10 @@ this.connectToGlobalAPIImproved = async function() {
     } else if (mode === 'демо-режим') {
       statusText = 'Демо-режим';
     } else if (isOnline) {
-      statusText = 'Онлайн';
+      const apiName = (this.globalCounter && this.globalCounter.lastWorkingAPI && this.globalCounter.lastWorkingAPI.name)
+        ? `Онлайн • ${this.globalCounter.lastWorkingAPI.name}`
+        : 'Онлайн';
+      statusText = apiName;
     } else {
       statusText = 'Офлайн';
     }
