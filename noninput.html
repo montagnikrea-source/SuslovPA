@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
@@ -33,12 +33,11 @@
     img-src 'self' data: https:;
     font-src 'self' https:;
     frame-src 'self' https:;
+    frame-ancestors 'none';
   ">
 
   <!-- Дополнительные заголовки безопасности -->
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
-  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
 
   <title>Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)</title>
@@ -278,18 +277,18 @@
   <div class="row controls" style="margin-top:18px;padding:12px;border-radius:12px;background:#f7f9fb;border:1px solid #e7ecf2">
     <div class="lbl" style="margin-top:0">Параметры обучения (онлайн):</div>
     <div style="display:grid;grid-template-columns:180px 1fr 80px 84px;gap:8px;align-items:center">
-      <div>Learning rate (lr)</div>
-      <input id="lrSlider" type="range" min="0.001" max="0.2" step="0.001" value="0.030"/>
+  <label for="lrSlider">Learning rate (lr)</label>
+  <input id="lrSlider" type="range" min="0.001" max="0.2" step="0.001" value="0.030" aria-label="Learning rate"/>
       <div><span id="lrVal">0.030</span></div>
       <label style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input id="lrAuto" type="checkbox" checked/> AUTO</label>
 
-      <div>L2-регуляризация (l2)</div>
-      <input id="l2Slider" type="range" min="0.0" max="0.01" step="0.0001" value="0.0001"/>
+  <label for="l2Slider">L2-регуляризация (l2)</label>
+  <input id="l2Slider" type="range" min="0.0" max="0.01" step="0.0001" value="0.0001" aria-label="L2-регуляризация"/>
       <div><span id="l2Val">0.0001</span></div>
       <label style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input id="l2Auto" type="checkbox" checked/> AUTO</label>
 
-      <div>Смешивание NN/PI (mix)</div>
-      <input id="mixSlider" type="range" min="0.0" max="1.0" step="0.01" value="0.75"/>
+  <label for="mixSlider">Смешивание NN/PI (mix)</label>
+  <input id="mixSlider" type="range" min="0.0" max="1.0" step="0.01" value="0.75" aria-label="Смешивание NN/PI"/>
       <div><span id="mixVal">0.75</span></div>
       <label style="display:flex;gap:6px;align-items:center;white-space:nowrap"><input id="mixAuto" type="checkbox" checked/> AUTO</label>
     </div>
@@ -477,7 +476,8 @@
   </div>
   
   <div class="username-input">
-    <input type="text" id="usernameInput" placeholder="Ваше имя (необязательно)" maxlength="20">
+    <label for="usernameInput" class="visually-hidden" style="position:absolute;left:-9999px;">Имя пользователя</label>
+    <input type="text" id="usernameInput" placeholder="Ваше имя (необязательно)" maxlength="20" aria-label="Имя пользователя">
   </div>
   
   <div class="message-count">
@@ -492,8 +492,9 @@
   </div>
   
   <div class="chat-input">
-    <input type="text" id="messageInput" placeholder="Напишите сообщение..." maxlength="200">
-    <button id="sendButton">Отправить</button>
+    <label for="messageInput" class="visually-hidden" style="position:absolute;left:-9999px;">Сообщение</label>
+    <input type="text" id="messageInput" placeholder="Напишите сообщение..." maxlength="200" aria-label="Сообщение">
+    <button id="sendButton" aria-label="Отправить сообщение">Отправить</button>
   </div>
 </div>
 
