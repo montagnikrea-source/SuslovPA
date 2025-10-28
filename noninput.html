@@ -324,6 +324,25 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
       font: 14px/1.45 system-ui, Segoe UI, Arial;
     }
 
+    /* КРИТИЧЕСКИ ВАЖНО: Явное переопределение html/body для тёмной темы */
+    html[data-theme="dark"],
+    html[data-theme="dark"] body {
+      background: var(--bg) !important;
+      background-color: var(--bg) !important;
+      color: var(--text) !important;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    html[data-theme="dark"] body {
+      background: var(--bg) !important;
+      background-color: var(--bg) !important;
+      color: var(--text) !important;
+    }
+
     /* Топ-бар с переключателем темы */
     .theme-header {
       background: var(--panel);
