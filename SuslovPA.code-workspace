@@ -1,5 +1,10 @@
 {
     "settings": {
         "chat.agent.maxRequests": 100
-    }
+    },
+    "folders": [
+        {
+            "path": "."
+        }
+    ]
 }
