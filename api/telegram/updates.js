@@ -24,12 +24,13 @@ export default async function handler(req, res) {
     }
 
     // Получаем параметры запроса
-    const { lastId = 0, limit = 100, timeout = 5 } = req.query;
+    const { lastId = -1, limit = 100, timeout = 5, fromStart = false } = req.query;
 
-    // Запрашиваем обновления с offset
-    const offset = parseInt(lastId) + 1;
+    // Если fromStart=true, получаем последние сообщения (offset=0)
+    // Если lastId >= 0, получаем обновления начиная с lastId+1
+    const offset = fromStart === 'true' ? 0 : (parseInt(lastId) + 1);
     const url = `https://api.telegram.org/bot${botToken}/getUpdates?` +
-      `offset=${offset}&limit=${limit}&allowed_updates=message`;
+      `offset=${Math.max(0, offset)}&limit=${limit}&allowed_updates=message`;
 
     console.log(`📨 Получение обновлений Telegram (offset=${offset})`);
 
@@ -82,8 +83,12 @@ export default async function handler(req, res) {
     }
 
     // Возвращаем сообщения в удобном формате
+    // Фильтруем сообщения из канала @noninput (id: -1002360087823)
     const messages = data.result
-      .filter(u => u.message)
+      .filter(u => u.message && 
+              (u.message.chat.username === 'noninput' || 
+               u.message.chat.id === -1002360087823 ||
+               u.message.chat.type === 'private'))
       .map(u => ({
         id: u.update_id,
         timestamp: u.message.date,
@@ -96,7 +101,8 @@ export default async function handler(req, res) {
         chat: {
           id: u.message.chat.id,
           type: u.message.chat.type,
-          title: u.message.chat.title
+          title: u.message.chat.title,
+          username: u.message.chat.username
         }
       }));
 
