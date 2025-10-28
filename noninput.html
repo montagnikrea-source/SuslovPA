@@ -33,7 +33,7 @@
     img-src 'self' data: https:;
     font-src 'self' https:;
     frame-src 'self' https:;
-    frame-ancestors 'none';
+    worker-src 'self' blob:;
   ">
 
   <!-- Дополнительные заголовки безопасности -->
@@ -41,6 +41,9 @@
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
 
   <title>Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="favicon.ico">
 
   <!-- (Необязательно, но рекомендуется) Укажи аккаунт AdSense для мета-сканеров -->
   <meta name="google-adsense-account" content="ca-pub-1128500581050725">
@@ -539,12 +542,93 @@ class MultiUserChatSystem {
     this.onlineUsers = new Set();
     this.lastActivity = Date.now();
     
-  // Определяем тип хостинга (статический GitHub Pages и т.п.)
-  this.isStaticHost = /(?:^|\.)github\.io$/i.test(location.hostname) ||
-            /(?:^|\.)githubpreview\.dev$/i.test(location.hostname) ||
-            /(?:^|\.)github\.dev$/i.test(location.hostname);
+    // Определяем тип хостинга (статический GitHub Pages и т.п.)
+    this.isStaticHost = /(?:^|\.)github\.io$/i.test(location.hostname) ||
+              /(?:^|\.)githubpreview\.dev$/i.test(location.hostname) ||
+              /(?:^|\.)github\.dev$/i.test(location.hostname);
 
-  // Система отслеживания посетителей сайта
+    // Инициализация глобального счетчика
+    this.globalCounter = {
+      apis: [
+        // --- Сначала настоящие счётчики (умеют hit/get)
+        {
+          name: 'CountAPI',
+          type: 'counter',                     // умеет hit/get
+          base: 'https://api.countapi.xyz',
+          hit: '/hit/{ns}/{key}',
+          get: '/get/{ns}/{key}',
+          cors: true,
+          notes: 'Простой публичный счётчик'
+        },
+        {
+          name: 'CounterAPI.dev',
+          type: 'counter',
+          base: 'https://api.counterapi.dev',
+          hit: '/hit/{ns}/{key}',
+          get: '/get/{ns}/{key}',
+          cors: true,
+          notes: 'Аналог CountAPI'
+        },
+
+        // --- Далее безопасные «пинги» (только проверить интернет/CORS)
+        {
+          name: 'ipify',
+          type: 'ping',                        // только GET, без инкремента
+          base: 'https://api.ipify.org',
+          get: '/?format=json',
+          cors: true,
+          notes: 'Проверка внешнего соединения'
+        },
+        {
+          name: 'GitHubZen',
+          type: 'ping',
+          base: 'https://api.github.com',
+          get: '/zen',
+          cors: true,
+          notes: 'Быстрый CORS-совместимый пинг'
+        },
+        {
+          name: 'JSONPlaceholder',
+          type: 'ping',
+          base: 'https://jsonplaceholder.typicode.com',
+          get: '/posts/1',
+          cors: true,
+          notes: 'Публичный JSON API для пинга'
+        }
+      ],
+
+      // Для совместимости с существующим кодом
+      apiUrls: [
+        'https://api.countapi.xyz',
+        'https://api.counterapi.dev',
+        'https://api.ipify.org',
+        'https://api.github.com',
+        'https://jsonplaceholder.typicode.com'
+      ],
+
+      // Основные настройки
+      namespace: 'suslovpa-frequency-scanner',
+      key: 'global-visitors',
+
+      currentApiIndex: 0,         // индекс рабочего API из массива apis
+      lastWorkingAPI: null,       // ссылка на последний успешно работавший объект API
+      failedAPIs: new Set(),      // названия проваленных API
+      isOnline: false,
+      lastUpdate: 0,
+
+      retryCount: 0,
+      maxRetries: 8,
+
+      // Режимы
+      useHybridMode: true,        // гибрид: реальные + симулированные данные, если счётчик недоступен
+      simulatedCount: 1247,       // старт симуляции (локально)
+      successRate: 0,             // % успешных запросов (для телеметрии/логов)
+
+      // Таймауты
+      connectionTimeout: 12000    // 12 сек
+    };
+
+    // Система отслеживания посетителей сайта
     this.initVisitorTracking();
     
     // Счетчик просмотров страницы
@@ -553,355 +637,327 @@ class MultiUserChatSystem {
     // Инициализация Firebase (используем публичную конфигурацию для демонстрации)
     this.initFirebase();
     this.updateMessageCount();
+    
+    // Запуск глобального счетчика
+    this.startGlobalCounter();
   }
 
-  // Система отслеживания посетителей сайта
-  initVisitorTracking() {
-    console.log('🌐 Инициализация глобального отслеживания посетителей...');
-    
-    // Инициализируем глобальный счетчик через API
-    this.initGlobalCounter();
-    
-    // Уникальный ID сессии для каждого посетителя
-    this.sessionId = this.generateSessionId();
-    
-    // Время входа на сайт
-    this.visitStartTime = Date.now();
-    
-    // Последняя активность
-    this.lastVisitorActivity = Date.now();
-    
-    // Регистрируем посетителя
-    this.registerVisitor();
-    
-    // Отслеживаем активность
-    this.startActivityTracking();
-    
-    // Периодически обновляем счетчик посетителей
-    this.startVisitorCountUpdates();
-    
-    console.log('✅ Глобальное отслеживание посетителей инициализировано');
+  // Подстановщик пути API
+  _fmtPath(tpl, ns, key) {
+    return tpl.replace('{ns}', encodeURIComponent(ns)).replace('{key}', encodeURIComponent(key));
   }
 
-  // Инициализация глобального счетчика через внешний API
-  async initGlobalCounter() {
-    console.log('🌍 Подключение к глобальному счетчику посетителей...');
-    
-    // Показываем индикатор загрузки
-    this.showGlobalCounterLoadingState();
-    
-    // ✅ Исправленная и типизированная конфигурация API
-this.globalCounter = {
-  apis: [
-    // --- Сначала настоящие счётчики (умеют hit/get)
-    {
-      name: 'CountAPI',
-      type: 'counter',                     // умеет hit/get
-      base: 'https://api.countapi.xyz',
-      hit: '/hit/{ns}/{key}',
-      get: '/get/{ns}/{key}',
-      cors: true,
-      notes: 'Простой публичный счётчик'
-    },
-    {
-      name: 'CounterAPI.dev',
-      type: 'counter',
-      base: 'https://api.counterapi.dev',
-      hit: '/hit/{ns}/{key}',
-      get: '/get/{ns}/{key}',
-      cors: true,
-      notes: 'Аналог CountAPI'
-    },
-
-    // --- Далее безопасные «пинги» (только проверить интернет/CORS)
-    {
-      name: 'ipify',
-      type: 'ping',                        // только GET, без инкремента
-      base: 'https://api.ipify.org',
-      get: '/?format=json',
-      cors: true,
-      notes: 'Проверка внешнего соединения'
-    },
-    {
-      name: 'GitHubZen',
-      type: 'ping',
-      base: 'https://api.github.com',
-      get: '/zen',
-      cors: true,
-      notes: 'Быстрый CORS-совместимый пинг'
-    },
-    {
-      name: 'JSONPlaceholder',
-      type: 'ping',
-      base: 'https://jsonplaceholder.typicode.com',
-      get: '/posts/1',
-      cors: true,
-      notes: 'Публичный JSON API для пинга'
+  // Универсальный запрос к API с таймаутом
+  async _fetchWithTimeout(url, timeoutMs) {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } });
+      return res;
+    } finally {
+      clearTimeout(to);
     }
-  ],
-
-  // Основные настройки
-  namespace: 'suslovpa-frequency-scanner',
-  key: 'global-visitors',
-
-  currentApiIndex: 0,         // индекс рабочего API из массива apis
-  lastWorkingAPI: null,       // ссылка на последний успешно работавший объект API
-  failedAPIs: new Set(),      // названия проваленных API
-  isOnline: false,
-  lastUpdate: 0,
-
-  retryCount: 0,
-  maxRetries: 8,
-
-  // Режимы
-  useHybridMode: true,        // гибрид: реальные + симулированные данные, если счётчик недоступен
-  simulatedCount: 1247,       // старт симуляции (локально)
-  successRate: 0,             // % успешных запросов (для телеметрии/логов)
-
-  // Таймауты
-  connectionTimeout: 12000    // 12 сек
-};
-
-// =========================
-// Подстановщик пути API
-function _fmtPath(tpl, ns, key) {
-  return tpl.replace('{ns}', encodeURIComponent(ns)).replace('{key}', encodeURIComponent(key));
-}
-
-// Универсальный запрос к API с таймаутом
-async function _fetchWithTimeout(url, timeoutMs) {
-  const ctrl = new AbortController();
-  const to = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } });
-    return res;
-  } finally {
-    clearTimeout(to);
   }
-}
 
-// =========================
-// Единая точка работы со счётчиками/пингами
-this.requestCounter = async (api, action /* 'hit' | 'get' | 'ping' */) => {
-  const ns = this.globalCounter.namespace;
-  const key = this.globalCounter.key;
+  // Единая точка работы со счётчиками/пингами
+  async requestCounter(api, action /* 'hit' | 'get' | 'ping' */) {
+    const ns = this.globalCounter.namespace;
+    const key = this.globalCounter.key;
 
-  try {
-    if (api.type === 'counter') {
-      // Счётчики: формируем список кандидатов URL в зависимости от провайдера
-      const urlCandidates = [];
-      if (api.name === 'CountAPI') {
-        urlCandidates.push(api.base + (action === 'hit' ? _fmtPath(api.hit, ns, key) : _fmtPath(api.get, ns, key)));
-      } else if (api.name === 'CounterAPI.dev') {
-        // Известные варианты эндпоинтов CounterAPI.dev
-        if (action === 'hit') {
-          urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/up`);
-          urlCandidates.push(`${api.base}/hit/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
-          urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/increase`);
-        } else {
-          urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
-          urlCandidates.push(`${api.base}/get/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
-        }
-      } else {
-        // По умолчанию — схема как у CountAPI
-        urlCandidates.push(api.base + (action === 'hit' ? _fmtPath(api.hit, ns, key) : _fmtPath(api.get, ns, key)));
-      }
-
-      let lastErr = null;
-      for (const url of urlCandidates) {
-        try {
-          const res = await _fetchWithTimeout(url, this.globalCounter.connectionTimeout);
-          if (!res.ok) { lastErr = new Error(`${api.name} HTTP ${res.status}`); continue; }
-          const data = await res.json().catch(() => ({}));
-          const value = Number(
-            data.value ?? data.count ?? data.hits ?? data.total
-          );
-          if (Number.isFinite(value)) {
-            return { ok: true, value, mode: 'api', api: api.name, url };
+    try {
+      if (api.type === 'counter') {
+        // Счётчики: формируем список кандидатов URL в зависимости от провайдера
+        const urlCandidates = [];
+        if (api.name === 'CountAPI') {
+          urlCandidates.push(api.base + (action === 'hit' ? this._fmtPath(api.hit, ns, key) : this._fmtPath(api.get, ns, key)));
+        } else if (api.name === 'CounterAPI.dev') {
+          // Известные варианты эндпоинтов CounterAPI.dev
+          if (action === 'hit') {
+            urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/up`);
+            urlCandidates.push(`${api.base}/hit/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
+            urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/increase`);
+          } else {
+            urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
+            urlCandidates.push(`${api.base}/get/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
           }
-          lastErr = new Error(`${api.name} bad payload`);
-        } catch (e) {
-          lastErr = e;
-          continue;
+        } else {
+          // По умолчанию — схема как у CountAPI
+          urlCandidates.push(api.base + (action === 'hit' ? this._fmtPath(api.hit, ns, key) : this._fmtPath(api.get, ns, key)));
         }
+
+        let lastErr = null;
+        for (const url of urlCandidates) {
+          try {
+            const res = await this._fetchWithTimeout(url, this.globalCounter.connectionTimeout);
+            if (!res.ok) { lastErr = new Error(`${api.name} HTTP ${res.status}`); continue; }
+            const data = await res.json().catch(() => ({}));
+            const value = Number(
+              data.value ?? data.count ?? data.hits ?? data.total
+            );
+            if (Number.isFinite(value)) {
+              return { ok: true, value, mode: 'api', api: api.name, url };
+            }
+            lastErr = new Error(`${api.name} bad payload`);
+          } catch (e) {
+            lastErr = e;
+            continue;
+          }
+        }
+        throw lastErr || new Error(`${api.name} unreachable`);
       }
-      throw lastErr || new Error(`${api.name} unreachable`);
-    }
 
-    // Пинги: просто проверяем доступность (без value)
-    if (api.type === 'ping') {
-      const url = api.base + api.get;
-      const res = await _fetchWithTimeout(url, this.globalCounter.connectionTimeout);
-      if (!res.ok) throw new Error(`${api.name} HTTP ${res.status}`);
-      // Не возвращаем value, это не счётчик
-      return { ok: true, mode: 'ping', api: api.name };
-    }
+      // Пинги: просто проверяем доступность (без value)
+      if (api.type === 'ping') {
+        const url = api.base + api.get;
+        const res = await this._fetchWithTimeout(url, this.globalCounter.connectionTimeout);
+        if (!res.ok) throw new Error(`${api.name} HTTP ${res.status}`);
+        // Не возвращаем value, это не счётчик
+        return { ok: true, mode: 'ping', api: api.name };
+      }
 
-    throw new Error(`Unknown API type: ${api.type}`);
-  } catch (e) {
-    return { ok: false, error: String(e), api: api.name };
-  }
-};
-
-// =========================
-// Улучшенный коннект с приоритетом «реальные счётчики» → «пинги» → «симуляция»
-// Вариант v1: простой приоритет реальных счётчиков → пинг → симуляция
-this.connectToGlobalAPI_v1 = async () => {
-  const cfg = this.globalCounter;
-  const apis = cfg.apis;
-
-  // 1) Сначала пытаемся найти живой «counter» с HIT
-  for (let i = 0; i < apis.length; i++) {
-    const api = apis[i];
-    if (api.type !== 'counter') continue;
-    const r = await this.requestCounter(api, 'hit'); // try increment
-    if (r.ok && typeof r.value === 'number') {
-      cfg.isOnline = true;
-      cfg.currentApiIndex = i;
-      cfg.lastWorkingAPI = api;
-      cfg.lastUpdate = Date.now();
-      cfg.retryCount = 0;
-      this.updateGlobalStatsWidget(r.value, true, null, 'api');
-      // Параллельно получаем геоданные (не блокируя UI)
-      this.getVisitorInfo?.();
-      return true;
-    } else {
-      cfg.failedAPIs.add(api.name);
+      throw new Error(`Unknown API type: ${api.type}`);
+    } catch (e) {
+      return { ok: false, error: String(e), api: api.name };
     }
   }
 
-  // 2) Нет живых счётчиков → проверяем интернет CORS-«пингами»
-  for (let i = 0; i < apis.length; i++) {
-    const api = apis[i];
-    if (api.type !== 'ping') continue;
-    const r = await this.requestCounter(api, 'ping');
-    if (r.ok) {
-      // Интернет есть, но счётчики недоступны → гибрид/симуляция
-      cfg.isOnline = true;                 // онлайн с точки зрения «связи»
-      cfg.currentApiIndex = i;
-      cfg.lastWorkingAPI = api;
-      cfg.lastUpdate = Date.now();
-      if (cfg.useHybridMode) {
-        // Поднимаем симулированный счётчик и показываем как «симуляция»
-        const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
-        this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+  // Улучшенный коннект с приоритетом «реальные счётчики» → «пинги» → «симуляция»
+  // Вариант v1: простой приоритет реальных счётчиков → пинг → симуляция
+  async connectToGlobalAPI_v1() {
+    const cfg = this.globalCounter;
+    const apis = cfg.apis;
+
+    // 1) Сначала пытаемся найти живой «counter» с HIT
+    for (let i = 0; i < apis.length; i++) {
+      const api = apis[i];
+      if (api.type !== 'counter') continue;
+      const r = await this.requestCounter(api, 'hit'); // try increment
+      if (r.ok && typeof r.value === 'number') {
+        cfg.isOnline = true;
+        cfg.currentApiIndex = i;
+        cfg.lastWorkingAPI = api;
+        cfg.lastUpdate = Date.now();
+        cfg.retryCount = 0;
+        this.updateGlobalStatsWidget(r.value, true, null, 'api');
+        // Параллельно получаем геоданные (не блокируя UI)
         this.getVisitorInfo?.();
         return true;
       } else {
-        // Просто оффлайн-режим без счётчика
-        this.updateGlobalStatsWidget(0, false, null, 'демо-режим');
-        this.getVisitorInfo?.();
-        return false;
+        cfg.failedAPIs.add(api.name);
       }
-    } else {
-      cfg.failedAPIs.add(api.name);
+    }
+
+    // 2) Нет живых счётчиков → проверяем интернет CORS-«пингами»
+    for (let i = 0; i < apis.length; i++) {
+      const api = apis[i];
+      if (api.type !== 'ping') continue;
+      const r = await this.requestCounter(api, 'ping');
+      if (r.ok) {
+        // Интернет есть, но счётчики недоступны → гибрид/симуляция
+        cfg.isOnline = true;                 // онлайн с точки зрения «связи»
+        cfg.currentApiIndex = i;
+        cfg.lastWorkingAPI = api;
+        cfg.lastUpdate = Date.now();
+        if (cfg.useHybridMode) {
+          // Поднимаем симулированный счётчик и показываем как «симуляция»
+          const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
+          this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+          this.getVisitorInfo?.();
+          return true;
+        } else {
+          // Просто оффлайн-режим без счётчика
+          this.updateGlobalStatsWidget(0, false, null, 'демо-режим');
+          this.getVisitorInfo?.();
+          return false;
+        }
+      } else {
+        cfg.failedAPIs.add(api.name);
+      }
+    }
+
+    // 3) Совсем ничего не отвечает → жёсткая симуляция
+    cfg.isOnline = true; // считаем онлайн для UI
+    const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
+    cfg.lastUpdate = Date.now();
+    this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+    this.getVisitorInfo?.();
+    return true;
+  }
+
+  // Обновление по расписанию (использует «counter» если есть; иначе — симуляция)
+  // Планировщик обновлений (v1): при живом счётчике — только GET, иначе — симуляция
+  startGlobalCounterUpdates_v1() {
+    const tick = async () => {
+      const cfg = this.globalCounter;
+      const api = cfg.apis[cfg.currentApiIndex];
+
+      try {
+        if (api && api.type === 'counter') {
+          // регулярный GET без инкремента (отображение актуального значения)
+          const res = await this.requestCounter(api, 'get');
+          if (res.ok && typeof res.value === 'number') {
+            cfg.lastUpdate = Date.now();
+            this.updateGlobalStatsWidget(res.value, true, null, 'api');
+            return;
+          }
+        }
+        // если счётчик не активен — гибрид/симуляция
+        if (cfg.useHybridMode) {
+          const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
+          cfg.lastUpdate = Date.now();
+          this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+        }
+      } catch (e) {
+        // при ошибке просто продолжаем симулировать
+        if (cfg.useHybridMode) {
+          const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
+          this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+        }
+      }
+    };
+
+    // первый запуск сразу
+    tick();
+
+    // далее по интервалу
+    this._globalCounterTimer && clearInterval(this._globalCounterTimer);
+    this._globalCounterTimer = setInterval(tick, 15000);
+  }
+
+  // Запуск глобального счетчика
+  startGlobalCounter() {
+    try {
+      Promise.resolve()
+        .then(() => this.connectToGlobalAPI_v1())
+        .then(() => this.startGlobalCounterUpdates_v1());
+    } catch (e) {
+      console.warn('Global counter v1 start error:', e);
     }
   }
 
-  // 3) Совсем ничего не отвечает → жёсткая симуляция
-  cfg.isOnline = true; // считаем онлайн для UI
-  const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
-  cfg.lastUpdate = Date.now();
-  this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
-  this.getVisitorInfo?.();
-  return true;
-};
+  // Инициализация глобального счетчика
+  async initGlobalCounter() {
+    console.log('🔧 Инициализация глобального счетчика...');
 
-// =========================
-// Обновление по расписанию (использует «counter» если есть; иначе — симуляция)
-// Планировщик обновлений (v1): при живом счётчике — только GET, иначе — симуляция
-this.startGlobalCounterUpdates_v1 = function() {
-  const tick = async () => {
-    const cfg = this.globalCounter;
-    const api = cfg.apis[cfg.currentApiIndex];
+    // Проверяем, инициализирован ли уже globalCounter
+    if (!this.globalCounter) {
+      console.warn('⚠️ globalCounter не инициализирован, создаем новый...');
+      this.globalCounter = {
+        apis: [
+          // --- Сначала настоящие счётчики (умеют hit/get)
+          {
+            name: 'CountAPI',
+            type: 'counter',                     // умеет hit/get
+            base: 'https://api.countapi.xyz',
+            hit: '/hit/{ns}/{key}',
+            get: '/get/{ns}/{key}',
+            cors: true,
+            notes: 'Простой публичный счётчик'
+          },
+          {
+            name: 'CounterAPI.dev',
+            type: 'counter',
+            base: 'https://api.counterapi.dev',
+            hit: '/hit/{ns}/{key}',
+            get: '/get/{ns}/{key}',
+            cors: true,
+            notes: 'Аналог CountAPI'
+          },
 
-    try {
-      if (api && api.type === 'counter') {
-        // регулярный GET без инкремента (отображение актуального значения)
-        const res = await this.requestCounter(api, 'get');
-        if (res.ok && typeof res.value === 'number') {
-          cfg.lastUpdate = Date.now();
-          this.updateGlobalStatsWidget(res.value, true, null, 'api');
-          return;
-        }
-      }
-      // если счётчик не активен — гибрид/симуляция
-      if (cfg.useHybridMode) {
-        const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
-        cfg.lastUpdate = Date.now();
-        this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
-      }
-    } catch (e) {
-      // при ошибке просто продолжаем симулировать
-      if (cfg.useHybridMode) {
-        const sim = await this.simulateGlobalCounter?.() ?? (cfg.simulatedCount += 1);
-        this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
+          // --- Далее безопасные «пинги» (только проверить интернет/CORS)
+          {
+            name: 'ipify',
+            type: 'ping',                        // только GET, без инкремента
+            base: 'https://api.ipify.org',
+            get: '/?format=json',
+            cors: true,
+            notes: 'Проверка внешнего соединения'
+          },
+          {
+            name: 'GitHubZen',
+            type: 'ping',
+            base: 'https://api.github.com',
+            get: '/zen',
+            cors: true,
+            notes: 'Быстрый CORS-совместимый пинг'
+          },
+          {
+            name: 'JSONPlaceholder',
+            type: 'ping',
+            base: 'https://jsonplaceholder.typicode.com',
+            get: '/posts/1',
+            cors: true,
+            notes: 'Публичный JSON API для пинга'
+          }
+        ],
+
+        // Для совместимости с существующим кодом
+        apiUrls: [
+          'https://api.countapi.xyz',
+          'https://api.counterapi.dev',
+          'https://api.ipify.org',
+          'https://api.github.com',
+          'https://jsonplaceholder.typicode.com'
+        ],
+
+        // Основные настройки
+        namespace: 'suslovpa-frequency-scanner',
+        key: 'global-visitors',
+
+        currentApiIndex: 0,         // индекс рабочего API из массива apis
+        lastWorkingAPI: null,       // ссылка на последний успешно работавший объект API
+        failedAPIs: new Set(),      // названия проваленных API
+        isOnline: false,
+        lastUpdate: 0,
+
+        retryCount: 0,
+        maxRetries: 8,
+
+        // Режимы
+        useHybridMode: true,        // гибрид: реальные + симулированные данные, если счётчик недоступен
+        simulatedCount: 1247,       // старт симуляции (локально)
+        successRate: 0,             // % успешных запросов (для телеметрии/логов)
+
+        // Таймауты
+        connectionTimeout: 12000    // 12 сек
+      };
+    }
+
+    // Показываем статус загрузки (с проверкой доступности метода)
+    if (typeof this.showGlobalCounterLoadingState === 'function') {
+      this.showGlobalCounterLoadingState('Инициализация счетчика...');
+    } else {
+      console.log('📊 Статус глобального счетчика: Инициализация счетчика...');
+    }
+
+    console.log('✅ Глобальный счетчик инициализирован');
+    return true;
+  }
+
+  // Показать состояние загрузки глобального счетчика
+  showGlobalCounterLoadingState(message) {
+    console.log('📊 Статус глобального счетчика:', message);
+
+    // Обновляем виджет с сообщением о загрузке
+    const widget = document.getElementById('globalStatsWidget');
+    if (widget) {
+      const loadingDiv = widget.querySelector('div[style*="text-align: center"]');
+      if (loadingDiv) {
+        loadingDiv.innerHTML = `
+          <div style="text-align: center; opacity: 0.7;">
+            <div>⏳ ${message}</div>
+            <div class="loading-status" style="font-size: 11px; margin-top: 5px;">Пожалуйста, подождите...</div>
+          </div>
+        `;
       }
     }
-  };
 
-  // первый запуск сразу
-  tick();
+    // Также показываем в консоли
+    console.log(`🔄 ${message}`);
+  }
 
-  // далее по интервалу
-  this._globalCounterTimer && clearInterval(this._globalCounterTimer);
-  this._globalCounterTimer = setInterval(tick, 15000);
-}.bind(this);
-
-// Запуск подключения и регулярных обновлений счётчика (v1)
-try {
-  Promise.resolve()
-    .then(() => this.connectToGlobalAPI_v1())
-    .then(() => this.startGlobalCounterUpdates_v1());
-} catch (e) {
-  console.warn('Global counter v1 start error:', e);
-}
-
-// Показать состояние загрузки глобального счетчика
-this.showGlobalCounterLoadingState = function() {
-    const widget = document.getElementById('globalStatsWidget');
-    if (!widget) return;
-    
-    widget.innerHTML = `
-      <div style="text-align: center; padding: 15px; font-family: system-ui;">
-        <div style="font-size: 16px; margin-bottom: 10px;">🌍 Глобальный счетчик</div>
-        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
-          <div class="loading-spinner"></div>
-          <span style="margin-left: 8px; font-size: 13px;">Инициализация...</span>
-        </div>
-        <div style="font-size: 11px; opacity: 0.7; margin-bottom: 10px;">
-          <div class="loading-status">📡 Получение геоданных...</div>
-        </div>
-        <div style="background: #e3f2fd; padding: 8px; border-radius: 4px; font-size: 10px;">
-          ⏱️ Процесс может занять до 30 секунд<br>
-          🔗 Тестируется 8 API серверов
-        </div>
-      </div>
-      
-      <style>
-        .loading-spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid #e3f2fd;
-          border-top: 2px solid #1976d2;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        .loading-status {
-          transition: all 0.3s ease;
-        }
-      </style>
-    `;
-};
-
-// Улучшенное подключение к глобальному API счетчика
-this.connectToGlobalAPIImproved = async function() {
+  // Улучшенное подключение к глобальному API счетчика
+  async connectToGlobalAPIImproved() {
     const config = this.globalCounter;
     
     console.log('🌍 Улучшенное подключение к глобальным API счетчиков...');
@@ -1007,11 +1063,8 @@ this.connectToGlobalAPIImproved = async function() {
       return true;
     }
   }
-  
- 
-  }
-  
-  // Тестирование конкретного API endpoint
+
+// Глобальная система чата
   async testAPIEndpoint(apiUrl, action = 'get', timeout = 8000) {
     const startTime = performance.now();
     
@@ -4390,6 +4443,100 @@ ${text}
   // Принудительное обновление глобального счетчика
   async forceUpdateGlobalCounter() {
     console.log('🔄 Принудительное обновление глобального счетчика...');
+    
+    // Проверяем инициализацию globalCounter и инициализируем при необходимости
+    if (!this.globalCounter) {
+      console.warn('⚠️ globalCounter не инициализирован, выполняем полную инициализацию...');
+      
+      // Прямая инициализация вместо вызова initGlobalCounter
+      this.globalCounter = {
+        apis: [
+          // --- Сначала настоящие счётчики (умеют hit/get)
+          {
+            name: 'CountAPI',
+            type: 'counter',                     // умеет hit/get
+            base: 'https://api.countapi.xyz',
+            hit: '/hit/{ns}/{key}',
+            get: '/get/{ns}/{key}',
+            cors: true,
+            notes: 'Простой публичный счётчик'
+          },
+          {
+            name: 'CounterAPI.dev',
+            type: 'counter',
+            base: 'https://api.counterapi.dev',
+            hit: '/hit/{ns}/{key}',
+            get: '/get/{ns}/{key}',
+            cors: true,
+            notes: 'Аналог CountAPI'
+          },
+
+          // --- Далее безопасные «пинги» (только проверить интернет/CORS)
+          {
+            name: 'ipify',
+            type: 'ping',                        // только GET, без инкремента
+            base: 'https://api.ipify.org',
+            get: '/?format=json',
+            cors: true,
+            notes: 'Проверка внешнего соединения'
+          },
+          {
+            name: 'GitHubZen',
+            type: 'ping',
+            base: 'https://api.github.com',
+            get: '/zen',
+            cors: true,
+            notes: 'Быстрый CORS-совместимый пинг'
+          },
+          {
+            name: 'JSONPlaceholder',
+            type: 'ping',
+            base: 'https://jsonplaceholder.typicode.com',
+            get: '/posts/1',
+            cors: true,
+            notes: 'Публичный JSON API для пинга'
+          }
+        ],
+
+        // Для совместимости с существующим кодом
+        apiUrls: [
+          'https://api.countapi.xyz',
+          'https://api.counterapi.dev',
+          'https://api.ipify.org',
+          'https://api.github.com',
+          'https://jsonplaceholder.typicode.com'
+        ],
+
+        // Основные настройки
+        namespace: 'suslovpa-frequency-scanner',
+        key: 'global-visitors',
+
+        currentApiIndex: 0,         // индекс рабочего API из массива apis
+        lastWorkingAPI: null,       // ссылка на последний успешно работавший объект API
+        failedAPIs: new Set(),      // названия проваленных API
+        isOnline: false,
+        lastUpdate: 0,
+
+        retryCount: 0,
+        maxRetries: 8,
+
+        // Режимы
+        useHybridMode: true,        // гибрид: реальные + симулированные данные, если счётчик недоступен
+        simulatedCount: 1247,       // старт симуляции (локально)
+        successRate: 0,             // % успешных запросов (для телеметрии/логов)
+
+        // Таймауты
+        connectionTimeout: 12000    // 12 сек
+      };
+      
+      console.log('✅ globalCounter инициализирован принудительно');
+    }
+    
+    // Проверяем еще раз после инициализации
+    if (!this.globalCounter) {
+      console.error('❌ Критическая ошибка: не удалось инициализировать globalCounter даже принудительно');
+      return;
+    }
     
     // Сбрасываем состояние ошибок
     this.globalCounter.retryCount = 0;
