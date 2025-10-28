@@ -202,6 +202,28 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
       background: var(--panel) !important;
     }
 
+    /* Темная тема для всех контейнеров */
+    html[data-theme="dark"] div[style*="background: white"],
+    html[data-theme="dark"] div[style*="background:white"] {
+      background: var(--panel) !important;
+      color: var(--text) !important;
+    }
+
+    /* Темная тема для pulse элементов */
+    html[data-theme="dark"] .global-online-pulse {
+      background: #58a6ff !important;
+    }
+
+    /* Темная тема для tooltip и popup-ов */
+    html[data-theme="dark"] .modal-content,
+    html[data-theme="dark"] [role="dialog"],
+    html[data-theme="dark"] .popup,
+    html[data-theme="dark"] .tooltip {
+      background: var(--panel) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+
     /* ===== ОСНОВНЫЕ СТИЛИ ===== */
     * {
       transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
@@ -2909,7 +2931,7 @@ class MultiUserChatSystem {
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 700px; max-height: 80vh; overflow-y: auto;
       font-family: system-ui; font-size: 13px; line-height: 1.5;
     `;
@@ -3369,7 +3391,7 @@ class MultiUserChatSystem {
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 600px; max-height: 80vh; overflow-y: auto;
       font-family: monospace; font-size: 12px; line-height: 1.4;
     `;
@@ -4468,7 +4490,7 @@ ${text}
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 600px; max-height: 80vh; overflow-y: auto;
       font-family: monospace; font-size: 12px; line-height: 1.4;
     `;
@@ -4645,7 +4667,7 @@ ${text}
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 700px; max-height: 80vh; overflow-y: auto;
       font-family: monospace; font-size: 12px; line-height: 1.4;
     `;
@@ -4746,7 +4768,7 @@ ${text}
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 500px; max-height: 80vh; overflow-y: auto;
       font-family: monospace; font-size: 12px; line-height: 1.4;
     `;
@@ -4935,13 +4957,13 @@ ${text}
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 600px; max-height: 80vh; overflow-y: auto;
       font-family: monospace; font-size: 12px; line-height: 1.4;
     `;
     
     content.innerHTML = `
-      <pre style="white-space: pre-wrap; margin: 0;">${diagnostics}</pre>
+      <pre style="white-space: pre-wrap; margin: 0; color: var(--text);">${diagnostics}</pre>
       <button onclick="this.closest('[style*=fixed]').remove()" 
               style="margin-top: 15px; padding: 10px 20px; background: #f44336; 
                      color: white; border: none; border-radius: 5px; cursor: pointer;">
@@ -5841,7 +5863,7 @@ ${text}
 
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 900px; max-height: 85vh; overflow-y: auto;
       font-family: system-ui; font-size: 12px; line-height: 1.4;
     `;
@@ -5997,7 +6019,7 @@ ${text}
           '<div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">' +
           '<h4 style="margin: 0 0 10px 0; color: #2e7d32;">💡 Рекомендации по исправлению</h4>' +
           diagnosis.recommendations.map(rec => 
-            '<div style="margin-bottom: 12px; padding: 10px; background: white; border-radius: 4px;">' +
+            '<div style="margin-bottom: 12px; padding: 10px; background: var(--panel); color: var(--text); border-radius: 4px;">' +
             '<h5 style="margin: 0 0 8px 0; color: #1976d2;">' + rec.title + '</h5>' +
             '<ul style="margin: 0; padding-left: 18px; font-size: 11px;">' +
             rec.solutions.map(solution => '<li style="margin: 3px 0;">' + solution + '</li>').join('') +
@@ -6026,7 +6048,7 @@ ${text}
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 600px; max-height: 80vh; overflow-y: auto;
       font-family: monospace; font-size: 12px; line-height: 1.4;
     `;
@@ -6258,7 +6280,7 @@ ${text}
     
     const content = document.createElement('div');
     content.style.cssText = `
-      background: white; border-radius: 10px; padding: 20px; 
+      background: var(--panel); color: var(--text); border-radius: 10px; padding: 20px; 
       max-width: 700px; max-height: 80vh; overflow-y: auto;
       font-family: monospace; font-size: 12px; line-height: 1.4;
     `;
