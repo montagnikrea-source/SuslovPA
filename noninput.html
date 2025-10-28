@@ -4,6 +4,40 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  
+  <!-- Mobile Redirect Script -->
+  <script>
+    (function() {
+      // Check if user explicitly skipped mobile redirect
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('skip') === 'mobile' || sessionStorage.getItem('skip-mobile-redirect')) {
+        return; // Don't redirect
+      }
+      
+      // Detect if device is mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const screenWidth = window.innerWidth || screen.width;
+      const isSmallScreen = screenWidth <= 768;
+      
+      if (isMobile || isSmallScreen) {
+        // Get current URL and replace with mobile version
+        const currentUrl = window.location.href;
+        let mobileUrl = currentUrl.replace(/\/noninput\.html/, '/noninput-mobile.html');
+        
+        // Fallback for different URL patterns
+        if (currentUrl.includes('noninput.html') && !mobileUrl.includes('noninput-mobile.html')) {
+          mobileUrl = currentUrl.replace('noninput.html', 'noninput-mobile.html');
+        }
+        
+        // Only redirect if the mobile URL is different
+        if (mobileUrl !== currentUrl) {
+          // Mark that redirect is happening to prevent loops
+          sessionStorage.setItem('mobile-redirect-timestamp', Date.now());
+          window.location.href = mobileUrl;
+        }
+      }
+    })();
+  </script>
   <meta http-equiv="cache-control" content="no-cache,no-store,must-revalidate">
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
