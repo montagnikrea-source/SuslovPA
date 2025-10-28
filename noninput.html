@@ -1370,52 +1370,24 @@ class MultiUserChatSystem {
   // Улучшенная симуляция глобального счетчика
   async simulateGlobalCounter() {
     try {
-      console.log('🎭 Запуск симулированного глобального счетчика...');
+      // Счётчик реальных обращений к странице
+      const COUNTER_KEY = 'real_page_visits_counter';
+      let visitCount = parseInt(localStorage.getItem(COUNTER_KEY) || '0');
       
-      // Получаем базовое значение из localStorage или устанавливаем начальное
-      const baseKey = 'simulated_global_counter_base';
-      let baseCount = parseInt(localStorage.getItem(baseKey) || '0');
+      // Увеличиваем счётчик обращений (одно обращение за загрузку страницы)
+      visitCount++;
+      localStorage.setItem(COUNTER_KEY, visitCount.toString());
       
-      if (baseCount === 0) {
-        // Устанавливаем реалистичное начальное значение
-        baseCount = 1247 + Math.floor(Math.random() * 100);
-        localStorage.setItem(baseKey, baseCount.toString());
-        console.log(`🎯 Установлено начальное значение: ${baseCount}`);
-      }
+      console.log(`� Реальных обращений: ${visitCount}`);
       
-      // Увеличиваем счетчик при каждом посещении
-      const visitKey = 'simulated_visit_increment';
-      const lastVisit = parseInt(localStorage.getItem(visitKey) || '0');
-      const currentTime = Date.now();
-      
-      // Увеличиваем только если прошло больше 10 секунд с последнего увеличения
-      if (currentTime - lastVisit > 10000) {
-        const increment = Math.floor(Math.random() * 3) + 1; // +1-3 за посещение
-        baseCount += increment;
-        localStorage.setItem(baseKey, baseCount.toString());
-        localStorage.setItem(visitKey, currentTime.toString());
-        
-        console.log(`📈 Симулированный счетчик увеличен на ${increment}, итого: ${baseCount}`);
-      }
-      
-      // Добавляем небольшую случайную активность для реалистичности
-      const activityBonus = Math.floor(Math.random() * 3); // 0-2 дополнительных посетителя
-      const finalCount = baseCount + activityBonus;
-      
-      this.globalCounter.simulatedCount = finalCount;
-      
-      // Показываем специальное уведомление о блокировке API (не симуляции)
-      setTimeout(() => {
-        this.showAPIBlockedNotice();
-      }, 3000);
-      
-      return finalCount;
+      this.globalCounter.simulatedCount = visitCount;
+      return visitCount;
       
     } catch (error) {
-      console.error('❌ Ошибка симуляции счетчика:', error);
+      console.error('❌ Ошибка счетчика:', error);
       
       // Возвращаем минимальное значение даже при ошибке
-      const fallbackCount = 1247 + Math.floor(Date.now() / 100000) % 100;
+      const fallbackCount = 1;
       this.globalCounter.simulatedCount = fallbackCount;
       return fallbackCount;
     }
@@ -1981,7 +1953,7 @@ class MultiUserChatSystem {
     // Определяем статусный текст в зависимости от режима работы
     let statusText = '';
     if (mode === 'симуляция') {
-      statusText = 'Симуляция';
+      statusText = 'Реальные посещения';
     } else if (mode === 'демо-режим') {
       statusText = 'Демо-режим';
     } else if (isOnline) {
@@ -2010,7 +1982,7 @@ class MultiUserChatSystem {
       <div style="font-size: 10px; margin-bottom: 5px;">
         ${statusEmoji} ${statusText} • 
         ${formattedCount} посещений
-        ${mode === 'симуляция' ? ' 🎭' : mode === 'демо-режим' ? ' 🎮' : ''}
+        ${mode === 'симуляция' ? ' 📊' : mode === 'демо-режим' ? ' 🎮' : ''}
       </div>
       
       ${info.country && info.country !== 'Unknown' ? `
@@ -2031,14 +2003,13 @@ class MultiUserChatSystem {
     // Обновляем тултип с учетом режима работы
     let tooltipText = '';
     if (mode === 'симуляция') {
-      tooltipText = `Симуляция глобального счетчика
-📊 Отображаемых посещений: ${formattedCount}
-🎭 Режим: Локальная симуляция с инкрементом
+      tooltipText = `Счётчик реальных посещений
+📊 Всего посещений: ${formattedCount}
 📍 Ваше местоположение: ${info.city || 'неизвестно'}, ${info.country || 'неизвестно'}
-� Внешние API недоступны
+🌐 Часовой пояс: ${info.timezone || 'неизвестно'}
 📡 Последнее обновление: ${new Date().toLocaleTimeString()}
 
-Счетчик увеличивается локально для демонстрации функций`;
+Счетчик отслеживает реальные обращения к сайту (сохраняется в localStorage)`;
     } else if (mode === 'демо-режим') {
       tooltipText = `Демо-режим глобального счетчика
 📊 Демо-значение: ${formattedCount}
