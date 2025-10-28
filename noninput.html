@@ -194,6 +194,13 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
       --chat-system-bg: #262c36;
       --chat-system-text: #8b949e;
     }
+    
+    /* Переопределяем белые элементы в темной теме */
+    html[data-theme="dark"] #how-it-works,
+    html[data-theme="dark"] #use-cases,
+    html[data-theme="dark"] section {
+      background: var(--panel) !important;
+    }
 
     /* ===== ОСНОВНЫЕ СТИЛИ ===== */
     * {
@@ -1166,12 +1173,12 @@ console.log('  • Несанкционированного доступа');
 </div>
 
 <!-- ====== ОПИСАНИЯ (можно оставить как есть) ====== -->
-<section id="how-it-works" style="max-width:960px;margin:24px auto;padding:18px 20px;background:#fff;border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);font:14px/1.55 system-ui,Segoe UI,Arial">
+<section id="how-it-works" style="max-width:960px;margin:24px auto;padding:18px 20px;background:var(--panel);color:var(--text);border-radius:16px;box-shadow:0 2px 22px var(--shadow);font:14px/1.55 system-ui,Segoe UI,Arial">
   <h2 style="margin:0 0 12px">Как это работает</h2>
   <p>Приложение измеряет «микродрожание» CPU, извлекает частоты (Goertzel), стабилизирует фазу (Kalman) и онлайновой мини-нейросетью подбирает агрессивность регулятора, стремясь к <b>J→0</b>. Встроена lock-защита от переобучения.</p>
 </section>
 
-<section id="use-cases" style="max-width:960px;margin:24px auto;padding:18px 20px;background:#fff;border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);font:14px/1.55 system-ui,Segoe UI,Arial">
+<section id="use-cases" style="max-width:960px;margin:24px auto;padding:18px 20px;background:var(--panel);color:var(--text);border-radius:16px;box-shadow:0 2px 22px var(--shadow);font:14px/1.55 system-ui,Segoe UI,Arial">
   <h2 style="margin:0 0 12px">Где можно применить</h2>
   <ul style="margin:6px 0 0 18px">
     <li>Стабилизация таймеров/процессов (меньше джиттера → меньше лишнего тепла).</li>
