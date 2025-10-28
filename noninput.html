@@ -542,6 +542,7 @@ class MultiUserChatSystem {
     this.userId = this.generateUserId();
     this.onlineUsers = new Set();
     this.lastActivity = Date.now();
+    this.isLocalMode = false; // Инициализируем флаг локального режима
     
     // Определяем тип хостинга (статический GitHub Pages и т.п.)
     this.isStaticHost = /(?:^|\.)github\.io$/i.test(location.hostname) ||
