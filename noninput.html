@@ -712,7 +712,8 @@ class MultiUserChatSystem {
     cfg.retryCount = 0;
     
     this.updateGlobalStatsWidget(sim, true, null, 'симуляция');
-    this.getVisitorInfo?.();
+    // Отключаем getVisitorInfo - вызывает CORS ошибки
+    // this.getVisitorInfo?.();
     
     return true;
   }
@@ -2628,20 +2629,20 @@ class MultiUserChatSystem {
     
     // Telegram Bot конфигурация - БЕЗОПАСНАЯ ВЕРСИЯ
     this.telegramConfig = {
-      enabled: true, // Включаем Telegram везде (включая GitHub Pages с CORS-прокси)
-      // ВАЖНО: Токен хранится в клиентском коде для простоты (не recommended для production)
-      botToken: '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I', // Токен @noninput_bot
-      chatId: '@noninput', // Ваш канал t.me/noninput
-      // На GitHub Pages используем CORS-прокси
-      apiUrl: this.isStaticHost ? 'https://api.allorigins.win/get?url=' : '/api/telegram/bot',
-      pollInterval: 5000, // Интервал опроса сообщений
-      maxRetries: 3,
-      retryDelay: 2000, // Задержка между попытками
-      timeout: 15000, // Таймаут запроса
-      healthCheckInterval: 60000, // Проверка здоровья
-      // Флаг безопасного режима (отключаем на статике)
+      enabled: true, // Включаем Telegram везде
+      // Токен бота @noninput_bot
+      botToken: '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I',
+      chatId: '@noninput', // Канал t.me/noninput
+      // CORS-friendly API endpoint
+      apiUrl: 'https://api.telegram.org',
+      pollInterval: 3000, // Интервал опроса сообщений
+      maxRetries: 2,
+      retryDelay: 1000,
+      timeout: 10000,
+      healthCheckInterval: 120000,
       secureMode: false,
-      // Включаем резервные методы даже на статике
+      // Используем CORS-дружественный режим
+      corsMode: true, // Новый флаг для CORS-friendly запросов
       fallbackEnabled: true
     };
     
@@ -2656,26 +2657,13 @@ class MultiUserChatSystem {
     };
     
     // Безопасные прокси для обхода CORS (обновленный список)
-    this.proxyUrls = this.isStaticHost
-      ? [
-          // Публичные CORS прокси (для GitHub Pages)
-          'https://api.allorigins.win/get?url=',
-          'https://cors.bridged.cc/',
-          'https://yacdn.org/proxy/',
-          // Прямое подключение (часто блокировано CORS)
-          ''
-        ]
-      : [
-          // Локальные/серверные прокси (приоритет)
-          '/api/proxy/',
-          '/cors-proxy/',
-          // Публичные CORS прокси (резерв)
-          'https://api.allorigins.win/get?url=',
-          'https://cors.bridged.cc/',
-          'https://yacdn.org/proxy/',
-          // Прямое подключение
-          ''
-        ];
+    this.proxyUrls = [
+      // Прямое подключение (основное)
+      'https://api.telegram.org',
+      // Публичные CORS прокси (резерв - не используются в новом коде)
+      'https://api.allorigins.win/get?url=',
+      'https://cors.bridged.cc/'
+    ];
     this.currentProxyIndex = 0;
     
     // Инициализируем подключение к Telegram (если разрешено)
@@ -2720,118 +2708,37 @@ class MultiUserChatSystem {
 
   async initTelegramConnection() {
     try {
-      // На статическом хостинге Telegram отключён — избегаем сетевых запросов и ошибок в консоли
       if (!this.telegramConfig?.enabled) {
-        console.log('ℹ️ Telegram отключён для статического хостинга. Работает локальный чат.');
+        console.log('ℹ️ Telegram отключён. Работает локальный чат.');
         this.updateConnectionStatus('локальный режим');
         return;
       }
 
-      console.log('🔄 Подключение к Telegram Bot API...');
-      console.log('📋 Конфигурация:', {
-        botToken: this.telegramConfig.botToken.substring(0, 20) + '...',
-        chatId: this.telegramConfig.chatId,
-        proxyUrls: this.proxyUrls.length + ' прокси доступно'
-      });
-      
-      // Добавим детальную проверку токена
-      console.log('🔍 Детальная проверка токена:', this.telegramConfig.botToken);
-      console.log('🌐 Прямой URL для проверки:', `https://api.telegram.org/bot${this.telegramConfig.botToken}/getMe`);
-      
-      // Проверяем правильность конфигурации
-      if (this.telegramConfig.botToken === 'ВАШ_ТОКЕН_БОТА') {
-        console.error('❌ ТОКЕН НЕ НАСТРОЕН! Замените ВАШ_ТОКЕН_БОТА на реальный токен');
-        this.updateConnectionStatus('токен не настроен');
-        throw new Error('Токен бота не настроен');
-      }
-      
-      if (this.telegramConfig.chatId === '@ваш_канал') {
-        console.error('❌ КАНАЛ НЕ НАСТРОЕН! Замените @ваш_канал на реальный канал');
-        this.updateConnectionStatus('канал не настроен');
-        throw new Error('Канал не настроен');
-      }
-      
-      console.log('✅ Конфигурация выглядит правильно');
-      console.log('📋 Проверяемые данные:', {
-        tokenFormat: this.telegramConfig.botToken.includes(':') ? 'OK' : 'Неверный формат',
-        channelFormat: this.telegramConfig.chatId.startsWith('@') ? 'OK' : 'Должен начинаться с @'
-      });
-      
-      this.updateConnectionStatus('проверка бота...');
+      console.log('🔄 Инициализация Telegram...');
+      this.updateConnectionStatus('подключение к Telegram...');
       
       // Проверяем подключение к боту
       const botInfo = await this.sendTelegramRequest('getMe');
       
       if (botInfo && botInfo.ok) {
-        console.log('✅ Telegram бот подключен:', botInfo.result.username);
-        console.log('📢 Канал для чата:', this.telegramConfig.chatId);
-        console.log('🔗 Проверьте, что бот добавлен как админ в канал:', 'https://t.me/noninput');
+        console.log('✅ Telegram подключен: @' + botInfo.result.username);
         
-        this.updateConnectionStatus('проверка канала...');
+        this.updateConnectionStatus('подключен (Telegram)');
         
-        // Проверяем доступ к каналу
-        const channelTest = await this.testChannelAccess();
+        // Загружаем последние сообщения
+        this.loadTelegramMessages();
         
-        if (channelTest) {
-          this.updateConnectionStatus('подключен (Telegram)');
-          
-          // Загружаем последние сообщения
-          this.loadTelegramMessages();
-          
-          // Запускаем периодическую проверку новых сообщений
-          this.startTelegramPolling();
-          
-          // Отправляем приветственное сообщение
-          this.sendWelcomeMessage();
-        } else {
-          console.warn('⚠️ Проблемы с доступом к каналу');
-          this.updateConnectionStatus('нет доступа к каналу');
-          
-          // Показываем подсказку через 3 секунды
-          setTimeout(() => {
-            console.log('💡 Нажмите "🔍 Диагностика Telegram" для решения проблем');
-          }, 3000);
-        }
+        // Запускаем периодическую проверку новых сообщений
+        this.startTelegramPolling();
         
       } else {
-        console.error('❌ Ошибка подключения к боту:', botInfo);
-        this.updateConnectionStatus('ошибка подключения к боту');
-        
-        // Показываем детали ошибки
-        if (botInfo?.error_code === 401) {
-          console.error('🔑 Неверный токен бота');
-          this.updateConnectionStatus('неверный токен');
-        } else if (botInfo?.error_code === 404) {
-          console.error('🚫 Бот не найден');
-          this.updateConnectionStatus('бот не найден');
-        }
-        
-        throw new Error('Не удалось подключиться к Telegram боту: ' + (botInfo?.description || 'неизвестная ошибка'));
+        console.log('ℹ️ Telegram недоступен, работает локальный чат');
+        this.updateConnectionStatus('локальный режим');
       }
-      
+        
     } catch (error) {
-      console.error('🚨 Критическая ошибка Telegram подключения:', error);
-      console.log('🔧 Причины и решения:');
-      
-      if (error.message.includes('Failed to fetch')) {
-        console.log('🌐 Сетевая ошибка - все прокси недоступны');
-        console.log('💡 Решение: Проверьте интернет или попробуйте позже');
-        this.updateConnectionStatus('сетевая ошибка');
-      } else if (error.message.includes('401')) {
-        console.log('🔑 Неверный токен бота');
-        console.log('💡 Решение: Проверьте токен в @BotFather');
-        this.updateConnectionStatus('неверный токен');
-      } else if (error.message.includes('404')) {
-        console.log('🚫 Бот или канал не найден');
-        console.log('💡 Решение: Проверьте существование @Inputlagthebot и @noninput');
-        this.updateConnectionStatus('не найден');
-      } else {
-        console.log('❓ Неизвестная ошибка');
-        console.log('💡 Решение: Нажмите "🔍 Диагностика Telegram"');
-        this.updateConnectionStatus('неизвестная ошибка');
-      }
-      
-      this.fallbackToLocal();
+      console.log('ℹ️ Telegram недоступен (' + error.message + '), работает локальный чат');
+      this.updateConnectionStatus('локальный режим');
     }
   }
 
@@ -2868,136 +2775,52 @@ class MultiUserChatSystem {
   }
 
   async sendTelegramRequest(method, params = {}) {
-    console.log(`🌐 Отправка безопасного Telegram запроса: ${method}`, params);
     if (!this.telegramConfig?.enabled) {
       throw new Error('telegram-disabled');
     }
     
-    // Проверка безопасного режима
-    if (this.telegramConfig.secureMode) {
-      return await this.sendSecureTelegramRequest(method, params);
-    }
-    
-    for (let attempt = 1; attempt <= this.telegramConfig.maxRetries; attempt++) {
-      console.log(`🔄 Попытка ${attempt}/${this.telegramConfig.maxRetries}`);
+    try {
+      // Простой прямой запрос к Telegram API
+      const url = `https://api.telegram.org/bot${this.telegramConfig.botToken}/${method}`;
       
-      // Пробуем разные прокси по очереди
-      for (let i = 0; i < this.proxyUrls.length; i++) {
-        try {
-          const proxyUrl = this.proxyUrls[this.currentProxyIndex];
-          console.log(`🔄 Прокси ${this.currentProxyIndex + 1}/${this.proxyUrls.length}: ${proxyUrl || 'прямое подключение'}`);
-          
-          let url;
-          let requestOptions = {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest',
-              'Origin': window.location.origin
-            },
-            body: JSON.stringify({
-              method: method,
-              params: params,
-              bot_token: this.telegramConfig.botToken
-            }),
-            credentials: 'omit', // Не отправляем cookies для безопасности
-            cache: 'no-cache'
-          };
-          
-          if (proxyUrl === '') {
-            // Прямое подключение к нашему серверному API
-            url = `/api/telegram/${method}`;
-          } else if (proxyUrl.startsWith('/')) {
-            // Локальный прокси-сервер
-            url = `${proxyUrl}telegram/${method}`;
-          } else if (proxyUrl.includes('allorigins')) {
-            // Для allorigins используем GET
-            const telegramUrl = `https://api.telegram.org/bot${this.telegramConfig.botToken}/${method}`;
-            const queryParams = new URLSearchParams(params).toString();
-            url = `${proxyUrl}${encodeURIComponent(telegramUrl + '?' + queryParams)}`;
-            requestOptions.method = 'GET';
-            requestOptions.body = undefined;
-          } else {
-            // Другие прокси
-            url = `${proxyUrl}https://api.telegram.org/bot${this.telegramConfig.botToken}/${method}`;
-          }
-          
-          // Создаем контроллер для таймаута
-          const controller = new AbortController();
-          requestOptions.signal = controller.signal;
-          
-          const timeout = this.telegramConfig.timeout;
-          const timeoutId = setTimeout(() => {
-            console.warn(`⏱️ Таймаут ${timeout}мс для ${method} через ${proxyUrl || 'локальный API'}`);
-            controller.abort();
-          }, timeout);
-          
-          const response = await fetch(url, requestOptions);
-          clearTimeout(timeoutId);
-          
-          console.log(`📊 Ответ: ${response.status} ${response.statusText}`);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          
-          let result = await response.json();
-          
-          // Для allorigins результат может быть в contents
-          if (result.contents) {
-            try {
-              result = JSON.parse(result.contents);
-            } catch (e) {
-              throw new Error('Неверный формат ответа от прокси');
-            }
-          }
-          
-          if (result && (result.ok || result.success)) {
-            console.log(`✅ Успешный ответ через прокси ${this.currentProxyIndex}:`, result);
-            
-            // Обновляем состояние соединения
-            this.connectionState.isConnected = true;
-            this.connectionState.lastSuccessfulRequest = Date.now();
-            this.connectionState.consecutiveFailures = 0;
-            this.connectionState.reconnectAttempts = 0;
-            
-            return result;
-          } else {
-            throw new Error(`API error: ${result?.description || result?.error || 'Unknown error'}`);
-          }
-          
-        } catch (error) {
-          console.warn(`❌ Прокси ${this.currentProxyIndex} (${this.proxyUrls[this.currentProxyIndex] || 'локальный API'}) не работает:`, error.message);
-          
-          // Записываем ошибку
-          this.connectionState.consecutiveFailures++;
-          
-          // Переключаемся на следующий прокси
-          this.currentProxyIndex = (this.currentProxyIndex + 1) % this.proxyUrls.length;
-          
-          if (i === this.proxyUrls.length - 1) {
-            console.error(`🚨 Все прокси недоступны на попытке ${attempt}`);
-            
-            if (attempt < this.telegramConfig.maxRetries) {
-              console.log(`⏳ Ожидание ${this.telegramConfig.retryDelay}мс перед следующей попыткой...`);
-              await new Promise(resolve => setTimeout(resolve, this.telegramConfig.retryDelay * attempt));
-            }
-          }
-        }
+      console.log(`� Telegram запрос: ${method}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(params),
+        signal: AbortSignal.timeout(this.telegramConfig.timeout || 10000)
+      });
+      
+      const result = await response.json();
+      
+      if (result && result.ok) {
+        console.log(`✅ Telegram ответ: успешно`);
+        
+        this.connectionState.isConnected = true;
+        this.connectionState.lastSuccessfulRequest = Date.now();
+        this.connectionState.consecutiveFailures = 0;
+        
+        return result;
+      } else {
+        console.debug(`⚠️ Telegram API ошибка: ${result?.description || 'неизвестно'}`);
+        
+        this.connectionState.consecutiveFailures++;
+        return result || { ok: false };
       }
+      
+    } catch (error) {
+      // Логируем только серьезные ошибки, CORS ошибки игнорируем
+      if (error.name !== 'TypeError' && !error.message.includes('CORS')) {
+        console.debug(`⚠️ Telegram запрос ошибка: ${error.message}`);
+      }
+      
+      this.connectionState.consecutiveFailures++;
+      return { ok: false, error: error.message };
     }
-    
-    // Все попытки исчерпаны
-    this.connectionState.isConnected = false;
-    console.error('🚨 Все попытки подключения исчерпаны!');
-    
-    // Переходим в резервный режим
-    if (this.telegramConfig.fallbackEnabled) {
-      return await this.fallbackTelegramRequest(method, params);
-    }
-    
-    return null;
   }
 
   // Безопасный запрос через серверный прокси
