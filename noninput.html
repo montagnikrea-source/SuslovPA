@@ -59,81 +59,511 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
-    :root { --bg:#f3f5f7; --panel:#fff; --muted:#556; --bar:#e8ebef; }
-    html,body{margin:0;background:var(--bg);font:14px/1.45 system-ui,Segoe UI,Arial}
-    .main-container{display:flex;gap:24px;max-width:1400px;margin:24px auto;padding:24px}
-    .wrap{flex:1;padding:24px;background:var(--panel);border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07)}
-    .chat-container{width:350px;background:var(--panel);border-radius:16px;box-shadow:0 2px 22px rgba(0,0,0,.07);padding:20px;display:flex;flex-direction:column;height:fit-content;position:sticky;top:24px}
-    h1{margin:0 0 10px}
-    #loading{margin:6px 0 12px}
-    #loading .bg{height:18px;border-radius:8px;background:var(--bar);overflow:hidden}
-    #loading .fill{height:100%;width:0%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);transition:width .25s ease-out}
-    #statusText{color:var(--muted);margin-top:6px}
-    .row{margin-top:12px}
-    .lbl{margin:10px 0 6px}
-    .bar{height:18px;border-radius:8px;background:var(--bar);overflow:hidden}
-    .f{height:100%;background:linear-gradient(90deg,#0a7cff 60%,#69b7ff);width:0%}
-    .i{height:100%;background:linear-gradient(90deg,#18b56c 60%,#9ef0c5);width:0%}
-    .c{height:100%;background:linear-gradient(90deg,#ff9800 60%,#ffd699);width:0%}
-    #info{margin-top:14px;font-family:ui-monospace,Consolas,Menlo,monospace;white-space:pre-wrap;color:#222}
-    .hint{color:#444;margin-top:8px}
-
-    /* Резерв высоты под ручной рекламный блок, чтобы верстка не «прыгала» (если решишь включить) */
-    .ad-placeholder { min-height: 250px; display:block; text-align:center; margin:16px 0; background:transparent; }
-
-    /* Стили чата */
-    .chat-header{text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e8ebef}
-    .chat-header h3{margin:0;color:#333;font-size:18px}
-    .online-counter{display:flex;justify-content:space-between;align-items:center;margin:10px 0;padding:8px 12px;background:linear-gradient(135deg,#e8f5e8,#f0f8f0);border-radius:8px;border-left:4px solid #4CAF50}
-    .online-users{display:flex;align-items:center;gap:8px;font-size:13px;color:#2e7d32}
-    .online-indicator{width:8px;height:8px;background:#4CAF50;border-radius:50%;animation:pulse 2s infinite}
-    .users-list{font-size:11px;color:#666;margin-top:4px;max-height:40px;overflow-y:auto}
-    @keyframes pulse{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
-    .chat-messages{height:400px;overflow-y:auto;border:1px solid #e8ebef;border-radius:8px;padding:12px;margin-bottom:16px;background:#fafbfc}
-    .message{margin-bottom:12px;padding:8px 12px;border-radius:12px;max-width:85%;word-wrap:break-word}
-    .message.user{background:#007bff;color:white;margin-left:auto}
-    .message.other{background:#f1f3f5;color:#333}
-    .message-meta{font-size:11px;opacity:0.7;margin-top:4px}
-    .chat-input{display:flex;gap:8px}
-    .chat-input input{flex:1;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
-    .chat-input button{padding:10px 16px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;transition:background-color 0.3s}
-    .chat-input button:hover{background:#0056b3}
-    .chat-input button:disabled{background:#6c757d;cursor:wait;opacity:0.7}
-    .chat-input button:disabled{background:#ccc;cursor:not-allowed}
-    .message-count{text-align:center;color:#666;font-size:12px;margin-bottom:8px}
-    .filter-notice{background:#fff3cd;border:1px solid #ffeaa7;color:#856404;padding:8px;border-radius:6px;font-size:12px;margin-bottom:12px}
-    .online-count{background:#d4edda;border:1px solid #c3e6cb;color:#155724;padding:8px;border-radius:6px;font-size:12px;margin-bottom:8px;text-align:center}
-    .username-input{margin-bottom:12px}
-    .username-input input{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px}
-    .message.system{background:#e2e3e5;color:#6c757d;font-style:italic;margin:5px auto;text-align:center;max-width:95%}
-
-    @media (max-width: 1200px) {
-      .main-container{flex-direction:column}
-      .chat-container{width:100%;position:relative;top:0}
+    /* ===== СВЕТЛАЯ ТЕМА (по умолчанию) ===== */
+    :root {
+      /* Основные цвета */
+      --bg: #f3f5f7;
+      --bg-secondary: #e8ebef;
+      --panel: #ffffff;
+      --panel-hover: #f8f9fa;
+      --text: #1a1a1a;
+      --text-secondary: #666666;
+      --text-muted: #999999;
+      --border: #e0e0e0;
+      --border-light: #e8ebef;
+      --shadow: rgba(0, 0, 0, 0.07);
+      --shadow-lg: rgba(0, 0, 0, 0.12);
+      
+      /* Акцентные цвета */
+      --primary: #0a7cff;
+      --primary-light: #69b7ff;
+      --success: #18b56c;
+      --success-light: #9ef0c5;
+      --warning: #ff9800;
+      --warning-light: #ffd699;
+      --info: #007bff;
+      --info-dark: #0056b3;
+      --danger: #dc3545;
+      
+      /* Специальные */
+      --chat-user-bg: #007bff;
+      --chat-user-text: #ffffff;
+      --chat-other-bg: #f1f3f5;
+      --chat-other-text: #333333;
+      --chat-system-bg: #e2e3e5;
+      --chat-system-text: #6c757d;
+      
+      /* Переходы */
+      --transition: all 0.3s ease;
     }
-    
+
+    /* ===== ТЕМНАЯ ТЕМА ===== */
+    html[data-theme="dark"],
+    body.dark-theme {
+      --bg: #0d1117;
+      --bg-secondary: #161b22;
+      --panel: #1a1f26;
+      --panel-hover: #21262d;
+      --text: #e6edf3;
+      --text-secondary: #a0a8b8;
+      --text-muted: #8b949e;
+      --border: #30363d;
+      --border-light: #21262d;
+      --shadow: rgba(0, 0, 0, 0.3);
+      --shadow-lg: rgba(0, 0, 0, 0.5);
+      
+      /* Акцентные цвета (адаптированы для темы) */
+      --primary: #58a6ff;
+      --primary-light: #79c0ff;
+      --success: #3fb950;
+      --success-light: #56d364;
+      --warning: #ffa657;
+      --warning-light: #ffb563;
+      --info: #58a6ff;
+      --info-dark: #1f6feb;
+      --danger: #f85149;
+      
+      /* Специальные */
+      --chat-user-bg: #1f6feb;
+      --chat-user-text: #ffffff;
+      --chat-other-bg: #21262d;
+      --chat-other-text: #e6edf3;
+      --chat-system-bg: #262c36;
+      --chat-system-text: #8b949e;
+    }
+
+    /* ===== ОСНОВНЫЕ СТИЛИ ===== */
+    * {
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    }
+
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 system-ui, Segoe UI, Arial;
+    }
+
+    /* Топ-бар с переключателем темы */
+    .theme-header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .theme-header h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--text);
+    }
+
+    .theme-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .theme-toggle {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text);
+      font-size: 14px;
+      transition: var(--transition);
+    }
+
+    .theme-toggle:hover {
+      background: var(--panel-hover);
+      border-color: var(--primary);
+    }
+
+    .theme-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: pulse-indicator 2s infinite;
+    }
+
+    @keyframes pulse-indicator {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .time-display {
+      font-size: 13px;
+      color: var(--text-secondary);
+      padding: 0 8px;
+    }
+
+    /* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+    .main-container {
+      display: flex;
+      gap: 24px;
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 24px;
+    }
+
+    .wrap {
+      flex: 1;
+      padding: 24px;
+      background: var(--panel);
+      border-radius: 16px;
+      box-shadow: 0 2px 22px var(--shadow);
+      border: 1px solid var(--border-light);
+    }
+
+    .chat-container {
+      width: 350px;
+      background: var(--panel);
+      border-radius: 16px;
+      box-shadow: 0 2px 22px var(--shadow);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      height: fit-content;
+      position: sticky;
+      top: 80px;
+      border: 1px solid var(--border-light);
+    }
+
+    /* ===== ТЕКСТ И ЗАГОЛОВКИ ===== */
+    h1 {
+      margin: 0 0 10px;
+      color: var(--text);
+    }
+
+    h3 {
+      color: var(--text);
+    }
+
+    /* ===== ПРОГРЕСС БАР ===== */
+    #loading {
+      margin: 6px 0 12px;
+    }
+
+    #loading .bg {
+      height: 18px;
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    #loading .fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary) 60%, var(--primary-light));
+      transition: width 0.25s ease-out;
+    }
+
+    #statusText {
+      color: var(--text-secondary);
+      margin-top: 6px;
+    }
+
+    .row {
+      margin-top: 12px;
+    }
+
+    .lbl {
+      margin: 10px 0 6px;
+      color: var(--text-secondary);
+    }
+
+    .bar {
+      height: 18px;
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .f {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 60%, var(--primary-light));
+      width: 0%;
+    }
+
+    .i {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success) 60%, var(--success-light));
+      width: 0%;
+    }
+
+    .c {
+      height: 100%;
+      background: linear-gradient(90deg, var(--warning) 60%, var(--warning-light));
+      width: 0%;
+    }
+
+    #info {
+      margin-top: 14px;
+      font-family: ui-monospace, Consolas, Menlo, monospace;
+      white-space: pre-wrap;
+      color: var(--text);
+      background: var(--bg);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .hint {
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+
+    /* ===== РЕКЛАМА ===== */
+    .ad-placeholder {
+      min-height: 250px;
+      display: block;
+      text-align: center;
+      margin: 16px 0;
+      background: transparent;
+    }
+
+    /* ===== ЧАТ ===== */
+    .chat-header {
+      text-align: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .chat-header h3 {
+      margin: 0;
+      color: var(--text);
+      font-size: 18px;
+    }
+
+    .online-counter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, var(--success-light), var(--primary-light));
+      border-radius: 8px;
+      border-left: 4px solid var(--success);
+    }
+
+    html[data-theme="dark"] .online-counter {
+      background: linear-gradient(135deg, rgba(63, 185, 80, 0.2), rgba(88, 166, 255, 0.2));
+      border-left-color: var(--success);
+    }
+
+    .online-users {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .online-indicator {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .users-list {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      max-height: 40px;
+      overflow-y: auto;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .chat-messages {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      background: var(--bg);
+    }
+
+    .message {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      max-width: 85%;
+      word-wrap: break-word;
+    }
+
+    .message.user {
+      background: var(--chat-user-bg);
+      color: var(--chat-user-text);
+      margin-left: auto;
+      box-shadow: 0 2px 8px rgba(7, 123, 255, 0.2);
+    }
+
+    .message.other {
+      background: var(--chat-other-bg);
+      color: var(--chat-other-text);
+      border: 1px solid var(--border);
+    }
+
+    .message-meta {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .chat-input input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .chat-input button {
+      padding: 10px 16px;
+      background: var(--info);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: var(--transition);
+      font-weight: 500;
+    }
+
+    .chat-input button:hover {
+      background: var(--info-dark);
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    .chat-input button:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .message-count {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .filter-notice {
+      background: linear-gradient(135deg, var(--warning-light), #ffe0a7);
+      border: 1px solid var(--warning);
+      color: var(--text);
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+
+    html[data-theme="dark"] .filter-notice {
+      background: rgba(255, 152, 0, 0.1);
+      border: 1px solid var(--warning);
+    }
+
+    .online-count {
+      background: linear-gradient(135deg, var(--success-light), #b5e7a0);
+      border: 1px solid var(--success);
+      color: var(--text);
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 8px;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    html[data-theme="dark"] .online-count {
+      background: rgba(63, 185, 80, 0.1);
+      border: 1px solid var(--success);
+    }
+
+    .username-input {
+      margin-bottom: 12px;
+    }
+
+    .username-input input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .message.system {
+      background: var(--chat-system-bg);
+      color: var(--chat-system-text);
+      font-style: italic;
+      margin: 5px auto;
+      text-align: center;
+      max-width: 95%;
+      border: 1px solid var(--border);
+    }
+
+    /* ===== НАВИГАЦИЯ ===== */
     .nav-header {
-      background: #f8f9fa;
+      background: var(--panel);
       padding: 10px 0;
       margin-bottom: 20px;
       border-radius: 8px;
       text-align: center;
+      border: 1px solid var(--border-light);
     }
+
     .nav-header a {
       margin: 0 10px;
-      color: #007bff;
+      color: var(--info);
       text-decoration: none;
       padding: 6px 12px;
       border-radius: 4px;
       font-size: 14px;
+      transition: var(--transition);
     }
+
     .nav-header a:hover {
-      background: #007bff;
+      background: var(--info);
       color: white;
     }
-    
+
+    /* ===== ГЛОБАЛЬНЫЙ СЧЁТЧИК ===== */
     .global-online-counter {
-      background: linear-gradient(135deg, #28a745, #20c997);
+      background: linear-gradient(135deg, var(--success), var(--primary));
       color: white;
       padding: 8px 15px;
       margin: 10px auto;
@@ -147,6 +577,66 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
+    }
+
+    /* ===== АДАПТИВНОСТЬ ===== */
+    @media (max-width: 1200px) {
+      .main-container {
+        flex-direction: column;
+      }
+
+      .chat-container {
+        width: 100%;
+        position: relative;
+        top: 0;
+      }
+
+      .theme-header {
+        flex-direction: column;
+        gap: 12px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        padding: 12px;
+      }
+
+      .wrap {
+        padding: 12px;
+      }
+
+      .chat-container {
+        padding: 12px;
+      }
+
+      .theme-toggle {
+        font-size: 12px;
+        padding: 4px 8px;
+      }
+
+      .time-display {
+        font-size: 12px;
+      }
+    }
+
+    /* ===== СКРОЛЛБАР ===== */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary);
     }
     
     .global-online-pulse {
@@ -244,6 +734,19 @@
   </style>
 </head>
 <body>
+
+<!-- ===== ТОП-БАР С ПЕРЕКЛЮЧАТЕЛЕМ ТЕМ ===== -->
+<div class="theme-header">
+  <h2>💬 Чат</h2>
+  <div class="theme-controls">
+    <div class="time-display" id="time-display">...</div>
+    <button class="theme-toggle" id="theme-toggle" title="Переключить тему">
+      <span id="theme-icon">🌙</span>
+      <span id="theme-name">Темная</span>
+    </button>
+    <div class="theme-indicator"></div>
+  </div>
+</div>
 
 <!-- ЗАЩИТА САЙТА ОТ ВЗЛОМА И УТЕЧКИ КОДА -->
 <script>
@@ -727,6 +1230,129 @@ console.log('  • Несанкционированного доступа');
 ────────────────────────────────────────────────────────────────── -->
 
 <script>
+/* ====================== СИСТЕМА ТЕМ ====================== */
+
+function initThemeSystem() {
+  // Определяем текущее время суток
+  function getTimeOfDay() {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) return 'morning';    // Утро
+    if (hour >= 12 && hour < 18) return 'afternoon'; // День
+    if (hour >= 18 && hour < 21) return 'evening';   // Вечер
+    return 'night';                                   // Ночь
+  }
+
+  // Определяем предпочитаемую тему
+  function getPreferredTheme() {
+    // 1. Проверяем сохраненные пользовательские предпочтения
+    const savedTheme = localStorage.getItem('theme-preference');
+    if (savedTheme) return savedTheme;
+
+    // 2. Проверяем системное предпочтение
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+
+    // 3. По умолчанию - тема по времени суток
+    const timeOfDay = getTimeOfDay();
+    if (timeOfDay === 'night' || timeOfDay === 'evening') {
+      return 'dark';
+    }
+    return 'light';
+  }
+
+  // Применить тему
+  function applyTheme(theme) {
+    const html = document.documentElement;
+    const isDark = theme === 'dark';
+
+    // Устанавливаем атрибут
+    html.setAttribute('data-theme', theme);
+    
+    // Обновляем UI кнопки
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeName = document.getElementById('theme-name');
+    
+    if (themeToggle) {
+      if (isDark) {
+        themeIcon.textContent = '☀️';
+        themeName.textContent = 'Светлая';
+        themeToggle.title = 'Переключить на светлую тему';
+      } else {
+        themeIcon.textContent = '🌙';
+        themeName.textContent = 'Темная';
+        themeToggle.title = 'Переключить на темную тему';
+      }
+    }
+
+    // Сохраняем предпочтение
+    localStorage.setItem('theme-preference', theme);
+    localStorage.setItem('theme-set-at', new Date().toISOString());
+  }
+
+  // Обновляем время
+  function updateTime() {
+    const timeDisplay = document.getElementById('time-display');
+    if (timeDisplay) {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      
+      const timeOfDay = getTimeOfDay();
+      const timeEmoji = {
+        'morning': '🌅',
+        'afternoon': '☀️',
+        'evening': '🌆',
+        'night': '🌙'
+      }[timeOfDay];
+      
+      timeDisplay.textContent = `${timeEmoji} ${hours}:${minutes}:${seconds}`;
+    }
+  }
+
+  // Инициализация
+  const preferredTheme = getPreferredTheme();
+  applyTheme(preferredTheme);
+  
+  // Обновляем время каждую секунду
+  updateTime();
+  setInterval(updateTime, 1000);
+
+  // Слушатель для кнопки переключения
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+    });
+  }
+
+  // Слушатель на изменение системного предпочтения
+  if (window.matchMedia) {
+    const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
+    darkMode.addEventListener('change', (e) => {
+      const userPref = localStorage.getItem('theme-preference');
+      if (!userPref) {
+        // Если пользователь не установил собственное предпочтение, следуем системе
+        applyTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+  }
+
+  // Отслеживаем смену времени суток каждые 5 минут
+  setInterval(() => {
+    const userPref = localStorage.getItem('theme-preference');
+    if (!userPref) {
+      // Если пользователь не установил собственное предпочтение, обновляем по времени
+      const theme = getPreferredTheme();
+      applyTheme(theme);
+    }
+  }, 5 * 60 * 1000); // Каждые 5 минут
+}
+
 /* ====================== CPU-сэмплер ====================== */
 
 // Система многопользовательского чата с Firebase
@@ -6241,6 +6867,9 @@ function sendMessage() {
 // Инициализация многопользовательского чата
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM загружен, инициализируем чат'); // Отладка
+  
+  // ===== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ТЕМ =====
+  initThemeSystem();
   
   try {
     multiUserChat = new MultiUserChatSystem();
