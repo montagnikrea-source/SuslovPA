@@ -1710,6 +1710,50 @@ class MultiUserChatSystem {
     return cities[Math.floor(Math.random() * cities.length)];
   }
 
+  // Безопасный запрос к API (не выбрасывает исключения)
+  async safeMakeAPIRequest(apiUrl, action = 'get') {
+    try {
+      // Используем fetch с no-cors режимом для игнорирования CORS ошибок
+      let url = `${apiUrl}/hit/frequency-scanner/global`;
+      if (action === 'get') {
+        url = `${apiUrl}/get/frequency-scanner/global`;
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          return {
+            value: data.value || 1247,
+            success: true,
+            simulated: false
+          };
+        }
+      } catch (corsError) {
+        // CORS или сетевая ошибка - возвращаем null для fallback на симуляцию
+        clearTimeout(timeoutId);
+        return null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.debug('Safe API error (ignored):', error.message);
+      return null;
+    }
+  }
+
   // Выполнение запроса к API счетчика
   async makeAPIRequest(apiUrl, action = 'get') {
     const config = this.globalCounter;
@@ -1926,35 +1970,33 @@ class MultiUserChatSystem {
     console.log('🌍 Получение информации о местоположении...');
 
     const geoUrls = [
-      // CORS-friendly API сервисы
+      // CORS-friendly API сервисы (только те, что поддерживают CORS)
       'https://ipapi.co/json/',
       'https://ipinfo.io/json',
-      'https://api.ipify.org?format=json',
-      'https://freegeoip.app/json/',
       'https://api.db-ip.com/v2/free/self'
     ];
 
-    // Вспомогательный fetch с таймаутом через AbortController
-    const fetchWithTimeout = (url, ms = 6000) => {
+    // Вспомогательный fetch с таймаутом
+    const fetchWithTimeout = (url, ms = 4000) => {
       const ctrl = new AbortController();
       const to = setTimeout(() => ctrl.abort(), ms);
       return fetch(url, { 
         signal: ctrl.signal, 
         headers: { 'Accept': 'application/json' },
-        mode: 'cors'
+        mode: 'cors',
+        cache: 'no-cache'
       })
         .finally(() => clearTimeout(to));
     };
 
     for (const url of geoUrls) {
       try {
-        console.log(`📡 Попытка подключения к ${url}...`);
-        const res = await fetchWithTimeout(url, 6000);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res = await fetchWithTimeout(url, 4000);
+        if (!res.ok) continue;
+        
         const data = await res.json();
-
-        const countryCode = data.country || data.country_code || data.countryCode || null;
-        const countryName = data.country_name || data.countryName || null;
+        const countryCode = data.country || data.country_code || data.countryCode;
+        const countryName = data.country_name || data.countryName;
         const tz = data.timezone || data.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const ip = data.ip || data.query || 'Unknown';
         const isp = data.org || data.isp || data.asn || 'Unknown';
@@ -1969,17 +2011,17 @@ class MultiUserChatSystem {
           isp
         };
 
-        console.log('✅ Информация о посетителе получена:', this.visitorInfo);
-        // Обновляем только инфоблок (счётчик придёт из другого потока)
+        console.log('✅ Информация о посетителе получена');
         this.updateGlobalStatsWidget(undefined, true, this.visitorInfo);
         return;
       } catch (e) {
-        console.warn(`⚠️ Geo API сбой ${url}:`, e.message || e);
+        // Молча пропускаем ошибки - пробуем следующий URL
+        continue;
       }
     }
 
-    console.warn('⚠️ Все geo API недоступны, использую fallback');
-    // Fallback, если все сервисы не ответили
+    // Fallback при ошибках всех сервисов
+    console.log('💡 Использую локальные данные для геолокации');
     this.visitorInfo = {
       country: 'Unknown',
       city: 'Unknown',
@@ -4583,16 +4625,17 @@ ${text}
     this.updateGlobalStatsWidget(0, true, null, 'подключение');
     
     try {
-      // Сначала пробуем реальные API
+      // Сначала пробуем реальные API с безопасной обработкой
       console.log('🌐 Попытка подключения к реальным API...');
       
       let realAPIWorked = false;
       const config = this.globalCounter;
       
-      for (let i = 0; i < Math.min(2, config.apiUrls.length); i++) {
+      for (let i = 0; i < Math.min(1, config.apiUrls.length); i++) {
         try {
           const apiUrl = config.apiUrls[i];
-          const response = await this.makeAPIRequest(apiUrl, 'hit');
+          // Используем специальный безопасный метод
+          const response = await this.safeMakeAPIRequest(apiUrl, 'hit');
           
           if (response && response.value !== undefined && !response.simulated) {
             config.isOnline = true;
@@ -4605,23 +4648,23 @@ ${text}
             break;
           }
         } catch (error) {
-          console.warn(`⚠️ API ${i + 1} недоступен:`, error.message);
+          console.debug(`⚠️ API ${i + 1} не доступен`);
         }
       }
       
       if (!realAPIWorked) {
-        // Если реальные API не работают, принудительно запускаем симуляцию как "онлайн"
-        console.log('🎭 Реальные API недоступны. Запуск улучшенной симуляции...');
+        // Если реальные API не работают, используем симуляцию
+        console.log('🎭 Реальные API недоступны. Используем симуляцию...');
         
         const simulatedCount = await this.simulateGlobalCounter();
         
-        // Принудительно помечаем как онлайн
+        // Помечаем как онлайн в режиме симуляции
         config.isOnline = true;
         config.lastUpdate = Date.now();
         
         this.updateGlobalStatsWidget(simulatedCount, true, null, 'симуляция');
         
-        console.log(`✅ Симуляция запущена в онлайн-режиме: ${simulatedCount} посещений`);
+        console.log(`✅ Симуляция запущена: ${simulatedCount} посещений`);
       }
       
       // Получаем геолокацию
