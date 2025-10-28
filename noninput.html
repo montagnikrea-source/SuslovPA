@@ -2993,38 +2993,44 @@ class MultiUserChatSystem {
 
   async loadTelegramMessages() {
     try {
-      console.log('📥 Загрузка сообщений из Telegram канала...');
+      console.log('📥 Загрузка полной истории сообщений из Telegram...');
       
-      // Для каналов используем getChatHistory через getUpdates
-      // Сначала получаем обновления бота
-      const updates = await this.sendTelegramRequest('getUpdates', {
-        limit: 100,
-        timeout: 0
+      // Используем новый эндпоинт для получения полной истории
+      let historyUrl;
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        historyUrl = 'http://localhost:3000/api/telegram/updates?history=true&limit=100';
+      } else {
+        historyUrl = 'https://pavell.vercel.app/api/telegram/updates?history=true&limit=100';
+      }
+
+      const response = await fetch(historyUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
       });
-      
-      if (updates && updates.ok) {
-        console.log(`📬 Получено ${updates.result.length} обновлений`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.updates && data.updates.length > 0) {
+        console.log(`📬 Получено ${data.updates.length} сообщений из истории (кэшировано: ${data.cached})`);
         
-        const telegramMessages = updates.result
-          .filter(update => {
-            // Фильтруем сообщения из нашего канала
-            return update.channel_post && 
-                   update.channel_post.chat && 
-                   update.channel_post.chat.username === 'noninput' &&
-                   update.channel_post.text;
-          })
-          .map(update => ({
-            id: 'tg_' + update.channel_post.message_id,
-            text: update.channel_post.text,
-            username: update.channel_post.author_signature || 'Telegram User',
-            userId: 'tg_' + (update.channel_post.from?.id || 'channel'),
-            timestamp: update.channel_post.date * 1000,
-            isCurrentUser: false,
-            wasFiltered: false,
-            source: 'telegram'
-          }));
+        const telegramMessages = data.updates.map(update => ({
+          id: 'tg_' + update.id,
+          text: update.text,
+          username: update.from.first_name || 'Telegram User',
+          userId: 'tg_' + update.from.id,
+          timestamp: update.timestamp * 1000,
+          isCurrentUser: false,
+          wasFiltered: false,
+          source: 'telegram'
+        }));
         
-        console.log(`💬 Найдено ${telegramMessages.length} сообщений из канала`);
+        console.log(`💬 Найдено ${telegramMessages.length} сообщений из истории`);
         
         // Добавляем только новые сообщения
         telegramMessages.forEach(tgMsg => {
@@ -3034,18 +3040,20 @@ class MultiUserChatSystem {
         });
         
         this.messages.sort((a, b) => a.timestamp - b.timestamp);
-        this.messages = this.messages.slice(-50);
+        this.messages = this.messages.slice(-50); // Последние 50 сообщений
         
         this.updateMessageCount();
         this.renderMessages();
         
-        console.log(`✅ Обработано сообщений: ${telegramMessages.length}`);
+        console.log(`✅ Загружено ${telegramMessages.length} сообщений из истории`);
+      } else if (data.error) {
+        console.warn('⚠️ Ошибка получения истории:', data.error);
       } else {
-        console.warn('⚠️ Не удалось получить обновления:', updates);
+        console.log('ℹ️ История сообщений пуста');
       }
       
     } catch (error) {
-      console.error('❌ Ошибка загрузки сообщений Telegram:', error);
+      console.error('❌ Ошибка загрузки истории Telegram:', error);
     }
   }
 

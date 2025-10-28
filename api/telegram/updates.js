@@ -1,8 +1,13 @@
-// Получение обновлений Telegram с поддержкой кэширования
-// Этот эндпоинт безопасно получает новые сообщения из Telegram
+// Получение обновлений Telegram с поддержкой кэширования и истории
+// Этот эндпоинт безопасно получает новые сообщения и полную историю из Telegram
 
 let lastUpdateId = 0;
-const messageCache = new Map();
+let allMessages = [];
+
+// Хранилище для сохранения всех сообщений по группе
+const messageStore = {
+  '@noninput': []
+};
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,15 +29,25 @@ export default async function handler(req, res) {
     }
 
     // Получаем параметры запроса
-    const { lastId = -1, limit = 100, timeout = 5, fromStart = false } = req.query;
+    const { lastId = -1, limit = 100, timeout = 5, history = false } = req.query;
 
-    // Если fromStart=true, получаем последние сообщения (offset=0)
-    // Если lastId >= 0, получаем обновления начиная с lastId+1
-    const offset = fromStart === 'true' ? 0 : (parseInt(lastId) + 1);
+    // Если history=true, получаем ВСЮ доступную историю
+    // Иначе получаем новые обновления начиная с offset
+    let offset = 0;
+    let finalLimit = parseInt(limit);
+    
+    if (history === 'true') {
+      // Для истории запрашиваем со смещением 0 и большим limit
+      offset = 0;
+      finalLimit = 100;
+      console.log(`📚 Получение полной истории сообщений Telegram`);
+    } else {
+      offset = parseInt(lastId) + 1;
+      console.log(`📨 Получение новых обновлений Telegram (offset=${offset})`);
+    }
+    
     const url = `https://api.telegram.org/bot${botToken}/getUpdates?` +
-      `offset=${Math.max(0, offset)}&limit=${limit}&allowed_updates=message`;
-
-    console.log(`📨 Получение обновлений Telegram (offset=${offset})`);
+      `offset=${Math.max(0, offset)}&limit=${finalLimit}&allowed_updates=message`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -57,29 +72,6 @@ export default async function handler(req, res) {
     // Обновляем lastUpdateId
     if (data.result.length > 0) {
       lastUpdateId = data.result[data.result.length - 1].update_id;
-      
-      // Кэшируем сообщения
-      for (const update of data.result) {
-        if (update.message) {
-          messageCache.set(update.update_id, {
-            id: update.update_id,
-            timestamp: update.message.date,
-            from: {
-              id: update.message.from.id,
-              first_name: update.message.from.first_name,
-              username: update.message.from.username
-            },
-            text: update.message.text || update.message.caption || '',
-            chat: {
-              id: update.message.chat.id,
-              type: update.message.chat.type,
-              title: update.message.chat.title
-            }
-          });
-        }
-      }
-      
-      console.log(`✅ Получено ${data.result.length} обновлений`);
     }
 
     // Возвращаем сообщения в удобном формате
@@ -106,11 +98,30 @@ export default async function handler(req, res) {
         }
       }));
 
+    // Если это запрос истории, добавляем сообщения в хранилище
+    if (history === 'true') {
+      allMessages = messages.sort((a, b) => a.timestamp - b.timestamp);
+      console.log(`📚 Загружена история: ${allMessages.length} сообщений`);
+    } else {
+      // Для новых обновлений добавляем их в историю
+      messages.forEach(msg => {
+        if (!allMessages.find(m => m.id === msg.id)) {
+          allMessages.push(msg);
+          allMessages.sort((a, b) => a.timestamp - b.timestamp);
+          allMessages = allMessages.slice(-100); // Держим последние 100
+        }
+      });
+    }
+
+    // Возвращаем либо всю историю, либо новые сообщения
+    const resultMessages = history === 'true' ? allMessages : messages;
+    
     return res.status(200).json({
       success: true,
-      updates: messages,
+      updates: resultMessages,
       lastId: lastUpdateId,
-      count: messages.length
+      count: resultMessages.length,
+      cached: allMessages.length
     });
 
   } catch (error) {
