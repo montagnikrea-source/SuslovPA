@@ -1,0 +1,44 @@
+# Robots.txt for SuslovPA / Frequency Scanner
+# Last updated: October 28, 2025
+
+# Allow all bots by default
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /noninput.html
+Allow: /about.html
+Allow: /contact.html
+Allow: /privacy-policy.html
+
+# Disallow admin and private areas
+Disallow: /.env
+Disallow: /admin/
+Disallow: /private/
+Disallow: /config/
+Disallow: /*.env
+Disallow: /**/node_modules/
+Disallow: /**/.git/
+
+# Allow AdSense crawlers
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+# Sitemap location (if exists)
+# Sitemap: https://pavell.vercel.app/sitemap.xml
+# Sitemap: https://montagnikrea-source.github.io/SuslovPA/sitemap.xml
+
+# Crawl delay to be nice to server
+Crawl-delay: 1
+
+# Allow fast crawling for Google and major search engines
+User-agent: Googlebot
+Crawl-delay: 0
+
+User-agent: Bingbot
+Crawl-delay: 0
+
+User-agent: Slurp
+Crawl-delay: 1
