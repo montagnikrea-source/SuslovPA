@@ -1,72 +1,24 @@
 <!DOCTYPE html>
-<html lang="ru" style="background-color: #f3f5f7 !important; color: #1a1a1a !important;">
+<html lang="ru" style="background-color:#f3f5f7!important;color:#1a1a1a!important">
 <head>
-  <meta charset="utf-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="cache-control" content="no-cache,no-store,must-revalidate">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="expires" content="0">
   
-  <!-- CRITICAL: Apply theme BEFORE anything else loads -->
   <script>
-    window.THEME_DATA = {
-      saved: localStorage.getItem('theme-preference'),
-      prefersDark: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
-      hour: new Date().getHours()
-    };
-    
-    window.THEME_DATA.isDark = window.THEME_DATA.saved ? (window.THEME_DATA.saved === 'dark') : (window.THEME_DATA.prefersDark || window.THEME_DATA.hour >= 21 || window.THEME_DATA.hour < 6 || (window.THEME_DATA.hour >= 18 && window.THEME_DATA.hour < 21));
-    window.THEME_DATA.theme = window.THEME_DATA.isDark ? 'dark' : 'light';
-    
-    const bgColor = window.THEME_DATA.isDark ? '#0d1117' : '#f3f5f7';
-    const textColor = window.THEME_DATA.isDark ? '#e6edf3' : '#1a1a1a';
-    
-    document.documentElement.setAttribute('data-theme', window.THEME_DATA.theme);
-    document.documentElement.setAttribute('style', `background-color: ${bgColor} !important; color: ${textColor} !important;`);
-    
-    console.log('🎨 [THEME INIT] theme=' + window.THEME_DATA.theme + ' isDark=' + window.THEME_DATA.isDark + ' hour=' + window.THEME_DATA.hour);
+(function(){try{const s=localStorage.getItem('theme-preference');const p=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;const h=new Date().getHours();const d=s?(s==='dark'):(p||h>=21||h<6||(h>=18&&h<21));const t=d?'dark':'light';const b=d?'#0d1117':'#f3f5f7';const c=d?'#e6edf3':'#1a1a1a';document.documentElement.style.backgroundColor=b+'!important';document.documentElement.style.color=c+'!important';document.documentElement.setAttribute('data-theme',t);window.__THEME={t,d,h};console.log('🎨[THEME]',t)}catch(e){console.error(e)}})();
   </script>
   
   <style>
-    /* Backup: critical styles */
-    html { background-color: #f3f5f7 !important; color: #1a1a1a !important; }
-    body { background-color: #f3f5f7 !important; color: #1a1a1a !important; }
-    html[data-theme="dark"] { background-color: #0d1117 !important; color: #e6edf3 !important; }
-    html[data-theme="dark"] body { background-color: #0d1117 !important; color: #e6edf3 !important; }
+html,body{background-color:#f3f5f7!important;color:#1a1a1a!important}
+html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!important;color:#e6edf3!important}
   </style>
-  
-  <script>
-    // Update debug badge when DOM ready
-    setTimeout(function() {
-      const badge = document.getElementById('theme-debug-value');
-      if (badge) {
-        badge.textContent = window.THEME_DATA.theme.toUpperCase();
-        badge.style.color = '#fff';
-        console.log('🎨 [DEBUG BADGE] Updated to: ' + window.THEME_DATA.theme.toUpperCase());
-      } else {
-        console.log('🎨 [DEBUG BADGE] Not found in DOM');
-      }
-    }, 0);
-  </script>
-        document.body.style.color = '#e6edf3 !important';
-      } else {
-        document.documentElement.style.backgroundColor = '#f3f5f7 !important';
-        document.documentElement.style.color = '#1a1a1a !important';
-        document.body.style.backgroundColor = '#f3f5f7 !important';
-        document.body.style.color = '#1a1a1a !important';
-      }
-      
-      window.__themeApplied = theme;
-      console.log('%c🎨 THEME APPLIED AT HEAD START:', 'color: #0a7cff; font-weight: bold;', theme);
-    })();
-  </script>
-  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="pragma" content="no-cache" />
-  <meta http-equiv="expires" content="0" />
-  <meta name="app-version" content="1.0-theme-system" />
 
-  <!-- Безопасность: Content Security Policy -->
+  
+  <!-- Content Security Policy -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self' 'unsafe-inline' 'unsafe-eval';
     connect-src 'self' 
@@ -98,11 +50,9 @@
     frame-src 'self' https:;
     worker-src 'self' blob:;
   ">
-
-  <!-- Дополнительные заголовки безопасности -->
+  
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-
   <title>Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)</title>
 
   <!-- Immediate theme application to prevent flash - INLINE CRITICAL STYLES -->
