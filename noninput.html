@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="expires" content="0" />
+  <meta name="app-version" content="1.0-theme-system" />
 
   <!-- Безопасность: Content Security Policy -->
   <meta http-equiv="Content-Security-Policy" content="
@@ -43,6 +47,30 @@
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
 
   <title>Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)</title>
+
+  <!-- Immediate theme application to prevent flash -->
+  <script>
+    (function() {
+      const saved = localStorage.getItem('theme-preference');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const hour = new Date().getHours();
+      const isNightHour = hour >= 21 || hour < 6;
+      const isEveningHour = hour >= 18 && hour < 21;
+      
+      let theme = 'light';
+      
+      if (saved) {
+        theme = saved;
+      } else if (prefersDark) {
+        theme = 'dark';
+      } else if (isNightHour || isEveningHour) {
+        theme = 'dark';
+      }
+      
+      document.documentElement.setAttribute('data-theme', theme);
+      console.log('🎨 Theme applied immediately:', theme);
+    })();
+  </script>
 
   <!-- Favicon (убран — файл favicon.ico отсутствует) -->
   <!-- <link rel="icon" href="favicon.ico"> -->
