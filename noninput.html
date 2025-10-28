@@ -2628,21 +2628,21 @@ class MultiUserChatSystem {
     
     // Telegram Bot конфигурация - БЕЗОПАСНАЯ ВЕРСИЯ
     this.telegramConfig = {
-      enabled: !this.isStaticHost, // На статическом хостинге отключаем сетевые вызовы Telegram
-      // ВАЖНО: Токен перенесен в безопасное хранилище на сервере
-      botToken: this.getSecureBotToken(), // Получаем токен из защищенного источника
+      enabled: true, // Включаем Telegram везде (включая GitHub Pages с CORS-прокси)
+      // ВАЖНО: Токен хранится в клиентском коде для простоты (не recommended для production)
+      botToken: '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I', // Токен @noninput_bot
       chatId: '@noninput', // Ваш канал t.me/noninput
-      // Используем прокси-сервер для обхода CORS
-      apiUrl: '/api/telegram/bot', // Проксируем через собственный сервер
-      pollInterval: 5000, // Увеличили интервал для снижения нагрузки
+      // На GitHub Pages используем CORS-прокси
+      apiUrl: this.isStaticHost ? 'https://api.allorigins.win/get?url=' : '/api/telegram/bot',
+      pollInterval: 5000, // Интервал опроса сообщений
       maxRetries: 3,
-      retryDelay: 2000, // Увеличили задержку
-      timeout: 15000, // Увеличили таймаут
-      healthCheckInterval: 60000, // Проверяем реже
-      // Флаг безопасного режима (выключаем на статике)
-      secureMode: !this.isStaticHost,
-      // Резервные методы (публичные CORS-прокси часто блокируются — выключаем на статике)
-      fallbackEnabled: !this.isStaticHost
+      retryDelay: 2000, // Задержка между попытками
+      timeout: 15000, // Таймаут запроса
+      healthCheckInterval: 60000, // Проверка здоровья
+      // Флаг безопасного режима (отключаем на статике)
+      secureMode: false,
+      // Включаем резервные методы даже на статике
+      fallbackEnabled: true
     };
     
     // Состояние соединения
@@ -2657,7 +2657,14 @@ class MultiUserChatSystem {
     
     // Безопасные прокси для обхода CORS (обновленный список)
     this.proxyUrls = this.isStaticHost
-      ? [''] // На статических хостингах не используем внешние/локальные прокси — оставляем только попытку прямого (часто заблокировано, но мы не будем его дергать при disabled)
+      ? [
+          // Публичные CORS прокси (для GitHub Pages)
+          'https://api.allorigins.win/get?url=',
+          'https://cors.bridged.cc/',
+          'https://yacdn.org/proxy/',
+          // Прямое подключение (часто блокировано CORS)
+          ''
+        ]
       : [
           // Локальные/серверные прокси (приоритет)
           '/api/proxy/',
@@ -2681,15 +2688,9 @@ class MultiUserChatSystem {
 
   // Безопасное получение токена бота (не храним в клиентском коде)
   getSecureBotToken() {
-    // В продакшене токен должен храниться на сервере
-    // Это временный fallback для демонстрации
-    if (window.location.hostname === 'localhost' || window.location.hostname.includes('github')) {
-      // Для демо-режима используем placeholder
-      return 'DEMO_TOKEN_PLACEHOLDER';
-    }
-    
-    // В реальном приложении токен получается через API сервера
-    return 'FALLBACK_FOR_DEMO_8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I';
+    // Для GitHub Pages используем реальный токен бота @noninput_bot
+    // В production это должно быть получено с сервера через безопасный канал
+    return '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I';
   }
 
   // Запрос токена с сервера (безопасный способ)
