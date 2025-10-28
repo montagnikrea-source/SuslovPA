@@ -47,7 +47,7 @@
 2. **Environment Variables:** 
    - Добавьте переменную:
      - **Name**: `TELEGRAM_BOT_TOKEN`
-     - **Value**: `8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I`
+     - **Value**: `8223995698:AAEaT8JLFvfLB8Pna5XX09lFflqSnBtamJc`
 3. Нажмите **"Deploy"**
 
 ---
