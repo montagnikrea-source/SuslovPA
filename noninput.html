@@ -744,11 +744,45 @@ class MultiUserChatSystem {
   startGlobalCounter() {
     try {
       Promise.resolve()
-        .then(() => this.connectToGlobalAPI_v1())
-        .then(() => this.startGlobalCounterUpdates_v1());
+        .then(() => this.connectToGlobalAPI())
+        .then(() => this.isStaticHost ? this.startGlobalCounterUpdates_v1() : this.startGlobalCounterUpdates());
     } catch (e) {
       console.warn('Global counter v1 start error:', e);
     }
+  }
+
+  // Унифицированный коннект (облегчённая версия для Vercel)
+  async connectToGlobalAPI() {
+    if (this.isStaticHost) {
+      return this.connectToGlobalAPI_v1();
+    }
+
+    // Пытаемся найти рабочий счётчик через серверный прокси
+    const candidates = this.globalCounter?.apiUrls || [
+      'https://api.countapi.xyz',
+      'https://api.counterapi.dev'
+    ];
+
+    for (const apiUrl of candidates) {
+      try {
+        const res = await this.makeSecureAPIRequest(apiUrl, 'get');
+        if (res && res.success) {
+          const value = res.value;
+          this.globalCounter.isOnline = true;
+          this.globalCounter.lastUpdate = Date.now();
+          this.globalCounter.lastWorkingAPI = { url: apiUrl, name: this.getAPIName(apiUrl) };
+          this.updateGlobalStatsWidget(value, true, null, 'api');
+          console.log(`✅ Подключено к счётчику через сервер: ${apiUrl}`);
+          return true;
+        }
+      } catch (e) {
+        // Продолжаем со следующим кандидатом
+      }
+    }
+
+    // Если не удалось — включаем симуляцию
+    this.activateHybridMode?.();
+    return true;
   }
 
   // Инициализация глобального счетчика
@@ -1903,13 +1937,31 @@ class MultiUserChatSystem {
     const config = this.globalCounter;
     
     try {
-      // Используем только симуляцию (реальные API блокируются CORS)
-      const updatedCount = await this.simulateGlobalCounter();
-      config.isOnline = true;
-      config.lastUpdate = Date.now();
-      
-      console.log(`📊 Обновлен счетчик: ${updatedCount} посещений`);
-      this.updateGlobalStatsWidget(updatedCount, true, null, 'симуляция');
+      if (this.isStaticHost) {
+        // Статический хост — только симуляция
+        const updatedCount = await this.simulateGlobalCounter();
+        config.isOnline = true;
+        config.lastUpdate = Date.now();
+        this.updateGlobalStatsWidget(updatedCount, true, null, 'симуляция');
+        return;
+      }
+
+      // Пытаемся получить значение через безопасный серверный прокси
+      const targetApi = (config.lastWorkingAPI && config.lastWorkingAPI.url) || config.apiUrls?.[0] || 'https://api.countapi.xyz';
+      const secure = await this.makeSecureAPIRequest(targetApi, 'get');
+
+      if (secure && secure.success) {
+        const updatedCount = secure.value;
+        config.isOnline = true;
+        config.lastUpdate = Date.now();
+        this.updateGlobalStatsWidget(updatedCount, true, null, 'api');
+      } else {
+        // Fallback к симуляции
+        const updatedCount = await this.simulateGlobalCounter();
+        config.isOnline = true;
+        config.lastUpdate = Date.now();
+        this.updateGlobalStatsWidget(updatedCount, true, null, 'симуляция');
+      }
       
     } catch (error) {
       console.debug('Ошибка обновления:', error.message);

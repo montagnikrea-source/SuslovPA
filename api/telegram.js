@@ -30,13 +30,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'method parameter required' });
     }
     
-    // Получаем токен из переменной окружения или используем fallback
-    const botToken = process.env.TELEGRAM_BOT_TOKEN || '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I';
+    // Получаем токен из переменной окружения
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+      return res.status(500).json({ ok: false, error: 'Server misconfigured: TELEGRAM_BOT_TOKEN is not set' });
+    }
     
     // Формируем URL для Telegram API
-    const telegramUrl = `https://api.telegram.org/bot${botToken}/${method}`;
-    
-    console.log(`[Telegram Proxy] ${method} to ${telegramUrl}`);
+  const telegramUrl = `https://api.telegram.org/bot${botToken}/${method}`;
+  // Логи без утечки токена
+  console.log(`[Telegram Proxy] ${method} → https://api.telegram.org/bot<redacted>/${method}`);
     
     // Делаем запрос к Telegram API
     const response = await fetch(telegramUrl, {
