@@ -52,8 +52,12 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
     worker-src 'self' blob:;
   ">
   
+  <!-- Security Headers -->
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
   <title>Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)</title>
 
   <!-- Immediate theme application to prevent flash - INLINE CRITICAL STYLES -->
@@ -1429,6 +1433,109 @@ function initThemeSystem() {
   }, 5 * 60 * 1000); // Каждые 5 минут
 }
 
+/* ====================== ЗАЩИТА ОТ ВЗЛОМА ====================== */
+
+// Объект для глобальной безопасности
+window.SecurityManager = {
+  // ===== XSS PROTECTION =====
+  sanitizeHtml(str) {
+    if (typeof str !== 'string') return '';
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+      '/': '&#x2F;'
+    };
+    return str.replace(/[&<>"'\/]/g, char => map[char]);
+  },
+  
+  sanitizeJSON(obj) {
+    if (typeof obj === 'string') return this.sanitizeHtml(obj);
+    if (typeof obj === 'object' && obj !== null) {
+      if (Array.isArray(obj)) return obj.map(item => this.sanitizeJSON(item));
+      const result = {};
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          result[key] = this.sanitizeJSON(obj[key]);
+        }
+      }
+      return result;
+    }
+    return obj;
+  },
+  
+  // ===== CSRF PROTECTION =====
+  _csrfToken: null,
+  generateCSRFToken() {
+    return 'csrf_' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  },
+  getCSRFToken() {
+    if (!this._csrfToken) {
+      this._csrfToken = this.generateCSRFToken();
+      sessionStorage.setItem('csrf_token', this._csrfToken);
+    }
+    return this._csrfToken;
+  },
+  validateCSRFToken(token) {
+    const stored = sessionStorage.getItem('csrf_token');
+    return stored && token === stored;
+  },
+  
+  // ===== RATE LIMITING =====
+  _requestCounts: {},
+  checkRateLimit(key, maxRequests = 10, windowMs = 60000) {
+    const now = Date.now();
+    if (!this._requestCounts[key]) {
+      this._requestCounts[key] = [];
+    }
+    
+    // Удалить старые запросы вне окна
+    this._requestCounts[key] = this._requestCounts[key].filter(t => now - t < windowMs);
+    
+    if (this._requestCounts[key].length >= maxRequests) {
+      console.warn(`⚠️ Rate limit exceeded for ${key}`);
+      return false;
+    }
+    
+    this._requestCounts[key].push(now);
+    return true;
+  },
+  
+  // ===== INPUT VALIDATION =====
+  validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  },
+  
+  validateUsername(username) {
+    // Только буквы, цифры, подчёркивание
+    const re = /^[a-zA-Z0-9_]{1,32}$/;
+    return re.test(username);
+  },
+  
+  validateMessage(msg) {
+    if (typeof msg !== 'string') return false;
+    if (msg.length < 1 || msg.length > 2000) return false;
+    // Запретить опасные теги и скрипты
+    if (/script|javascript:|onerror|onload|eval/i.test(msg)) return false;
+    return true;
+  },
+  
+  // ===== INJECTION PROTECTION =====
+  validateURL(url) {
+    try {
+      const u = new URL(url);
+      // Только https и http
+      return ['https:', 'http:'].includes(u.protocol);
+    } catch (e) {
+      return false;
+    }
+  }
+};
+
 /* ====================== CPU-сэмплер ====================== */
 
 // Система многопользовательского чата с Firebase
@@ -1442,6 +1549,9 @@ class MultiUserChatSystem {
     this.onlineUsers = new Set();
     this.lastActivity = Date.now();
     this.isLocalMode = false; // Инициализируем флаг локального режима
+    
+    // Инициализация CSRF токена для защиты от CSRF атак
+    this.csrfToken = window.SecurityManager.getCSRFToken();
     
     // Определяем тип хостинга (статический GitHub Pages и т.п.)
     this.isStaticHost = /(?:^|\.)github\.io$/i.test(location.hostname) ||
@@ -6719,13 +6829,35 @@ ${text}
   addMessage(text) {
     console.log('addMessage вызвана с текстом:', text); // Отладка
     
+    // ===== ЗАЩИТА: Валидация сообщения =====
+    if (!window.SecurityManager.validateMessage(text)) {
+      console.warn('⚠️ Сообщение не прошло валидацию безопасности');
+      return false;
+    }
+    
+    // ===== ЗАЩИТА: Rate limiting =====
+    if (!window.SecurityManager.checkRateLimit('message_' + this.userId, 20, 60000)) {
+      console.warn('⚠️ Превышен лимит сообщений (20 за минуту)');
+      alert('⚠️ Вы отправляете слишком много сообщений. Подождите немного.');
+      return false;
+    }
+    
+    // ===== ЗАЩИТА: Санитизация HTML =====
+    text = window.SecurityManager.sanitizeHtml(text);
+    
     const filtered = this.filterMessage(text);
     const currentUsername = document.getElementById('usernameInput').value.trim() || 'Анонимный';
+    
+    // ===== ЗАЩИТА: Валидация username =====
+    if (currentUsername.length > 1 && !window.SecurityManager.validateUsername(currentUsername.replace(/\s+/g, '_'))) {
+      console.warn('⚠️ Username содержит недопустимые символы');
+      return false;
+    }
     
     const message = {
       id: this.userId + '_' + Date.now() + '_' + Math.random(),
       text: filtered.text,
-      username: currentUsername,
+      username: window.SecurityManager.sanitizeHtml(currentUsername),
       userId: this.userId,
       timestamp: Date.now(),
       isCurrentUser: true,
