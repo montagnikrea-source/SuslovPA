@@ -711,7 +711,8 @@ this.requestCounter = async (api, action /* 'hit' | 'get' | 'ping' */) => {
 
 // =========================
 // Улучшенный коннект с приоритетом «реальные счётчики» → «пинги» → «симуляция»
-this.connectToGlobalAPIImproved = async () => {
+// Вариант v1: простой приоритет реальных счётчиков → пинг → симуляция
+this.connectToGlobalAPI_v1 = async () => {
   const cfg = this.globalCounter;
   const apis = cfg.apis;
 
@@ -769,7 +770,8 @@ this.connectToGlobalAPIImproved = async () => {
 
 // =========================
 // Обновление по расписанию (использует «counter» если есть; иначе — симуляция)
-this.startGlobalCounterUpdates = function() {
+// Планировщик обновлений (v1): при живом счётчике — только GET, иначе — симуляция
+this.startGlobalCounterUpdates_v1 = function() {
   const tick = async () => {
     const cfg = this.globalCounter;
     const api = cfg.apis[cfg.currentApiIndex];
@@ -806,6 +808,15 @@ this.startGlobalCounterUpdates = function() {
   this._globalCounterTimer && clearInterval(this._globalCounterTimer);
   this._globalCounterTimer = setInterval(tick, 15000);
 }.bind(this);
+
+// Запуск подключения и регулярных обновлений счётчика (v1)
+try {
+  Promise.resolve()
+    .then(() => this.connectToGlobalAPI_v1())
+    .then(() => this.startGlobalCounterUpdates_v1());
+} catch (e) {
+  console.warn('Global counter v1 start error:', e);
+}
 
 // Показать состояние загрузки глобального счетчика
 this.showGlobalCounterLoadingState = function() {
