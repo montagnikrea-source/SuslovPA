@@ -2694,7 +2694,7 @@ class MultiUserChatSystem {
       chatId: '@noninput', // Канал t.me/noninput
       // Используем серверный прокси API вместо прямого подключения
       apiUrl: 'https://pavell.vercel.app/api/telegram',
-      pollInterval: 3000, // Интервал опроса сообщений
+      pollInterval: 0, // ОТКЛЮЧЕНО: polling на GitHub Pages конфликтует с другими экземплярами
       maxRetries: 2,
       retryDelay: 1000,
       timeout: 10000,
@@ -3063,10 +3063,14 @@ class MultiUserChatSystem {
     
     console.log('🔄 Запуск Telegram polling с интервалом', this.telegramConfig.pollInterval, 'мс');
     
-    // Периодически проверяем новые сообщения
-    this.telegramPollInterval = setInterval(() => {
-      this.checkTelegramUpdates();
-    }, this.telegramConfig.pollInterval);
+    // Периодически проверяем новые сообщения (только если pollInterval > 0)
+    if (this.telegramConfig.pollInterval > 0) {
+      this.telegramPollInterval = setInterval(() => {
+        this.checkTelegramUpdates();
+      }, this.telegramConfig.pollInterval);
+    } else {
+      console.log('ℹ️ Polling отключен (pollInterval = 0)');
+    }
     
     // Мониторинг здоровья соединения
     this.healthCheckInterval = setInterval(() => {
