@@ -87,23 +87,6 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
       }
       
       console.log('🎨 Theme applied immediately (inline):', theme);
-      
-      // Update debug badge
-      document.addEventListener('DOMContentLoaded', () => {
-        const badge = document.getElementById('theme-debug-value');
-        if (badge) badge.textContent = theme.toUpperCase();
-      }, false);
-      
-      // Immediate update (in case DOM is ready)
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-          const badge = document.getElementById('theme-debug-value');
-          if (badge) badge.textContent = theme.toUpperCase();
-        }, { once: true });
-      } else {
-        const badge = document.getElementById('theme-debug-value');
-        if (badge) badge.textContent = theme.toUpperCase();
-      }
     })();
   </script>
 
@@ -933,11 +916,6 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
   </style>
 </head>
 <body>
-
-<!-- ===== DEBUG: Theme Status Badge ===== -->
-<div id="theme-debug-badge" style="position: fixed; top: 5px; left: 5px; z-index: 99999; padding: 8px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; background: #ff6b6b; border: 2px solid #ff0000;">
-  🎨 THEME: <span id="theme-debug-value">loading</span>
-</div>
 
 <!-- ===== ТОП-БАР С ПЕРЕКЛЮЧАТЕЛЕМ ТЕМ ===== -->
 <div class="theme-header">
