@@ -694,64 +694,8 @@ class MultiUserChatSystem {
 
   // Единая точка работы со счётчиками/пингами
   async requestCounter(api, action /* 'hit' | 'get' | 'ping' */) {
-    const ns = this.globalCounter.namespace;
-    const key = this.globalCounter.key;
-
-    try {
-      if (api.type === 'counter') {
-        // Счётчики: формируем список кандидатов URL в зависимости от провайдера
-        const urlCandidates = [];
-        if (api.name === 'CountAPI') {
-          urlCandidates.push(api.base + (action === 'hit' ? this._fmtPath(api.hit, ns, key) : this._fmtPath(api.get, ns, key)));
-        } else if (api.name === 'CounterAPI.dev') {
-          // Известные варианты эндпоинтов CounterAPI.dev
-          if (action === 'hit') {
-            urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/up`);
-            urlCandidates.push(`${api.base}/hit/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
-            urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}/increase`);
-          } else {
-            urlCandidates.push(`${api.base}/v1/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
-            urlCandidates.push(`${api.base}/get/${encodeURIComponent(ns)}/${encodeURIComponent(key)}`);
-          }
-        } else {
-          // По умолчанию — схема как у CountAPI
-          urlCandidates.push(api.base + (action === 'hit' ? this._fmtPath(api.hit, ns, key) : this._fmtPath(api.get, ns, key)));
-        }
-
-        let lastErr = null;
-        for (const url of urlCandidates) {
-          try {
-            const res = await this._fetchWithTimeout(url, this.globalCounter.connectionTimeout);
-            if (!res.ok) { lastErr = new Error(`${api.name} HTTP ${res.status}`); continue; }
-            const data = await res.json().catch(() => ({}));
-            const value = Number(
-              data.value ?? data.count ?? data.hits ?? data.total
-            );
-            if (Number.isFinite(value)) {
-              return { ok: true, value, mode: 'api', api: api.name, url };
-            }
-            lastErr = new Error(`${api.name} bad payload`);
-          } catch (e) {
-            lastErr = e;
-            continue;
-          }
-        }
-        throw lastErr || new Error(`${api.name} unreachable`);
-      }
-
-      // Пинги: просто проверяем доступность (без value)
-      if (api.type === 'ping') {
-        const url = api.base + api.get;
-        const res = await this._fetchWithTimeout(url, this.globalCounter.connectionTimeout);
-        if (!res.ok) throw new Error(`${api.name} HTTP ${res.status}`);
-        // Не возвращаем value, это не счётчик
-        return { ok: true, mode: 'ping', api: api.name };
-      }
-
-      throw new Error(`Unknown API type: ${api.type}`);
-    } catch (e) {
-      return { ok: false, error: String(e), api: api.name };
-    }
+    // Метод отключен - используется только локальная симуляция
+    return { ok: false, error: 'API disabled' };
   }
 
   // Улучшенный коннект с приоритетом «реальные счётчики» → «пинги» → «симуляция»
