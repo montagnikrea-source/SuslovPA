@@ -1,8 +1,11 @@
 // Получение обновлений Telegram с поддержкой кэширования и истории
 // Этот эндпоинт безопасно получает новые сообщения и полную историю из Telegram
+// ВАЖНО: Telegram Bot API getUpdates() возвращает только новые сообщения!
+// Мы сохраняем ВСЕ сообщения в памяти для истории
 
 let lastUpdateId = 0;
 let allMessages = [];
+let lastKnownOffset = 0;
 
 // Хранилище для сохранения всех сообщений по группе
 const messageStore = {
@@ -31,20 +34,12 @@ export default async function handler(req, res) {
     // Получаем параметры запроса
     const { lastId = -1, limit = 100, timeout = 5, history = false } = req.query;
 
-    // Если history=true, получаем ВСЮ доступную историю
-    // Иначе получаем новые обновления начиная с offset
-    let offset = 0;
+    // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Всегда получаем с lastKnownOffset
+    // Это позволяет аккумулировать ВСЕ сообщения, а не только новые
+    let offset = lastKnownOffset; // Начинаем с последнего известного offset
     let finalLimit = parseInt(limit);
     
-    if (history === 'true') {
-      // Для истории запрашиваем со смещением 0 и большим limit
-      offset = 0;
-      finalLimit = 100;
-      console.log(`📚 Получение полной истории сообщений Telegram`);
-    } else {
-      offset = parseInt(lastId) + 1;
-      console.log(`📨 Получение новых обновлений Telegram (offset=${offset})`);
-    }
+    console.log(`� Получение сообщений (offset=${offset}, limit=${finalLimit})`);
     
     const url = `https://api.telegram.org/bot${botToken}/getUpdates?` +
       `offset=${Math.max(0, offset)}&limit=${finalLimit}&allowed_updates=message`;
@@ -65,18 +60,20 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: false,
         updates: [],
-        error: data.description
+        error: data.description,
+        cached: allMessages.length
       });
     }
 
-    // Обновляем lastUpdateId
+    // Обновляем lastUpdateId и lastKnownOffset
     if (data.result.length > 0) {
       lastUpdateId = data.result[data.result.length - 1].update_id;
+      lastKnownOffset = lastUpdateId + 1; // Следующий offset
+      console.log(`✅ Обновлен lastKnownOffset = ${lastKnownOffset}`);
     }
 
-    // Возвращаем сообщения в удобном формате
     // Фильтруем сообщения из канала @noninput (id: -1002360087823)
-    const messages = data.result
+    const newMessages = data.result
       .filter(u => u.message && 
               (u.message.chat.username === 'noninput' || 
                u.message.chat.id === -1002360087823 ||
@@ -98,31 +95,39 @@ export default async function handler(req, res) {
         }
       }));
 
-    // Если это запрос истории, добавляем сообщения в хранилище
-    if (history === 'true') {
-      allMessages = messages.sort((a, b) => a.timestamp - b.timestamp);
-      console.log(`📚 Загружена история: ${allMessages.length} сообщений`);
-    } else {
-      // Для новых обновлений добавляем их в историю
-      messages.forEach(msg => {
+    // Добавляем новые сообщения в историю (дедублируем по ID)
+    if (newMessages.length > 0) {
+      newMessages.forEach(msg => {
         if (!allMessages.find(m => m.id === msg.id)) {
           allMessages.push(msg);
-          allMessages.sort((a, b) => a.timestamp - b.timestamp);
-          allMessages = allMessages.slice(-100); // Держим последние 100
+          console.log(`➕ Добавлено сообщение ID ${msg.id}: ${msg.text.substring(0, 50)}...`);
         }
       });
+      
+      // Сортируем по времени
+      allMessages.sort((a, b) => a.timestamp - b.timestamp);
+      
+      // Хранимем все сообщения (не обрезаем!)
+      // Но ограничиваем до 500 для памяти
+      if (allMessages.length > 500) {
+        allMessages = allMessages.slice(-500);
+        console.log(`⚠️ Обрезали до 500 последних сообщений`);
+      }
+      
+      console.log(`📚 Всего в истории: ${allMessages.length} сообщений`);
     }
 
-    // Возвращаем либо всю историю, либо новые сообщения
-    const resultMessages = history === 'true' ? allMessages : messages;
-    
-    return res.status(200).json({
+    // Возвращаем результат
+    const result = {
       success: true,
-      updates: resultMessages,
+      updates: allMessages, // Возвращаем ВСЕ накопленные сообщения
       lastId: lastUpdateId,
-      count: resultMessages.length,
-      cached: allMessages.length
-    });
+      count: allMessages.length,
+      cached: allMessages.length,
+      offset: lastKnownOffset
+    };
+    
+    return res.status(200).json(result);
 
   } catch (error) {
     console.error('❌ Ошибка при получении обновлений:', error.message);
