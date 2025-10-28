@@ -1,64 +1,54 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" style="background-color: #f3f5f7 !important; color: #1a1a1a !important;">
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   
   <!-- CRITICAL: Apply theme BEFORE anything else loads -->
   <script>
-    (function() {
-      const saved = localStorage.getItem('theme-preference');
-      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const hour = new Date().getHours();
-      const isDark = saved ? (saved === 'dark') : (prefersDark || hour >= 21 || hour < 6 || (hour >= 18 && hour < 21));
-      
-      const theme = isDark ? 'dark' : 'light';
-      
-      // Apply to html
-      document.documentElement.setAttribute('data-theme', theme);
-      document.documentElement.style.backgroundColor = isDark ? '#0d1117' : '#f3f5f7';
-      document.documentElement.style.color = isDark ? '#e6edf3' : '#1a1a1a';
-      
-      // Apply to body when ready
-      const applyBody = () => {
-        if (document.body) {
-          document.body.style.backgroundColor = isDark ? '#0d1117' : '#f3f5f7';
-          document.body.style.color = isDark ? '#e6edf3' : '#1a1a1a';
-        }
-        
-        // Update debug badge
-        const badge = document.getElementById('theme-debug-value');
-        if (badge) {
-          badge.textContent = theme.toUpperCase();
-          badge.style.color = '#fff';
-        }
-      };
-      
-      if (document.body) {
-        applyBody();
-      } else {
-        document.addEventListener('DOMContentLoaded', applyBody, false);
-      }
-      
-      console.log('🎨 [THEME] Applied on document start:', theme, '| isDark:', isDark, '| hour:', hour);
-    })();
+    window.THEME_DATA = {
+      saved: localStorage.getItem('theme-preference'),
+      prefersDark: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
+      hour: new Date().getHours()
+    };
+    
+    window.THEME_DATA.isDark = window.THEME_DATA.saved ? (window.THEME_DATA.saved === 'dark') : (window.THEME_DATA.prefersDark || window.THEME_DATA.hour >= 21 || window.THEME_DATA.hour < 6 || (window.THEME_DATA.hour >= 18 && window.THEME_DATA.hour < 21));
+    window.THEME_DATA.theme = window.THEME_DATA.isDark ? 'dark' : 'light';
+    
+    const bgColor = window.THEME_DATA.isDark ? '#0d1117' : '#f3f5f7';
+    const textColor = window.THEME_DATA.isDark ? '#e6edf3' : '#1a1a1a';
+    
+    document.documentElement.setAttribute('data-theme', window.THEME_DATA.theme);
+    document.documentElement.setAttribute('style', `background-color: ${bgColor} !important; color: ${textColor} !important;`);
+    
+    console.log('🎨 [THEME INIT] theme=' + window.THEME_DATA.theme + ' isDark=' + window.THEME_DATA.isDark + ' hour=' + window.THEME_DATA.hour);
   </script>
   
   <style>
-    /* Backup: critical styles in case inline doesn't work */
-    html { background-color: var(--bg, #f3f5f7) !important; color: var(--text, #1a1a1a) !important; }
-    body { background-color: var(--bg, #f3f5f7) !important; color: var(--text, #1a1a1a) !important; }
+    /* Backup: critical styles */
+    html { background-color: #f3f5f7 !important; color: #1a1a1a !important; }
+    body { background-color: #f3f5f7 !important; color: #1a1a1a !important; }
     html[data-theme="dark"] { background-color: #0d1117 !important; color: #e6edf3 !important; }
     html[data-theme="dark"] body { background-color: #0d1117 !important; color: #e6edf3 !important; }
   </style>
-      document.documentElement.setAttribute('data-theme', theme);
-      
-      // CRITICAL: Apply inline immediately
-      if (isDark) {
-        document.documentElement.style.backgroundColor = '#0d1117 !important';
-        document.documentElement.style.color = '#e6edf3 !important';
-        document.body.style.backgroundColor = '#0d1117 !important';
+  
+  <script>
+    // Update debug badge when DOM ready
+    setTimeout(function() {
+      const badge = document.getElementById('theme-debug-value');
+      if (badge) {
+        badge.textContent = window.THEME_DATA.theme.toUpperCase();
+        badge.style.color = '#fff';
+        console.log('🎨 [DEBUG BADGE] Updated to: ' + window.THEME_DATA.theme.toUpperCase());
+      } else {
+        console.log('🎨 [DEBUG BADGE] Not found in DOM');
+      }
+    }, 0);
+  </script>
         document.body.style.color = '#e6edf3 !important';
       } else {
         document.documentElement.style.backgroundColor = '#f3f5f7 !important';
