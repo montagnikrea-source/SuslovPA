@@ -1,16 +1,15 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" },
-    { "src": "**/*", "use": "@vercel/static", "config": { "ignore": ["api/**"] } }
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" }
-  ],
-  "functions": {
-    "api/**/*.js": { "runtime": "nodejs20.x" }
-  },
-  "env": {
-    "TELEGRAM_BOT_TOKEN": "@TELEGRAM_BOT_TOKEN"
-  }
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.js"
+    }
+  ]
 }
