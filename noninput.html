@@ -20,6 +20,7 @@
       https://ipapi.co 
       https://ipinfo.io 
       https://freegeoip.app 
+      https://api.db-ip.com
       https://httpbin.org 
       https://api.github.com 
       https://jsonplaceholder.typicode.com
@@ -1791,27 +1792,23 @@ class MultiUserChatSystem {
         success: true,
         simulated: false
       };
-        
     } catch (error) {
-        console.warn(`⚠️ Ошибка API ${apiUrl}:`, error.message);
-        
-        // Определяем тип ошибки для лучшей диагностики
-        let errorType = 'unknown';
-        if (error.name === 'AbortError') {
-          errorType = 'timeout';
-        } else if (error.message.includes('Failed to fetch')) {
-          errorType = 'network';
-        } else if (error.message.includes('CORS') || error.message.includes('Access-Control')) {
-          errorType = 'cors';
-        } else if (error.message.includes('HTTP 4')) {
-          errorType = 'client-error';
-        } else if (error.message.includes('HTTP 5')) {
-          errorType = 'server-error';
-        }
-        
-        console.log(`🎭 Тип ошибки: ${errorType}, возвращаем симулированный ответ`);
-        return this.createSimulatedAPIResponse(action);
+      console.warn(`❌ Ошибка API запроса (${action}):`, error.message);
+      
+      // При CORS ошибке или таймауте возвращаем симулированный результат
+      if (error.message.includes('CORS') || error.message.includes('Failed to fetch') || error.name === 'AbortError') {
+        console.log('💡 Используем симулированный результат из-за CORS/сетевой ошибки');
+        return {
+          value: this.globalCounter.simulatedCount || 1247,
+          success: false,
+          simulated: true
+        };
       }
+      
+      // Для других ошибок возвращаем симулированный ответ
+      console.log('🎭 Возвращаем симулированный ответ из-за ошибки API');
+      return this.createSimulatedAPIResponse(action);
+    }
   }
 
   // Безопасный запрос через серверный прокси
@@ -1929,21 +1926,29 @@ class MultiUserChatSystem {
     console.log('🌍 Получение информации о местоположении...');
 
     const geoUrls = [
+      // CORS-friendly API сервисы
       'https://ipapi.co/json/',
       'https://ipinfo.io/json',
-      'https://freegeoip.app/json/'
+      'https://api.ipify.org?format=json',
+      'https://freegeoip.app/json/',
+      'https://api.db-ip.com/v2/free/self'
     ];
 
     // Вспомогательный fetch с таймаутом через AbortController
     const fetchWithTimeout = (url, ms = 6000) => {
       const ctrl = new AbortController();
       const to = setTimeout(() => ctrl.abort(), ms);
-      return fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } })
+      return fetch(url, { 
+        signal: ctrl.signal, 
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors'
+      })
         .finally(() => clearTimeout(to));
     };
 
     for (const url of geoUrls) {
       try {
+        console.log(`📡 Попытка подключения к ${url}...`);
         const res = await fetchWithTimeout(url, 6000);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -1964,7 +1969,7 @@ class MultiUserChatSystem {
           isp
         };
 
-        console.log('📍 Информация о посетителе:', this.visitorInfo);
+        console.log('✅ Информация о посетителе получена:', this.visitorInfo);
         // Обновляем только инфоблок (счётчик придёт из другого потока)
         this.updateGlobalStatsWidget(undefined, true, this.visitorInfo);
         return;
@@ -1973,6 +1978,7 @@ class MultiUserChatSystem {
       }
     }
 
+    console.warn('⚠️ Все geo API недоступны, использую fallback');
     // Fallback, если все сервисы не ответили
     this.visitorInfo = {
       country: 'Unknown',
