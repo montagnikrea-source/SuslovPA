@@ -26,7 +26,7 @@
       https://1.1.1.1
       https://www.google.com
       https://mozilla.org;
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' 
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:
       https://pagead2.googlesyndication.com 
       https://www.gstatic.com;
     style-src 'self' 'unsafe-inline';
@@ -640,6 +640,30 @@ class MultiUserChatSystem {
     
     // Запуск глобального счетчика
     this.startGlobalCounter();
+  }
+
+  // Инициализация системы отслеживания посетителей
+  async initVisitorTracking() {
+    console.log('🌐 Инициализация глобального отслеживания посетителей...');
+    
+    try {
+      // Подключение к глобальному счетчику
+      console.log('🌍 Подключение к глобальному счетчику посетителей...');
+      
+      // Инициализируем глобальный счетчик если еще не инициализирован
+      if (!this.globalCounter || !this.globalCounter.apis) {
+        await this.initGlobalCounter();
+      }
+      
+      // Получаем информацию о посетителе
+      await this.getVisitorInfo();
+      
+      console.log('✅ Глобальное отслеживание посетителей инициализировано');
+      return true;
+    } catch (error) {
+      console.warn('⚠️ Ошибка инициализации отслеживания посетителей:', error);
+      return false;
+    }
   }
 
   // Подстановщик пути API
