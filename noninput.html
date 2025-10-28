@@ -202,6 +202,51 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
       background: var(--panel) !important;
     }
 
+    /* Темная тема для чат контейнера и всех элементов внутри */
+    html[data-theme="dark"] .chat-container {
+      background: var(--panel) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+
+    html[data-theme="dark"] .chat-container * {
+      color: var(--text) !important;
+    }
+
+    html[data-theme="dark"] .chat-container input,
+    html[data-theme="dark"] .chat-container textarea {
+      background: var(--bg-secondary) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+
+    html[data-theme="dark"] .chat-container button {
+      background: var(--primary) !important;
+      color: white !important;
+    }
+
+    html[data-theme="dark"] .chat-container a {
+      color: var(--primary-light) !important;
+    }
+
+    /* Темная тема для контролей обучения */
+    html[data-theme="dark"] .row.controls {
+      background: var(--bg-secondary) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
+    }
+
+    html[data-theme="dark"] .row.controls label,
+    html[data-theme="dark"] .row.controls .lbl,
+    html[data-theme="dark"] .row.controls .hint {
+      color: var(--text) !important;
+    }
+
+    html[data-theme="dark"] .row.controls input[type="range"],
+    html[data-theme="dark"] .row.controls input[type="checkbox"] {
+      accent-color: var(--primary) !important;
+    }
+
     /* Темная тема для всех контейнеров */
     html[data-theme="dark"] div[style*="background: white"],
     html[data-theme="dark"] div[style*="background:white"] {
@@ -968,7 +1013,7 @@ console.log('  • Несанкционированного доступа');
   </div>
 
   <!-- Панель авт/ручн. настроек нейрообучения -->
-  <div class="row controls" style="margin-top:18px;padding:12px;border-radius:12px;background:#f7f9fb;border:1px solid #e7ecf2">
+  <div class="row controls" style="margin-top:18px;padding:12px;border-radius:12px;background:var(--bg-secondary);border-color:var(--border);border:1px solid var(--border)">
     <div class="lbl" style="margin-top:0">Параметры обучения (онлайн):</div>
     <div style="display:grid;grid-template-columns:180px 1fr 80px 84px;gap:8px;align-items:center">
   <label for="lrSlider">Learning rate (lr)</label>
