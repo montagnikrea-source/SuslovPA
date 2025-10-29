@@ -7395,6 +7395,19 @@ class NeuroHomeo {
   // ===== DYNAMIC CONFIDENCE ADJUSTMENT =====
   // Auto-adjusts confidence threshold based on contextual factors
   updateDynamicConfidence({conf, inertia, peak, fs}){
+    // Expected ranges: conf [0,1], inertia [0,1], peak [0,2.5], fs [40,240]
+    
+    // Weight distribution for contextual factors (total = 1.0)
+    const WEIGHT_STABILITY = 0.35;      // System stability impact
+    const WEIGHT_SIGNAL_QUALITY = 0.30;  // Signal quality impact
+    const WEIGHT_PEAK = 0.25;            // Peak prominence impact
+    const WEIGHT_SAMPLING_RATE = 0.10;   // Sampling rate stability impact
+    
+    // Normalization constants
+    const PEAK_NORMALIZATION = 2.0;   // Expected max peak value
+    const FS_MIN = 40;                 // Minimum stable sampling rate (Hz)
+    const FS_RANGE = 200;              // Sampling rate range for normalization (40-240 Hz)
+    
     // Factor 1: System stability (higher inertia = more stable = can use lower threshold)
     const stabilityFactor = Math.max(0, Math.min(1, inertia));
     
@@ -7402,22 +7415,24 @@ class NeuroHomeo {
     const signalQualityFactor = Math.max(0, Math.min(1, conf));
     
     // Factor 3: Peak prominence (higher peak = clearer signal = can use lower threshold)
-    const peakFactor = Math.max(0, Math.min(1, peak / 2.0));
+    const peakFactor = Math.max(0, Math.min(1, peak / PEAK_NORMALIZATION));
     
     // Factor 4: Sampling rate stability (higher fs = more stable = can use lower threshold)
-    const fsFactor = Math.max(0, Math.min(1, (fs - 40) / 200));
+    const fsFactor = Math.max(0, Math.min(1, (fs - FS_MIN) / FS_RANGE));
     
     // Weighted combination of factors (more stability = lower threshold for tighter control)
-    const contextScore = 0.35 * stabilityFactor + 0.30 * signalQualityFactor + 
-                         0.25 * peakFactor + 0.10 * fsFactor;
+    const contextScore = WEIGHT_STABILITY * stabilityFactor + 
+                         WEIGHT_SIGNAL_QUALITY * signalQualityFactor + 
+                         WEIGHT_PEAK * peakFactor + 
+                         WEIGHT_SAMPLING_RATE * fsFactor;
     
     // Map context score to threshold range: high score (stable) → lower threshold (0.05)
     // low score (unstable) → higher threshold (0.30) for safety
     const dynamicDropC = this.dropCMax - (contextScore * (this.dropCMax - this.dropCMin));
     
     // Apply smoothing to prevent sudden changes
-    const alpha = 0.15; // Smoothing factor
-    this.dropC = (1 - alpha) * this.dropC + alpha * dynamicDropC;
+    const SMOOTHING_ALPHA = 0.15; // Exponential moving average smoothing factor
+    this.dropC = (1 - SMOOTHING_ALPHA) * this.dropC + SMOOTHING_ALPHA * dynamicDropC;
     
     // Ensure dropC stays within bounds
     this.dropC = Math.max(this.dropCMin, Math.min(this.dropCMax, this.dropC));
