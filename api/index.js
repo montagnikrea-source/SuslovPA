@@ -95,10 +95,12 @@ module.exports = async function handler(req, res) {
       const limit = url.searchParams.get('limit') || '100';
       const timeout = url.searchParams.get('timeout') || '5';
       
-      console.log(`[Telegram Updates] Fetching updates (limit=${limit})`);
+      console.log(`[Telegram Updates] Fetching updates (limit=${limit}, lastId=${lastId})`);
       
+      // Use offset based on lastId for proper incremental updates
+      const offset = parseInt(lastId) > 0 ? parseInt(lastId) + 1 : 0;
       const telegramUrl = `https://api.telegram.org/bot${botToken}/getUpdates?` +
-        `offset=0&limit=${limit}&allowed_updates=message`;
+        `offset=${offset}&limit=${limit}&allowed_updates=["message"]`;
       
       const response = await fetch(telegramUrl, {
         method: 'GET',
@@ -109,13 +111,38 @@ module.exports = async function handler(req, res) {
       
       if (!data.ok) {
         console.error('[Telegram Updates] Error:', data.description);
+        return res.status(response.status).json({
+          success: false,
+          error: data.description
+        });
       }
       
-      return res.status(response.status).json(data);
+      // Transform Telegram API response to frontend-expected format
+      const updates = (data.result || [])
+        .filter(update => update.message && update.message.text)
+        .map(update => ({
+          id: update.update_id,
+          text: update.message.text,
+          from: {
+            id: update.message.from.id,
+            first_name: update.message.from.first_name || 'User',
+            username: update.message.from.username || null
+          },
+          timestamp: update.message.date
+        }));
+      
+      console.log(`[Telegram Updates] Transformed ${updates.length} updates`);
+      
+      return res.status(200).json({
+        success: true,
+        updates: updates,
+        offset: updates.length > 0 ? updates[updates.length - 1].id : parseInt(lastId)
+      });
       
     } catch (error) {
       console.error('[Telegram Updates] Error:', error.message);
       return res.status(500).json({
+        success: false,
         ok: false,
         error: error.message
       });
