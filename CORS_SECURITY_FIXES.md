@@ -7,7 +7,7 @@
 **Проблема:**
 ```javascript
 // НЕБЕЗОПАСНО: Токен в открытом виде
-botToken: '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I'
+botToken: 'REDACTED_FOR_SECURITY' // Получайте токен с переменной окружения TELEGRAM_BOT_TOKEN
 ```
 
 **Решение:**
@@ -315,7 +315,7 @@ app.post('/api/counter/secure', async (req, res) => {
 ### 1. Переменные окружения
 ```bash
 # .env
-TELEGRAM_BOT_TOKEN=8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I
+TELEGRAM_BOT_TOKEN=REDACTED_FOR_SECURITY
 TELEGRAM_CHAT_ID=@noninput
 ALLOWED_ORIGINS=https://suslovpa.github.io,https://localhost:3000
 RATE_LIMIT_REQUESTS=100
