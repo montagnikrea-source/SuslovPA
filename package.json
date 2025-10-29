@@ -7,7 +7,9 @@
     "start": "node server-proxy.js",
     "dev": "nodemon server-proxy.js",
     "test": "jest",
-    "lint": "eslint *.js"
+    "lint": "eslint *.js",
+    "install-browsers": "npx playwright install",
+    "memtest": "node memtest-noninput-mobile.js"
   },
   "keywords": [
     "cors",
@@ -24,7 +26,10 @@
     "helmet": "^7.0.0",
     "express-rate-limit": "^6.8.1",
     "node-fetch": "^2.7.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "pidusage": "^3.0.0",
+    "yargs": "^17.7.2",
+    "playwright": "^1.35.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
