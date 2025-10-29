@@ -24,6 +24,12 @@ node_modules/
 
 # Секретные файлы
 config/secrets.js
+secrets.json
+tokens.txt
+token*.txt
+*.token
+*.secret
+*.pwd
 
 # Исходные файлы (оставляем только обфусцированные)
 noninput-source.html
@@ -75,3 +81,4 @@ downloads/
 
 # Docker
 .dockerignore
+.vercel

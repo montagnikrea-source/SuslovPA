@@ -5,11 +5,11 @@
 На скриншоте выше видно, что **токен Telegram бота был полностью видн пользователю** в интерфейсе:
 
 ```
-Проверяемый токен:
-8223995698:AAEaT8JLFvfLB8Pna5XX09lFflqSnBtamJc
+Токен был скомпрометирован и отозван. 
+Используйте только переменные окружения Vercel для хранения новых токенов.
 
-Прямой запрос к API:
-https://api.telegram.org/bot8223995698:AAEaT8JLFvfLB8Pna5XX09lFflqSnBtamJc/getMe
+Прямые запросы:
+https://api.telegram.org/bot<REDACTED_FOR_SECURITY>/getMe
 ```
 
 Это **критическая уязвимость безопасности**, потому что:
@@ -187,7 +187,7 @@ FETCH запрос к /api/auth/telegram-token
 Убедитесь что в Vercel установлена переменная:
 
 ```
-TELEGRAM_BOT_TOKEN = 8223995698:AAEaT8JLFvfLB8Pna5XX09lFflqSnBtamJc
+TELEGRAM_BOT_TOKEN = REDACTED_FOR_SECURITY
 ```
 
 Проверка:

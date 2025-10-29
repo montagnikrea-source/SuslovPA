@@ -64,7 +64,7 @@ const telegramLimiter = rateLimit({
 
 // Конфигурация (в продакшене использовать переменные окружения)
 const config = {
-  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I',
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || null, // ❌ ОШИБКА: Токен ОБЯЗАТЕЛЕН! Установите переменную окружения TELEGRAM_BOT_TOKEN
   telegramChatId: process.env.TELEGRAM_CHAT_ID || '@noninput',
   allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']
 };

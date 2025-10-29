@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru" style="background-color:#f3f5f7;color:#1a1a1a;">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NONINPUT — Theme Debug (temporary)</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:0;padding:24px}
+    #theme-debug-badge{position:fixed;top:8px;left:8px;z-index:99999;background:#ff6b6b;border:2px solid #ff0000;padding:6px 8px;border-radius:6px;color:#fff;font-weight:700}
+    .panel{max-width:900px;margin:96px auto 0;padding:24px;border-radius:12px;background:#fff;box-shadow:0 6px 30px rgba(0,0,0,.08)}
+    a.button{display:inline-block;padding:8px 12px;background:#007bff;color:#fff;border-radius:6px;text-decoration:none}
+  </style>
+  <script>
+    (function(){
+      try{
+        const saved = localStorage.getItem('theme-preference');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const hour = new Date().getHours();
+        const isDark = saved ? (saved === 'dark') : (prefersDark || hour >= 21 || hour < 6 || (hour >= 18 && hour < 21));
+        const theme = isDark ? 'dark' : 'light';
+        const bg = isDark ? '#0d1117' : '#f3f5f7';
+        const text = isDark ? '#e6edf3' : '#1a1a1a';
+        document.documentElement.style.backgroundColor = bg + ' !important';
+        document.documentElement.style.color = text + ' !important';
+        document.documentElement.setAttribute('data-theme', theme);
+        window.__THEME_DEBUG = {theme, isDark, hour};
+        console.log('🎨 [NONINPUT-V2] theme=', theme, 'isDark=', isDark, 'hour=', hour);
+      }catch(e){console.error('Theme init error',e)}
+    })();
+  </script>
+</head>
+<body>
+  <div id="theme-debug-badge">🎨 THEME: <span id="theme-debug-value">loading</span></div>
+  <div class="panel">
+    <h1>Temporary theme debug page</h1>
+    <p>Этот файл создан временно, чтобы обойти CDN и подтвердить работу системы темизации.</p>
+    <p>Текущее состояние темы: <strong id="state">loading…</strong></p>
+    <p>Оригинальная страница: <a class="button" href="/noninput.html">Открыть noninput.html</a></p>
+    <p>После проверки — скажите, и я уберу debug-страницу.</p>
+  </div>
+  <script>
+    (function(){
+      const info = window.__THEME_DEBUG || {};
+      document.getElementById('state').textContent = (info.theme || 'unknown').toUpperCase();
+      const badge = document.getElementById('theme-debug-value');
+      if(badge) badge.textContent = (info.theme || 'UNKNOWN').toUpperCase();
+    })();
+  </script>
+</body>
+</html>

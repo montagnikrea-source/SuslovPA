@@ -18,9 +18,7 @@ vercel link
 1. Перейдите в Settings → Environment Variables
 2. Добавьте переменную:
    - **Name**: `TELEGRAM_BOT_TOKEN`
-   - **Value**: `8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I`
-
-### 4. Разверните
+     - **Value**: `REDACTED_FOR_SECURITY`### 4. Разверните
 ```bash
 vercel deploy --prod
 ```

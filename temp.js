@@ -2366,7 +2366,7 @@ class MultiUserChatSystem {
     }
     
     // В реальном приложении токен получается через API сервера
-    return 'FALLBACK_FOR_DEMO_8223995698:AAFAsZsKgoBo8ews88ug64r418WqQP8i29I';
+    return 'REDACTED_FOR_SECURITY'; // Получайте токен с переменной окружения TELEGRAM_BOT_TOKEN
   }
 
   // Запрос токена с сервера (безопасный способ)
