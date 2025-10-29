@@ -1086,7 +1086,7 @@ console.log('  • Несанкционированного доступа');
     <div class="lbl">Стабильность (%): <span id="inertiaValue">0</span></div>
     <div class="bar"><div id="inertiaBar" class="i"></div></div>
 
-    <div class="lbl">Уверенность: <span id="confValue">0</span></div>
+    <div class="lbl">Уверенность (%): <span id="confValue">0</span></div>
     <div class="bar"><div id="confBar" class="c"></div></div>
   </div>
 
@@ -7744,11 +7744,11 @@ setInterval(step,12);`;
     const fmax=Math.max(1, scan.fmax);
     setT('freqValue', out.f.toFixed(2)); setW('freqBar', 100*out.f/fmax);
     setT('inertiaValue', (out.inertia*100).toFixed(0)); setW('inertiaBar', out.inertia*100);
-    setT('confValue', out.conf.toFixed(2)); setW('confBar', out.conf*100);
+    setT('confValue', (out.conf*100).toFixed(0)); setW('confBar', out.conf*100);
 
     setT('info',
       `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
-      `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${out.conf.toFixed(2)} | `+
+      `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${(out.conf*100).toFixed(0)}% | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
       `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)}`
     );
