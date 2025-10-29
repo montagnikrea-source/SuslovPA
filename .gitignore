@@ -70,6 +70,10 @@ settings.local.json
 coverage/
 .nyc_output/
 
+# Memory test results
+memtest-*.json
+*-results.json
+
 # Производственные данные
 production-data/
 uploads/
