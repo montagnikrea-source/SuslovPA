@@ -7409,8 +7409,11 @@ class NeuroHomeo {
     this.emaAbsDf  = (1-a)*this.emaAbsDf  + a*Math.abs(df);
     this.emaVarDf  = (1-a)*this.emaVarDf  + a*(df*df);
     this.emaAbsU   = (1-a)*this.emaAbsU   + a*Math.abs(u);
-    this.emaOneMinConf = (1-a)*this.emaOneMinConf + a*(1 - Math.max(0,Math.min(1,conf)));
-    this.emaOneMinIner = (1-a)*this.emaOneMinIner + a*(1 - Math.max(0,Math.min(1,inertia)));
+    // Убедитесь что conf и inertia в диапазоне 0-1 перед использованием
+    const conf_bounded = Math.max(0, Math.min(1, conf));
+    const inertia_bounded = Math.max(0, Math.min(1, inertia));
+    this.emaOneMinConf = (1-a)*this.emaOneMinConf + a*(1 - conf_bounded);
+    this.emaOneMinIner = (1-a)*this.emaOneMinIner + a*(1 - inertia_bounded);
   }
   cost(){
     const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
@@ -7542,7 +7545,9 @@ class NeuroHomeo {
     
     this.iterCount++;
     
-    return lrPenalty + updatePenalty + aggrPenalty + driftPenalty + lockPenalty;
+    const totalPenalty = lrPenalty + updatePenalty + aggrPenalty + driftPenalty + lockPenalty;
+    // Нормализовать в диапазон 0-100 для синхронизации с UI логикой
+    return Math.min(100, Math.max(0, totalPenalty / (1 + totalPenalty / 100)));
   }
 }
 
@@ -7640,7 +7645,9 @@ class FrequencyScanner{
 
     let local=Number.EPSILON;
     for(let df=-2; df<=2; ++df) local += this._evalAt(this.vco + df*fstep).mag;
-    const conf=Math.max(0, Math.min(1, (local>0 ? cur.mag/local : 0)));
+    // Улучшенный расчет confidence - более стабильный и синхронизированный
+    const conf_raw = local>0 ? cur.mag/local : 0;
+    const conf=Math.max(0, Math.min(1, conf_raw));
     const peak=(avgMag>0)?(cur.mag/avgMag):0;
     this.out_peak=peak;
 
@@ -7742,7 +7749,7 @@ setInterval(step,12);`;
 
   function render(out){
     const fmax=Math.max(1, scan.fmax);
-    setT('freqValue', out.f.toFixed(2)); setW('freqBar', 100*out.f/fmax);
+    setT('freqValue', out.f.toFixed(3)); setW('freqBar', 100*out.f/fmax);
     setT('inertiaValue', (out.inertia*100).toFixed(0)); setW('inertiaBar', out.inertia*100);
     setT('confValue', (out.conf*100).toFixed(0)); setW('confBar', out.conf*100);
 
