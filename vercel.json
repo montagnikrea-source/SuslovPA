@@ -18,6 +18,24 @@
       "use": "@vercel/static"
     }
   ],
+  "routes": [
+    {
+      "src": "/api/telegram/updates",
+      "dest": "/api/telegram/updates.js"
+    },
+    {
+      "src": "/api/telegram/secure",
+      "dest": "/api/telegram/secure.js"
+    },
+    {
+      "src": "/api/telegram",
+      "dest": "/api/telegram.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.js"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
