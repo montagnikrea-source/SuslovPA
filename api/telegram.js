@@ -3,11 +3,11 @@
  * Обходит CORS ограничения путём перенаправления запросов через сервер
  * 
  * Использование:
- * POST /api/telegram?method=sendMessage
- * Body: { chat_id: "@noninput", text: "message" }
+ * POST /api/telegram
+ * Body: { method: "sendMessage", params: { chat_id: "@noninput", text: "message" } }
  */
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Разрешаем CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -37,9 +37,10 @@ export default async function handler(req, res) {
     }
     
     // Формируем URL для Telegram API
-  const telegramUrl = `https://api.telegram.org/bot${botToken}/${method}`;
-  // Логи без утечки токена
-  console.log(`[Telegram Proxy] ${method} → https://api.telegram.org/bot<redacted>/${method}`);
+    const telegramUrl = `https://api.telegram.org/bot${botToken}/${method}`;
+    
+    // Логи без утечки токена
+    console.log(`[Telegram Proxy] ${method} → https://api.telegram.org/bot<redacted>/${method}`);
     
     // Делаем запрос к Telegram API
     const response = await fetch(telegramUrl, {
@@ -48,8 +49,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'User-Agent': 'SuslovPA-Telegram-Proxy/1.0'
       },
-      body: JSON.stringify(params || {}),
-      signal: AbortSignal.timeout(10000)
+      body: JSON.stringify(params || {})
     });
     
     const data = await response.json();
@@ -73,4 +73,4 @@ export default async function handler(req, res) {
       description: error.message
     });
   }
-}
+};
