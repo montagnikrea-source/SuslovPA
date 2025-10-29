@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔗 Telegram Chat Auto-Connection Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .header p {
+      color: #666;
+      font-size: 16px;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .card .status {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .status.success { background: #d4edda; color: #155724; }
+    .status.warning { background: #fff3cd; color: #856404; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .status.info { background: #d1ecf1; color: #0c5460; }
+    
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .metric:last-child { border-bottom: none; }
+    .metric label { color: #666; font-weight: 500; }
+    .metric value { color: #333; font-weight: 600; }
+    
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+      font-size: 14px;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    .console {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+    
+    .console-line {
+      line-height: 1.5;
+      word-break: break-all;
+    }
+    
+    .console-success { color: #4ec9b0; }
+    .console-error { color: #f48771; }
+    .console-warn { color: #dcdcaa; }
+    .console-info { color: #9cdcfe; }
+    
+    .timeline {
+      position: relative;
+      padding: 20px 0;
+    }
+    
+    .timeline-item {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    
+    .timeline-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 50px;
+      width: 2px;
+      height: 30px;
+      background: #ddd;
+    }
+    
+    .timeline-dot {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+      font-size: 18px;
+    }
+    
+    .timeline-content {
+      flex: 1;
+      padding-top: 5px;
+    }
+    
+    .timeline-content strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    
+    .timeline-content p {
+      color: #666;
+      font-size: 14px;
+      margin: 0;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .stat-box {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🔗 Telegram Chat Auto-Connection Verification</h1>
+      <p>Real-time test of Telegram chat auto-connection, message updates, and synchronization</p>
+    </div>
+    
+    <!-- Grid Layout -->
+    <div class="grid">
+      <!-- Connection Status -->
+      <div class="card">
+        <h2>📊 Connection Status</h2>
+        <div id="connectionStatus" class="status info">🔄 Checking...</div>
+        
+        <div class="metric">
+          <label>Telegram Enabled</label>
+          <value id="telegramEnabled">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Connected</label>
+          <value id="isConnected">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Last Update</label>
+          <value id="lastUpdate">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Polling Active</label>
+          <value id="pollingActive">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Bot Username</label>
+          <value id="botUsername">-</value>
+        </div>
+        
+        <div class="button-group">
+          <button class="btn-primary" onclick="testConnection()">
+            🧪 Test Connection
+          </button>
+          <button class="btn-secondary" onclick="refreshStatus()">
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
+      
+      <!-- Message Statistics -->
+      <div class="card">
+        <h2>💬 Message Statistics</h2>
+        
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value" id="totalMessages">0</div>
+            <div class="stat-label">Total Messages</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="telegramMessages">0</div>
+            <div class="stat-label">From Telegram</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="browserMessages">0</div>
+            <div class="stat-label">From Browser</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="uniqueUsers">0</div>
+            <div class="stat-label">Unique Users</div>
+          </div>
+        </div>
+        
+        <div class="button-group" style="margin-top: 15px;">
+          <button class="btn-primary" onclick="loadMessageHistory()">
+            📥 Load History
+          </button>
+          <button class="btn-secondary" onclick="showLastMessages()">
+            📋 Show Last 5
+          </button>
+        </div>
+      </div>
+      
+      <!-- Configuration -->
+      <div class="card">
+        <h2>⚙️ Configuration</h2>
+        
+        <div class="metric">
+          <label>API URL</label>
+          <value id="apiUrl">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Chat ID</label>
+          <value id="chatId">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Poll Interval</label>
+          <value id="pollInterval">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Retry Limit</label>
+          <value id="maxRetries">-</value>
+        </div>
+        
+        <div class="metric">
+          <label>Health Check</label>
+          <value id="healthCheck">-</value>
+        </div>
+        
+        <button class="btn-secondary" style="width: 100%; margin-top: 15px;" onclick="showConfig()">
+          📖 Show Full Config
+        </button>
+      </div>
+      
+      <!-- Actions -->
+      <div class="card">
+        <h2>🎯 Quick Actions</h2>
+        
+        <button class="btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="sendTestMessage()">
+          📤 Send Test Message
+        </button>
+        
+        <button class="btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="checkUpdatesManually()">
+          🔄 Check Updates (Manual)
+        </button>
+        
+        <button class="btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="testAPI()">
+          🌐 Test API Endpoint
+        </button>
+        
+        <button class="btn-secondary" style="width: 100%;" onclick="startDetailedLogging()">
+          📝 Enable Detailed Logging
+        </button>
+      </div>
+      
+      <!-- Timeline -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2>⏱️ Initialization Timeline</h2>
+        
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot">1</div>
+            <div class="timeline-content">
+              <strong>Page Load (DOMContentLoaded)</strong>
+              <p>Browser triggers initialization when DOM is ready</p>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-dot">2</div>
+            <div class="timeline-content">
+              <strong>MultiUserChatSystem Created</strong>
+              <p>Chat object instantiated with messages array</p>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-dot">3</div>
+            <div class="timeline-content">
+              <strong>initFirebase() → initCloudChat()</strong>
+              <p>Telegram configuration loaded with enabled: true</p>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-dot">4</div>
+            <div class="timeline-content">
+              <strong>initTelegramConnection()</strong>
+              <p>Sends getMe() to verify bot connection</p>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-dot">5</div>
+            <div class="timeline-content">
+              <strong>loadTelegramMessages()</strong>
+              <p>Fetches last 50 messages from channel history</p>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-dot">6</div>
+            <div class="timeline-content">
+              <strong>startTelegramPolling()</strong>
+              <p>Sets up intervals: polling (5s), health check (2m), counter (30s)</p>
+            </div>
+          </div>
+          
+          <div class="timeline-item">
+            <div class="timeline-dot">7</div>
+            <div class="timeline-content">
+              <strong>Continuous Updates</strong>
+              <p>Every 5 seconds: checkTelegramUpdates() fetches new messages</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Console Output -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2>📝 Console Output</h2>
+        <div class="console" id="console"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Логирование в консоль
+    const consoleElement = document.getElementById('console');
+    const originalLog = console.log;
+    
+    function addConsoleLog(type, ...args) {
+      const message = args.join(' ');
+      const line = document.createElement('div');
+      line.className = `console-line console-${type}`;
+      const timestamp = new Date().toLocaleTimeString();
+      line.textContent = `[${timestamp}] ${message}`;
+      consoleElement.appendChild(line);
+      consoleElement.scrollTop = consoleElement.scrollHeight;
+      
+      // Ограничиваем историю до 100 строк
+      while (consoleElement.children.length > 100) {
+        consoleElement.removeChild(consoleElement.firstChild);
+      }
+    }
+    
+    console.log = (...args) => {
+      originalLog(...args);
+      addConsoleLog('info', ...args);
+    };
+    
+    console.error = (...args) => {
+      originalLog('ERROR:', ...args);
+      addConsoleLog('error', 'ERROR:', ...args);
+    };
+    
+    console.warn = (...args) => {
+      originalLog('WARN:', ...args);
+      addConsoleLog('warn', 'WARN:', ...args);
+    };
+    
+    // Функции для обновления статуса
+    function updateStatus() {
+      if (typeof multiUserChat === 'undefined') {
+        document.getElementById('connectionStatus').innerHTML = 
+          '❌ multiUserChat not initialized';
+        return;
+      }
+      
+      const config = multiUserChat?.telegramConfig;
+      const state = multiUserChat?.connectionState;
+      
+      document.getElementById('telegramEnabled').textContent = 
+        config?.enabled ? '✅ Yes' : '❌ No';
+      
+      document.getElementById('isConnected').textContent = 
+        state?.isConnected ? '✅ Connected' : '⚠️ Not Connected';
+      
+      const lastUpdate = state?.lastSuccessfulRequest;
+      if (lastUpdate && lastUpdate > 0) {
+        const ago = Math.round((Date.now() - lastUpdate) / 1000);
+        document.getElementById('lastUpdate').textContent = 
+          ago < 60 ? `${ago}s ago` : `${Math.round(ago/60)}m ago`;
+      } else {
+        document.getElementById('lastUpdate').textContent = 'Never';
+      }
+      
+      const pollingActive = multiUserChat?.telegramPollInterval !== undefined;
+      document.getElementById('pollingActive').textContent = 
+        pollingActive ? '✅ Active' : '⚠️ Inactive';
+      
+      updateMessageStats();
+      updateConfiguration();
+    }
+    
+    function updateMessageStats() {
+      const messages = multiUserChat?.messages || [];
+      const telegramCount = messages.filter(m => m.source === 'telegram').length;
+      const browserCount = messages.filter(m => m.source === 'browser').length;
+      const users = new Set(messages.map(m => m.username)).size;
+      
+      document.getElementById('totalMessages').textContent = messages.length;
+      document.getElementById('telegramMessages').textContent = telegramCount;
+      document.getElementById('browserMessages').textContent = browserCount;
+      document.getElementById('uniqueUsers').textContent = users;
+    }
+    
+    function updateConfiguration() {
+      const config = multiUserChat?.telegramConfig;
+      document.getElementById('apiUrl').textContent = config?.apiUrl || '-';
+      document.getElementById('chatId').textContent = config?.chatId || '-';
+      document.getElementById('pollInterval').textContent = 
+        config?.pollInterval ? `${config.pollInterval}ms` : '-';
+      document.getElementById('maxRetries').textContent = config?.maxRetries || '-';
+      document.getElementById('healthCheck').textContent = 
+        config?.healthCheckInterval ? `${config.healthCheckInterval}ms` : '-';
+    }
+    
+    async function testConnection() {
+      console.log('🧪 Testing Telegram connection...');
+      try {
+        const result = await multiUserChat.sendTelegramRequest('getMe');
+        if (result && result.ok) {
+          console.log(`✅ Bot connected: @${result.result.username}`);
+          document.getElementById('botUsername').textContent = `@${result.result.username}`;
+        } else {
+          console.error('❌ Connection failed');
+        }
+      } catch (error) {
+        console.error('❌ Error:', error.message);
+      }
+      updateStatus();
+    }
+    
+    function refreshStatus() {
+      console.log('🔄 Refreshing status...');
+      updateStatus();
+    }
+    
+    async function loadMessageHistory() {
+      console.log('📥 Loading message history...');
+      try {
+        await multiUserChat.loadTelegramMessages();
+        console.log('✅ History loaded');
+        updateStatus();
+      } catch (error) {
+        console.error('❌ Error:', error.message);
+      }
+    }
+    
+    function showLastMessages() {
+      const messages = multiUserChat?.messages || [];
+      const last5 = messages.slice(-5);
+      console.log('📋 Last 5 messages:');
+      last5.forEach(msg => {
+        console.log(`${msg.username}: ${msg.text.substring(0, 60)}`);
+      });
+    }
+    
+    function showConfig() {
+      console.log('📖 Full Configuration:');
+      console.log(JSON.stringify(multiUserChat?.telegramConfig, null, 2));
+    }
+    
+    async function sendTestMessage() {
+      const text = `Test message at ${new Date().toLocaleTimeString()}`;
+      console.log(`📤 Sending test message: "${text}"`);
+      
+      const input = document.getElementById('messageInput');
+      if (input) {
+        input.value = text;
+        if (typeof sendMessage === 'function') {
+          sendMessage();
+        }
+      } else {
+        console.warn('⚠️ Message input not found');
+      }
+    }
+    
+    async function checkUpdatesManually() {
+      console.log('🔄 Checking updates manually...');
+      try {
+        await multiUserChat.checkTelegramUpdates();
+        console.log('✅ Update check complete');
+        updateStatus();
+      } catch (error) {
+        console.error('❌ Error:', error.message);
+      }
+    }
+    
+    async function testAPI() {
+      console.log('🌐 Testing API endpoint...');
+      try {
+        const apiUrl = multiUserChat?.telegramConfig?.apiUrl;
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'getMe', params: {} })
+        });
+        
+        const data = await response.json();
+        if (data && data.ok) {
+          console.log(`✅ API is working: ${data.result.first_name}`);
+        } else {
+          console.error(`❌ API error: ${data?.description}`);
+        }
+      } catch (error) {
+        console.error('❌ Error:', error.message);
+      }
+    }
+    
+    function startDetailedLogging() {
+      console.log('📝 Detailed logging enabled');
+      console.log('All subsequent events will be logged to this console');
+      
+      // Перехватываем основные методы
+      if (multiUserChat) {
+        const originalSendTelegram = multiUserChat.sendTelegramRequest;
+        multiUserChat.sendTelegramRequest = async function(method, params) {
+          console.log(`📤 Telegram request: ${method}`);
+          const result = await originalSendTelegram.call(this, method, params);
+          if (result.ok) {
+            console.log(`✅ Response OK`);
+          } else {
+            console.error(`❌ Response error: ${result.description}`);
+          }
+          return result;
+        };
+      }
+    }
+    
+    // Обновляем статус каждые 2 сек
+    setInterval(updateStatus, 2000);
+    
+    // Первоначальное обновление
+    console.log('🚀 Telegram Chat Verification Tool Started');
+    setTimeout(updateStatus, 1000);
+  </script>
+</body>
+</html>
