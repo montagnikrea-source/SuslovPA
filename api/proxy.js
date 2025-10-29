@@ -3,7 +3,7 @@
  * Обходит CORS ограничения путём перенаправления запросов через сервер
  * 
  * Использование:
- * POST /api/telegram
+ * POST /api/proxy
  * Body: { method: "sendMessage", params: { chat_id: "@noninput", text: "message" } }
  */
 

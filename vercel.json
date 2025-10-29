@@ -29,7 +29,7 @@
     },
     {
       "src": "/api/telegram",
-      "dest": "/api/telegram.js"
+      "dest": "/api/proxy.js"
     },
     {
       "src": "/api/(.*)",
