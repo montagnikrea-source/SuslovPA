@@ -7376,7 +7376,8 @@ class NeuroHomeo {
     this.locked=false; this.lockUntil=0; this.lockMs=3000;
     this.lrBase=this.lr; this.lrMin=0.003; this.lrRecoverMs=3000; this.lastUnlockTime=performance.now();
     this.snap=null;
-    this.spikeJ=0.25; this.dropC=0.25;
+    this.spikeJ=0.25; this.dropC=0.10; // Changed from 0.25 to 0.10 for better sensitivity
+    this.dropCBase=0.10; this.dropCMin=0.05; this.dropCMax=0.30; // Dynamic adjustment range
     
     // ===== ОПТИМИЗАЦИЯ РЕСУРСОВ =====
     if (enableOptimization) {
@@ -7390,6 +7391,48 @@ class NeuroHomeo {
   }
   snapshot(){ this.snap={ W1:new Float64Array(this.W1), b1:new Float64Array(this.b1), W2:new Float64Array(this.W2), b2:this.b2, aggr:this.aggr }; }
   restore(){ if(this.snap){ this.W1.set(this.snap.W1); this.b1.set(this.snap.b1); this.W2.set(this.snap.W2); this.b2=this.snap.b2; this.aggr=this.snap.aggr; } }
+
+  // ===== DYNAMIC CONFIDENCE ADJUSTMENT =====
+  // Auto-adjusts confidence threshold based on contextual factors
+  updateDynamicConfidence({conf, inertia, peak, fs}){
+    // Factor 1: System stability (higher inertia = more stable = can use lower threshold)
+    const stabilityFactor = Math.max(0, Math.min(1, inertia));
+    
+    // Factor 2: Signal quality (higher confidence = better signal = can use lower threshold)
+    const signalQualityFactor = Math.max(0, Math.min(1, conf));
+    
+    // Factor 3: Peak prominence (higher peak = clearer signal = can use lower threshold)
+    const peakFactor = Math.max(0, Math.min(1, peak / 2.0));
+    
+    // Factor 4: Sampling rate stability (higher fs = more stable = can use lower threshold)
+    const fsFactor = Math.max(0, Math.min(1, (fs - 40) / 200));
+    
+    // Weighted combination of factors (more stability = lower threshold for tighter control)
+    const contextScore = 0.35 * stabilityFactor + 0.30 * signalQualityFactor + 
+                         0.25 * peakFactor + 0.10 * fsFactor;
+    
+    // Map context score to threshold range: high score (stable) → lower threshold (0.05)
+    // low score (unstable) → higher threshold (0.30) for safety
+    const dynamicDropC = this.dropCMax - (contextScore * (this.dropCMax - this.dropCMin));
+    
+    // Apply smoothing to prevent sudden changes
+    const alpha = 0.15; // Smoothing factor
+    this.dropC = (1 - alpha) * this.dropC + alpha * dynamicDropC;
+    
+    // Ensure dropC stays within bounds
+    this.dropC = Math.max(this.dropCMin, Math.min(this.dropCMax, this.dropC));
+    
+    return {
+      dropC: this.dropC,
+      contextScore: contextScore,
+      factors: {
+        stability: stabilityFactor,
+        signalQuality: signalQualityFactor,
+        peak: peakFactor,
+        samplingRate: fsFactor
+      }
+    };
+  }
 
   _features({phi, df, u, conf, inertia, fs, peak}){
     const clip=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -7496,6 +7539,10 @@ class NeuroHomeo {
   }
   step(state){
     const {phi, df, u, conf, inertia, fs, peak} = state;
+    
+    // ===== AUTO-ADJUST CONFIDENCE THRESHOLD DYNAMICALLY =====
+    this.updateDynamicConfidence({conf, inertia, peak, fs});
+    
     const x = this._features({phi, df, u, conf, inertia, fs, peak});
     const {y, aggr:aggr_nn} = this._forward(x);
 
@@ -7777,6 +7824,7 @@ setInterval(step,12);`;
     setT('info',
       `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${out.conf.toFixed(2)} | `+
+      `dropC: ${scan.tuner.dropC.toFixed(3)} (auto) | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
       `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)}`
     );
