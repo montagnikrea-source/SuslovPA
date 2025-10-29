@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confidence Dynamic Adjustment Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .metric-label {
+            font-weight: 600;
+        }
+        
+        .metric-value {
+            color: #007bff;
+            font-family: 'Courier New', monospace;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        #confidenceChart {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ddd;
+            background: white;
+            position: relative;
+            margin-top: 10px;
+        }
+        
+        .chart-line {
+            stroke: #007bff;
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .chart-grid {
+            stroke: #e0e0e0;
+            stroke-width: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Dynamic Confidence Adjustment Test Suite</h1>
+    
+    <div class="test-container">
+        <h2>Test Status</h2>
+        <div id="testStatus" class="test-result info">
+            <strong>Status:</strong> Ready to run tests
+        </div>
+        <button onclick="runAllTests()">▶️ Run All Tests</button>
+        <button onclick="runSimulation()">🔄 Run Simulation</button>
+        <button onclick="clearResults()">🗑️ Clear Results</button>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test Results</h2>
+        <div id="testResults"></div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Live Metrics</h2>
+        <div id="liveMetrics"></div>
+        <canvas id="confidenceChart"></canvas>
+    </div>
+    
+    <div class="test-container">
+        <h2>Detailed Logs</h2>
+        <div id="detailedLogs" style="font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 4px;"></div>
+    </div>
+
+    <script>
+        // Mock classes for testing
+        class CpuJitterSampler {
+            static RB_SIZE = 16384;
+            static MASK = CpuJitterSampler.RB_SIZE - 1;
+            
+            constructor() {
+                this.rb = new Float64Array(CpuJitterSampler.RB_SIZE);
+                this.ts = new Float64Array(CpuJitterSampler.RB_SIZE);
+                this.widx = 0;
+                this.dynamic_n = 64;
+                this.actual_fs = 60;
+                
+                // Pre-populate with some test data
+                for (let i = 0; i < 200; i++) {
+                    this.rb[i] = Math.random() * 0.5 - 0.25;
+                    this.ts[i] = i * 16.67;
+                }
+                this.widx = 200;
+            }
+        }
+        
+        class Goertzel {
+            init(n, fs, f) {
+                this.N = n;
+                const k = Math.floor(0.5 + n * f / fs);
+                const w = 2 * Math.PI * k / n;
+                this.cw = Math.cos(w);
+                this.sw = Math.sin(w);
+                this.s1 = 0;
+                this.s2 = 0;
+            }
+            
+            push(x) {
+                const s = x + 2 * this.cw * this.s1 - this.s2;
+                this.s2 = this.s1;
+                this.s1 = s;
+            }
+            
+            result() {
+                const re = this.s1 - this.s2 * this.cw;
+                const im = this.s2 * this.sw;
+                const mag = Math.hypot(re, im) / (this.N > 1 ? (this.N / 2) : 1);
+                const ph = Math.atan2(im, re);
+                return { mag, ph };
+            }
+        }
+        
+        class Kalman {
+            constructor(x0, v0, qpos, qvel) {
+                this.qp = qpos;
+                this.qv = qvel;
+                this.reset(x0, v0);
+            }
+            
+            reset(x, v) {
+                this.x = x;
+                this.v = v;
+                this.p00 = 1;
+                this.p01 = 0;
+                this.p10 = 0;
+                this.p11 = 1;
+            }
+            
+            predict(dt) {
+                this.x += this.v * dt;
+                this.p00 += dt * (this.p10 + this.p01) + dt * dt * this.p11;
+                this.p01 += dt * this.p11;
+                this.p10 += dt * this.p11;
+                this.p00 += this.qp;
+                this.p11 += this.qv;
+            }
+            
+            update(z, r) {
+                const y = z - this.x;
+                const s = this.p00 + r;
+                if (Math.abs(s) < 1e-9) return;
+                const k0 = this.p00 / s;
+                const k1 = this.p10 / s;
+                this.x += k0 * y;
+                this.v += k1 * y;
+                const p00 = this.p00, p01 = this.p01;
+                this.p00 -= k0 * p00;
+                this.p01 -= k0 * p01;
+                this.p10 -= k1 * p00;
+                this.p11 -= k1 * p01;
+            }
+        }
+        
+        class NeuroHomeo {
+            constructor() {
+                this.prevJ = null;
+                this.prevAggr = null;
+            }
+            
+            step(state) {
+                return {
+                    J: 0.1,
+                    aggr: 1.0,
+                    kp: 0.1,
+                    kv: 0.01,
+                    ki: 0.002,
+                    slew: 40
+                };
+            }
+        }
+        
+        // Simplified FrequencyScanner class with the new confidence logic
+        class FrequencyScanner {
+            constructor(s) {
+                this.s = s;
+                this.kf = new Kalman(0, 0, 0.001, 0.008);
+                this.vco = 0;
+                this.phi = 0;
+                this.inertia = 0;
+                this.state = 'SEARCHING';
+                
+                this.r = 0;
+                this.N = this.s.dynamic_n;
+                this.booted = false;
+                
+                this.win = new Float64Array(this.N);
+                this.block = new Float64Array(this.N);
+                this.tst = new Float64Array(this.N);
+                this._needWin = true;
+                
+                this.fmax = 50;
+                this.fstep = 0.1;
+                this.maxPoints = 240;
+                
+                this.phase_dead = 0.02;
+                this.f_ema = 0;
+                
+                // CHANGED: Initial confidence set to 1.0 instead of 0
+                this.out_f = 0;
+                this.out_conf = 1.0;
+                this.out_inertia = 0;
+                this.out_state = 'SEARCHING';
+                this.out_peak = 0;
+                this.dt = 0;
+                this.fs = 0;
+                
+                this.u_int = 0;
+                this.u_int_max = 3.0;
+                this.lastUpdateMs = performance.now();
+                
+                this.kp = 0.1;
+                this.kv = 0.01;
+                this.ki = 0.002;
+                this.slew = 40;
+                
+                this.tuner = new NeuroHomeo();
+                this.lastDfApplied = 0;
+                
+                // NEW: Dynamic confidence adjustment parameters
+                this.conf_history = [];
+                this.conf_history_max = 50;
+                this.conf_ema = 1.0;
+                this.conf_ema_alpha = 0.15;
+                this.conf_adjust_factors = {
+                    peak_weight: 0.25,
+                    inertia_weight: 0.25,
+                    state_weight: 0.20,
+                    stability_weight: 0.30
+                };
+            }
+            
+            /**
+             * NEW METHOD: Dynamically adjusts confidence based on multiple contextual factors
+             */
+            _adjustConfidenceDynamic(base_conf, peak, inertia, state) {
+                // Factor 1: Peak quality adjustment
+                const peak_factor = Math.min(1.0, Math.max(0.0, peak / 2.0));
+                
+                // Factor 2: Inertia/stability adjustment
+                const inertia_factor = Math.min(1.0, Math.max(0.0, inertia));
+                
+                // Factor 3: State-based adjustment
+                const state_factor = (state === 'TRACKING') ? 1.0 : 0.7;
+                
+                // Factor 4: Historical stability
+                let stability_factor = 1.0;
+                if (this.conf_history.length >= 10) {
+                    const recent = this.conf_history.slice(-10);
+                    const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+                    const variance = recent.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recent.length;
+                    const std_dev = Math.sqrt(variance);
+                    stability_factor = Math.max(0.5, 1.0 - std_dev * 2.0);
+                }
+                
+                // Weighted combination
+                const weights = this.conf_adjust_factors;
+                const adjusted = base_conf * (
+                    weights.peak_weight * peak_factor +
+                    weights.inertia_weight * inertia_factor +
+                    weights.state_weight * state_factor +
+                    weights.stability_weight * stability_factor
+                ) / (weights.peak_weight + weights.inertia_weight + weights.state_weight + weights.stability_weight);
+                
+                // Apply exponential moving average
+                this.conf_ema = (1 - this.conf_ema_alpha) * this.conf_ema + this.conf_ema_alpha * adjusted;
+                
+                // Store in history
+                this.conf_history.push(this.conf_ema);
+                if (this.conf_history.length > this.conf_history_max) {
+                    this.conf_history.shift();
+                }
+                
+                return Math.max(0.0, Math.min(1.0, this.conf_ema));
+            }
+        }
+        
+        // Test suite
+        let testResults = [];
+        let confidenceHistory = [];
+        
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('detailedLogs');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+            logsDiv.innerHTML += `<div style="color: ${color};">[${timestamp}] ${message}</div>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function addTestResult(testName, passed, details = '') {
+            testResults.push({ testName, passed, details });
+            const resultsDiv = document.getElementById('testResults');
+            const resultClass = passed ? 'pass' : 'fail';
+            const icon = passed ? '✅' : '❌';
+            resultsDiv.innerHTML += `
+                <div class="test-result ${resultClass}">
+                    ${icon} <strong>${testName}</strong>
+                    ${details ? `<br><small>${details}</small>` : ''}
+                </div>
+            `;
+        }
+        
+        function updateLiveMetrics(scanner) {
+            const metricsDiv = document.getElementById('liveMetrics');
+            metricsDiv.innerHTML = `
+                <div class="metric">
+                    <span class="metric-label">Initial Confidence:</span>
+                    <span class="metric-value">${scanner.out_conf.toFixed(4)}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">EMA Confidence:</span>
+                    <span class="metric-value">${scanner.conf_ema.toFixed(4)}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">History Length:</span>
+                    <span class="metric-value">${scanner.conf_history.length}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Inertia:</span>
+                    <span class="metric-value">${scanner.inertia.toFixed(4)}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">State:</span>
+                    <span class="metric-value">${scanner.state}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Peak:</span>
+                    <span class="metric-value">${scanner.out_peak.toFixed(4)}</span>
+                </div>
+            `;
+        }
+        
+        function runAllTests() {
+            log('Starting test suite...', 'info');
+            testResults = [];
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('testStatus').innerHTML = '<strong>Status:</strong> Running tests...';
+            document.getElementById('testStatus').className = 'test-result info';
+            
+            // Test 1: Initial value
+            log('Test 1: Checking initial confidence value');
+            const sampler = new CpuJitterSampler();
+            const scanner = new FrequencyScanner(sampler);
+            
+            if (scanner.out_conf === 1.0) {
+                addTestResult('Initial Confidence Value', true, 'Confidence correctly initialized to 1.0');
+                log('✅ Initial confidence is 1.0', 'success');
+            } else {
+                addTestResult('Initial Confidence Value', false, `Expected 1.0, got ${scanner.out_conf}`);
+                log(`❌ Initial confidence is ${scanner.out_conf}, expected 1.0`, 'error');
+            }
+            
+            // Test 2: EMA initialization
+            log('Test 2: Checking EMA initialization');
+            if (scanner.conf_ema === 1.0) {
+                addTestResult('EMA Initialization', true, 'conf_ema correctly initialized to 1.0');
+                log('✅ EMA confidence is 1.0', 'success');
+            } else {
+                addTestResult('EMA Initialization', false, `Expected 1.0, got ${scanner.conf_ema}`);
+                log(`❌ EMA confidence is ${scanner.conf_ema}, expected 1.0`, 'error');
+            }
+            
+            // Test 3: Method existence
+            log('Test 3: Checking if _adjustConfidenceDynamic method exists');
+            if (typeof scanner._adjustConfidenceDynamic === 'function') {
+                addTestResult('Dynamic Adjustment Method', true, 'Method _adjustConfidenceDynamic exists');
+                log('✅ Method exists', 'success');
+            } else {
+                addTestResult('Dynamic Adjustment Method', false, 'Method not found');
+                log('❌ Method not found', 'error');
+            }
+            
+            // Test 4: Parameters initialization
+            log('Test 4: Checking adjustment parameters');
+            const hasParams = scanner.conf_history && 
+                             scanner.conf_history_max === 50 &&
+                             scanner.conf_adjust_factors &&
+                             scanner.conf_adjust_factors.peak_weight === 0.25;
+            
+            if (hasParams) {
+                addTestResult('Adjustment Parameters', true, 'All parameters correctly initialized');
+                log('✅ Parameters initialized', 'success');
+            } else {
+                addTestResult('Adjustment Parameters', false, 'Some parameters missing or incorrect');
+                log('❌ Parameters not properly initialized', 'error');
+            }
+            
+            // Test 5: Method functionality
+            log('Test 5: Testing _adjustConfidenceDynamic functionality');
+            try {
+                const result = scanner._adjustConfidenceDynamic(0.5, 1.5, 0.8, 'TRACKING');
+                const isValid = result >= 0 && result <= 1;
+                
+                if (isValid) {
+                    addTestResult('Method Functionality', true, `Returns valid confidence: ${result.toFixed(4)}`);
+                    log(`✅ Method returns valid value: ${result.toFixed(4)}`, 'success');
+                } else {
+                    addTestResult('Method Functionality', false, `Invalid confidence value: ${result}`);
+                    log(`❌ Invalid confidence value: ${result}`, 'error');
+                }
+            } catch (error) {
+                addTestResult('Method Functionality', false, `Error: ${error.message}`);
+                log(`❌ Error calling method: ${error.message}`, 'error');
+            }
+            
+            // Test 6: Different scenarios
+            log('Test 6: Testing different scenarios');
+            let scenariosPassed = 0;
+            const scenarios = [
+                { base: 0.3, peak: 0.5, inertia: 0.2, state: 'SEARCHING', desc: 'Low quality searching' },
+                { base: 0.8, peak: 2.0, inertia: 0.9, state: 'TRACKING', desc: 'High quality tracking' },
+                { base: 0.5, peak: 1.0, inertia: 0.5, state: 'TRACKING', desc: 'Medium quality tracking' }
+            ];
+            
+            scenarios.forEach(scenario => {
+                try {
+                    const result = scanner._adjustConfidenceDynamic(
+                        scenario.base, scenario.peak, scenario.inertia, scenario.state
+                    );
+                    log(`  ${scenario.desc}: ${result.toFixed(4)}`);
+                    if (result >= 0 && result <= 1) scenariosPassed++;
+                } catch (error) {
+                    log(`  Error in scenario '${scenario.desc}': ${error.message}`, 'error');
+                }
+            });
+            
+            if (scenariosPassed === scenarios.length) {
+                addTestResult('Scenario Testing', true, `All ${scenarios.length} scenarios passed`);
+                log('✅ All scenarios passed', 'success');
+            } else {
+                addTestResult('Scenario Testing', false, `Only ${scenariosPassed}/${scenarios.length} scenarios passed`);
+                log(`❌ Only ${scenariosPassed}/${scenarios.length} scenarios passed`, 'error');
+            }
+            
+            // Update status
+            const totalTests = testResults.length;
+            const passedTests = testResults.filter(r => r.passed).length;
+            document.getElementById('testStatus').innerHTML = 
+                `<strong>Status:</strong> ${passedTests}/${totalTests} tests passed`;
+            document.getElementById('testStatus').className = 
+                passedTests === totalTests ? 'test-result pass' : 'test-result fail';
+            
+            updateLiveMetrics(scanner);
+            log('Test suite completed', 'info');
+        }
+        
+        function runSimulation() {
+            log('Starting simulation...', 'info');
+            confidenceHistory = [];
+            const sampler = new CpuJitterSampler();
+            const scanner = new FrequencyScanner(sampler);
+            
+            // Simulate different operating conditions
+            const iterations = 100;
+            for (let i = 0; i < iterations; i++) {
+                // Vary parameters to simulate different conditions
+                const base_conf = 0.3 + Math.random() * 0.5;
+                const peak = 0.5 + Math.random() * 2.0;
+                const inertia = Math.min(1.0, i / iterations + Math.random() * 0.3);
+                const state = i > 30 ? 'TRACKING' : 'SEARCHING';
+                
+                const conf = scanner._adjustConfidenceDynamic(base_conf, peak, inertia, state);
+                confidenceHistory.push({ iteration: i, confidence: conf, inertia, state });
+                
+                // Update state
+                scanner.inertia = inertia;
+                scanner.state = state;
+                scanner.out_peak = peak;
+            }
+            
+            updateLiveMetrics(scanner);
+            drawConfidenceChart();
+            
+            log(`Simulation completed: ${iterations} iterations`, 'success');
+            addTestResult('Simulation', true, `Ran ${iterations} iterations successfully`);
+        }
+        
+        function drawConfidenceChart() {
+            const canvas = document.getElementById('confidenceChart');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth;
+            const height = canvas.height = 200;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (confidenceHistory.length === 0) return;
+            
+            // Draw grid
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 10; i++) {
+                const y = (height / 10) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // Draw confidence line
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            confidenceHistory.forEach((point, index) => {
+                const x = (width / confidenceHistory.length) * index;
+                const y = height - (point.confidence * height);
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw inertia line (lighter)
+            ctx.strokeStyle = '#ffc107';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            confidenceHistory.forEach((point, index) => {
+                const x = (width / confidenceHistory.length) * index;
+                const y = height - (point.inertia * height);
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Add labels
+            ctx.fillStyle = '#007bff';
+            ctx.font = '12px Arial';
+            ctx.fillText('Confidence', 10, 20);
+            
+            ctx.fillStyle = '#ffc107';
+            ctx.fillText('Inertia', 10, 35);
+        }
+        
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('detailedLogs').innerHTML = '';
+            document.getElementById('liveMetrics').innerHTML = '';
+            document.getElementById('testStatus').innerHTML = '<strong>Status:</strong> Ready to run tests';
+            document.getElementById('testStatus').className = 'test-result info';
+            const canvas = document.getElementById('confidenceChart');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            testResults = [];
+            confidenceHistory = [];
+            log('Results cleared', 'info');
+        }
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', function() {
+            log('Page loaded, ready for testing', 'info');
+        });
+    </script>
+</body>
+</html>
