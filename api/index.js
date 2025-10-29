@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
   // Route to Telegram proxy
   if (path.startsWith('/telegram')) {
     try {
-      const proxyHandler = require('./proxy.js');
+      const proxyHandler = require('./telegram-proxy.js');
       return await proxyHandler(req, res);
     } catch (error) {
       console.error('Proxy error:', error);
