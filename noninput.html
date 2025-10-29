@@ -1148,7 +1148,7 @@ console.log('  • Несанкционированного доступа');
         <div class="lbl">🧠 Активных нейронов (H):</div>
         <div style="display:flex;gap:8px;align-items:center">
           <span id="HValue" style="font-weight:bold">4</span>
-          <span style="font-size:11px;color:var(--text-secondary)">из 16 макс</span>
+          <span style="font-size:11px;color:var(--text-secondary)">(самоконтролируемое)</span>
         </div>
       </div>
       <div>
@@ -1173,7 +1173,7 @@ console.log('  • Несанкционированного доступа');
         </div>
       </div>
     </div>
-    <div class="hint" style="margin-top:8px">⚙️ Архитектура автоматически масштабируется (4-16 нейронов) для оптимального баланса между точностью и ресурсами. Веса замораживаются при критической нагрузке. Все компоненты cost function отключаются когда не нужны.</div>
+    <div class="hint" style="margin-top:8px">⚙️ Архитектура динамически управляется сетью (самоконтролируемое количество нейронов) для оптимального баланса между точностью и ресурсами. Веса замораживаются при критической нагрузке. Все компоненты cost function отключаются когда не нужны.</div>
   </div>
 
   <!-- ────────────────────────────────────────────────────────────────
@@ -7428,30 +7428,32 @@ class NeuroHomeo {
     this.emaOneMinConf=1; this.emaOneMinIner=1;
     this.emaResourceUsage=0;  // НОВОЕ - отслеживание использования ресурсов
 
-    // ===== АВТОМАСШТАБИРОВАНИЕ АРХИТЕКТУРЫ =====
-    this.HMin=4; this.HMax=16; this.HStep=2;  // Минимум 4, максимум 16, шаг 2
-    this.D=9;                                  // Входные признаки (фиксировано)
-    this.H=this.HMin;                          // Начинаем с минимума для экономии
-    this.Htarget=this.HMin;                   // Целевое значение H
-    this.HscaleUpThreshold=0.7;               // Если качество выше 70%, можем увеличивать
-    this.HscaleDownThreshold=0.3;             // Если ошибка выше 30%, уменьшаем
+    // ===== АВТОМАСШТАБИРОВАНИЕ АРХИТЕКТУРЫ БЕЗ ОГРАНИЧЕНИЙ =====
+    this.HMin=4;                                // Минимум 4 нейрона для экономии
+    this.HStep=2;                               // Шаг масштабирования (4→6→8→10...)
+    this.D=9;                                   // Входные признаки (фиксировано)
+    this.H=this.HMin;                           // Начинаем с минимума
+    this.Htarget=this.HMin;                    // Целевое значение H
+    this.HscaleUpThreshold=0.7;                // Если качество выше 70%, можем увеличивать
+    this.HscaleDownThreshold=0.3;              // Если качество ниже 30%, увеличиваем H
+    this.maxDynamicH = 64;                     // Мягкий лимит (не жесткий) для предупреждения
     
     // Веса и смещения (будут переинициализированы при масштабировании)
     this.reinitializeWeights();
     
     // ===== АДАПТИВНОЕ УПРАВЛЕНИЕ КОЭФФИЦИЕНТАМИ =====
     this.lr=0.03; this.l2=1e-4; this.mix=0.75;
-    this.lrAdaptive = true;   // НОВОЕ - адаптивный LR включен
-    this.mixAdaptive = true;   // НОВОЕ - адаптивный mix включен
-    this.KpAdaptive = true;    // НОВОЕ - адаптивный Kp включен
+    this.lrAdaptive = true;   
+    this.mixAdaptive = true;   
+    this.KpAdaptive = true;    
     
     this.aggr=1.0; this.I=0; this.Imax=3.0; 
     this.Kp=0.35; this.Ki=0.10;
-    this.KpBase=0.35; this.KiBase=0.10;  // НОВОЕ - базовые значения для адаптации
+    this.KpBase=0.35; this.KiBase=0.10;
     this.prevJ=null; this.prevAggr=null; this.eps=1e-6;
     this._x=new Float64Array(this.D); 
-    this._h=new Float64Array(this.HMax);       // Максимальный размер
-    this._h_lin=new Float64Array(this.HMax);
+    this._h=new Float64Array(this.maxDynamicH);    // Динамический максимум
+    this._h_lin=new Float64Array(this.maxDynamicH);
 
     // lock-защита
     this.locked=false; this.lockUntil=0; this.lockMs=3000;
@@ -7491,7 +7493,7 @@ class NeuroHomeo {
     for(let i=0;i<this.H;i++) this.W2[i]=(Math.random()*2-1)*r2;
   }
   
-  // НОВОЕ: Автомасштабирование архитектуры
+  // НОВОЕ: Автомасштабирование архитектуры (БЕЗ ЖЕСТКИХ ОГРАНИЧЕНИЙ)
   autoScaleArchitecture(quality, resourceUsage){
     this.iterCount = (this.iterCount || 0) + 1;
     if(this.iterCount % this.scaleCheckInterval !== 0) return;
@@ -7504,7 +7506,7 @@ class NeuroHomeo {
     const trend = this.qualityHistory.length > 10 ? 
       (this.qualityHistory[this.qualityHistory.length-1] - this.qualityHistory[0]) / 10 : 0;
     
-    // ЛОГИКА МАСШТАБИРОВАНИЯ
+    // ЛОГИКА МАСШТАБИРОВАНИЯ (БЕЗ ВЕРХНЕГО ОГРАНИЧЕНИЯ - СЕТЬ САМА КОНТРОЛИРУЕТ)
     // 1. Если ресурсы критичны (>80%) - уменьшаем архитектуру И замораживаем веса
     if(resourceUsage > 0.80){
       if(this.H > this.HMin){
@@ -7514,18 +7516,18 @@ class NeuroHomeo {
       this.frozenWeights = true;
       this.lr = this.lrMin;  // Минимальное обучение при заморозке
     }
-    // 2. Если качество плохое И есть место для увеличения (качество < 30% И H < HMax)
-    else if(avgQuality < this.HscaleDownThreshold && this.H < this.HMax && resourceUsage < 0.50){
-      this.Htarget = Math.min(this.HMax, this.H + this.HStep);
+    // 2. Если качество плохое - увеличиваем архитектуру (БЕЗ ВЕРХНЕГО ПРЕДЕЛА)
+    else if(avgQuality < this.HscaleDownThreshold && resourceUsage < 0.50){
+      this.Htarget = this.H + this.HStep;
       if(this.Htarget > this.H){
         this.H = this.Htarget;
         this.reinitializeWeights();
       }
       this.frozenWeights = false;
     }
-    // 3. Если качество хорошее И ресурсы низкие - можем слегка увеличивать
-    else if(avgQuality > this.HscaleUpThreshold && trend > 0 && this.H < this.HMax && resourceUsage < 0.40){
-      this.Htarget = Math.min(this.HMax, this.H + this.HStep);
+    // 3. Если качество хорошее И ресурсы низкие - можем увеличивать для оптимизации
+    else if(avgQuality > this.HscaleUpThreshold && trend > 0 && resourceUsage < 0.40){
+      this.Htarget = this.H + this.HStep;
       if(this.Htarget > this.H){
         this.H = this.Htarget;
         this.reinitializeWeights();
@@ -7573,6 +7575,14 @@ class NeuroHomeo {
   cost(){
     const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
     
+    // ===== ЗАЩИТА ОТ NaN =====
+    if(!isFinite(this.emaAbsPhi)) this.emaAbsPhi = 0;
+    if(!isFinite(this.emaAbsDf)) this.emaAbsDf = 0;
+    if(!isFinite(this.emaAbsU)) this.emaAbsU = 0;
+    if(!isFinite(this.emaOneMinConf)) this.emaOneMinConf = 1;
+    if(!isFinite(this.emaOneMinIner)) this.emaOneMinIner = 1;
+    if(!isFinite(this.emaResourceUsage)) this.emaResourceUsage = 0;
+    
     // ===== ДИНАМИЧЕСКОЕ ОТКЛЮЧЕНИЕ КОМПОНЕНТОВ ДЛЯ ЭКОНОМИИ РЕСУРСОВ =====
     // Если система стабильна, отключаем ненужные компоненты
     const w_phi = (this.emaAbsPhi < 0.1) ? this.w_phi * 0.3 : this.w_phi;  // Меньше веса если стабильно
@@ -7584,8 +7594,11 @@ class NeuroHomeo {
     const baseCost = w_phi*this.emaAbsPhi + w_df*this.emaAbsDf + w_var*sigmaDf
           + w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
     
-    const resourcePenalty = this.w_res * this.emaResourceUsage;  // Минимизация: emaResourceUsage -> 0
-    return baseCost + resourcePenalty;
+    const resourcePenalty = this.w_res * Math.max(0, Math.min(1, this.emaResourceUsage));
+    const result = baseCost + resourcePenalty;
+    
+    // Финальная защита от NaN
+    return isFinite(result) ? result : 0;
   }
   
   // ===== НОВОЕ: АДАПТАЦИЯ КОЭФФИЦИЕНТОВ В ЗАВИСИМОСТИ ОТ СОСТОЯНИЯ =====
@@ -8019,10 +8032,15 @@ setInterval(step,12);`;
     setT('mixAdaptValue', (scan.tuner.mix*100).toFixed(0) + '%');
     setT('KpAdaptValue', scan.tuner.Kp.toFixed(4));
     
-    // НОВОЕ: Метрики масштабирования архитектуры
-    setT('HValue', out.H);
-    setT('qualityValue', (Math.max(0, 1.0 - out.J)*100).toFixed(0) + '%');
-    setW('qualityBar', Math.max(0, 1.0 - out.J)*100);
+    // НОВОЕ: Метрики масштабирования архитектуры (с NaN-защитой)
+    const hVal = isFinite(out.H) ? out.H : 4;
+    const jVal = isFinite(out.J) ? out.J : 1;
+    const qualityVal = Math.max(0, 1.0 - jVal);
+    const qualityPercent = isFinite(qualityVal) ? (qualityVal*100).toFixed(0) : '?';
+    
+    setT('HValue', hVal);
+    setT('qualityValue', qualityPercent + '%');
+    setW('qualityBar', Math.max(0, Math.min(100, qualityVal*100)));
     setT('freezeStatusValue', out.frozenWeights ? '🔒 Frozen' : '🔓 Learning');
     if(out.frozenWeights){
       const freezeEl = $('freezeStatusValue');
@@ -8038,7 +8056,7 @@ setInterval(step,12);`;
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${(out.conf*100).toFixed(0)}% | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
       `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)} | `+
-      `🧠 H=${out.H} | Ресурсы: ${(out.resourceUsage*100).toFixed(0)}% | LR: ${scan.tuner.lr.toFixed(4)} | Quality: ${(out.quality*100).toFixed(0)}%`
+      `🧠 H=${hVal} | Ресурсы: ${(out.resourceUsage*100).toFixed(0)}% | LR: ${scan.tuner.lr.toFixed(4)} | Quality: ${qualityPercent}%`
     );
   }
 
