@@ -8,7 +8,7 @@ Setup:
    npx playwright install
 
 Run:
-node memtest-noninput-mobile.js --url="https://montagnikrea-source.github.io/SuslovPA/noninput-mobile.html" --iterations=40 --delay=1000 --messages=20
+node memtest-noninput-mobile.js --url="https://montagnikrea-source.github.io/SuslovPA/noninput-mobile.html" --iterations=40 --messages=20
 
 Options:
 --url            URL to test (required)
