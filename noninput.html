@@ -1144,8 +1144,36 @@ console.log('  • Несанкционированного доступа');
           <span style="font-size:11px;color:var(--text-secondary)">(авто)</span>
         </div>
       </div>
+      <div>
+        <div class="lbl">🧠 Активных нейронов (H):</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="HValue" style="font-weight:bold">4</span>
+          <span style="font-size:11px;color:var(--text-secondary)">из 16 макс</span>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Качество (J):</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="qualityValue" style="font-weight:bold">0%</span>
+          <div class="bar" style="flex:1"><div id="qualityBar" class="c"></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">🔒 Статус весов:</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="freezeStatusValue" style="font-weight:bold;color:#00aa00">🔓 Learning</span>
+          <span style="font-size:11px;color:var(--text-secondary)">(freeze когда критично)</span>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">📊 Точность вычислений:</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="precisionValue" style="font-weight:bold;font-family:monospace">float64</span>
+          <span style="font-size:11px;color:var(--text-secondary)">(адаптивная)</span>
+        </div>
+      </div>
     </div>
-    <div class="hint" style="margin-top:8px">Все параметры автоматически подстраиваются под текущее состояние для минимизации использования ресурсов к нулю.</div>
+    <div class="hint" style="margin-top:8px">⚙️ Архитектура автоматически масштабируется (4-16 нейронов) для оптимального баланса между точностью и ресурсами. Веса замораживаются при критической нагрузке. Все компоненты cost function отключаются когда не нужны.</div>
   </div>
 
   <!-- ────────────────────────────────────────────────────────────────
@@ -7400,14 +7428,17 @@ class NeuroHomeo {
     this.emaOneMinConf=1; this.emaOneMinIner=1;
     this.emaResourceUsage=0;  // НОВОЕ - отслеживание использования ресурсов
 
-    const H=8; const D=9; this.H=H; this.D=D;
-    this.W1=new Float64Array(H*D); this.b1=new Float64Array(H);
-    this.W2=new Float64Array(H);     this.b2=0;
-    const r1=Math.sqrt(2/(D)); for(let i=0;i<H*D;i++) this.W1[i]=(Math.random()*2-1)*r1;
-    for(let i=0;i<H;i++) this.b1[i]=0;
-    const r2=Math.sqrt(2/(H)); for(let i=0;i<H;i++) this.W2[i]=(Math.random()*2-1)*r2;
-    this.b2=0;
-
+    // ===== АВТОМАСШТАБИРОВАНИЕ АРХИТЕКТУРЫ =====
+    this.HMin=4; this.HMax=16; this.HStep=2;  // Минимум 4, максимум 16, шаг 2
+    this.D=9;                                  // Входные признаки (фиксировано)
+    this.H=this.HMin;                          // Начинаем с минимума для экономии
+    this.Htarget=this.HMin;                   // Целевое значение H
+    this.HscaleUpThreshold=0.7;               // Если качество выше 70%, можем увеличивать
+    this.HscaleDownThreshold=0.3;             // Если ошибка выше 30%, уменьшаем
+    
+    // Веса и смещения (будут переинициализированы при масштабировании)
+    this.reinitializeWeights();
+    
     // ===== АДАПТИВНОЕ УПРАВЛЕНИЕ КОЭФФИЦИЕНТАМИ =====
     this.lr=0.03; this.l2=1e-4; this.mix=0.75;
     this.lrAdaptive = true;   // НОВОЕ - адаптивный LR включен
@@ -7418,7 +7449,9 @@ class NeuroHomeo {
     this.Kp=0.35; this.Ki=0.10;
     this.KpBase=0.35; this.KiBase=0.10;  // НОВОЕ - базовые значения для адаптации
     this.prevJ=null; this.prevAggr=null; this.eps=1e-6;
-    this._x=new Float64Array(D); this._h=new Float64Array(H); this._h_lin=new Float64Array(H);
+    this._x=new Float64Array(this.D); 
+    this._h=new Float64Array(this.HMax);       // Максимальный размер
+    this._h_lin=new Float64Array(this.HMax);
 
     // lock-защита
     this.locked=false; this.lockUntil=0; this.lockMs=3000;
@@ -7436,6 +7469,78 @@ class NeuroHomeo {
       this.resourceTarget = 0;  // НОВОЕ - целевое использование ресурсов = 0!
     }
     this.enableOpt = enableOptimization;
+    
+    // ===== МЕТРИКИ МАСШТАБИРОВАНИЯ =====
+    this.scaleCheckInterval = 50;
+    this.lastScaleCheck = 0;
+    this.qualityHistory = [];  // История качества для анализа тренда
+    this.frozenWeights = false;  // Заморозка весов при высокой нагрузке
+    this.useFloat32 = false;     // Используем float32 если ресурсы критичны
+  }
+  
+  // НОВОЕ: Переинициализация весов при изменении H
+  reinitializeWeights(){
+    this.W1=new Float64Array(this.H*this.D); 
+    this.b1=new Float64Array(this.H);
+    this.W2=new Float64Array(this.H);     
+    this.b2=0;
+    const r1=Math.sqrt(2/(this.D)); 
+    for(let i=0;i<this.H*this.D;i++) this.W1[i]=(Math.random()*2-1)*r1;
+    for(let i=0;i<this.H;i++) this.b1[i]=0;
+    const r2=Math.sqrt(2/(this.H)); 
+    for(let i=0;i<this.H;i++) this.W2[i]=(Math.random()*2-1)*r2;
+  }
+  
+  // НОВОЕ: Автомасштабирование архитектуры
+  autoScaleArchitecture(quality, resourceUsage){
+    this.iterCount = (this.iterCount || 0) + 1;
+    if(this.iterCount % this.scaleCheckInterval !== 0) return;
+    
+    // Отслеживаем историю качества (последние 20 итераций)
+    this.qualityHistory.push(quality);
+    if(this.qualityHistory.length > 20) this.qualityHistory.shift();
+    
+    const avgQuality = this.qualityHistory.reduce((a,b)=>a+b,0) / this.qualityHistory.length;
+    const trend = this.qualityHistory.length > 10 ? 
+      (this.qualityHistory[this.qualityHistory.length-1] - this.qualityHistory[0]) / 10 : 0;
+    
+    // ЛОГИКА МАСШТАБИРОВАНИЯ
+    // 1. Если ресурсы критичны (>80%) - уменьшаем архитектуру И замораживаем веса
+    if(resourceUsage > 0.80){
+      if(this.H > this.HMin){
+        this.H = Math.max(this.HMin, this.H - this.HStep);
+        this.reinitializeWeights();
+      }
+      this.frozenWeights = true;
+      this.lr = this.lrMin;  // Минимальное обучение при заморозке
+    }
+    // 2. Если качество плохое И есть место для увеличения (качество < 30% И H < HMax)
+    else if(avgQuality < this.HscaleDownThreshold && this.H < this.HMax && resourceUsage < 0.50){
+      this.Htarget = Math.min(this.HMax, this.H + this.HStep);
+      if(this.Htarget > this.H){
+        this.H = this.Htarget;
+        this.reinitializeWeights();
+      }
+      this.frozenWeights = false;
+    }
+    // 3. Если качество хорошее И ресурсы низкие - можем слегка увеличивать
+    else if(avgQuality > this.HscaleUpThreshold && trend > 0 && this.H < this.HMax && resourceUsage < 0.40){
+      this.Htarget = Math.min(this.HMax, this.H + this.HStep);
+      if(this.Htarget > this.H){
+        this.H = this.Htarget;
+        this.reinitializeWeights();
+      }
+      this.frozenWeights = false;
+    }
+    // 4. Если ресурсы средние и качество улучшается - пытаемся уменьшать для экономии
+    else if(resourceUsage > 0.50 && avgQuality > 0.5 && this.H > this.HMin){
+      this.H = Math.max(this.HMin, this.H - this.HStep);
+      this.reinitializeWeights();
+      this.frozenWeights = false;
+    }
+    else {
+      this.frozenWeights = false;
+    }
   }
   snapshot(){ this.snap={ W1:new Float64Array(this.W1), b1:new Float64Array(this.b1), W2:new Float64Array(this.W2), b2:this.b2, aggr:this.aggr }; }
   restore(){ if(this.snap){ this.W1.set(this.snap.W1); this.b1.set(this.snap.b1); this.W2.set(this.snap.W2); this.b2=this.snap.b2; this.aggr=this.snap.aggr; } }
@@ -7467,9 +7572,18 @@ class NeuroHomeo {
   }
   cost(){
     const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
-    // ===== ДОБАВЛЕН ЯВНЫЙ PENALTY ЗА РЕСУРСЫ - СТРЕМИТСЯ К 0! =====
-    const baseCost = this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf
-          + this.w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
+    
+    // ===== ДИНАМИЧЕСКОЕ ОТКЛЮЧЕНИЕ КОМПОНЕНТОВ ДЛЯ ЭКОНОМИИ РЕСУРСОВ =====
+    // Если система стабильна, отключаем ненужные компоненты
+    const w_phi = (this.emaAbsPhi < 0.1) ? this.w_phi * 0.3 : this.w_phi;  // Меньше веса если стабильно
+    const w_df = (sigmaDf < 0.05) ? this.w_df * 0.1 : this.w_df;           // Почти отключаем если мало дрейфа
+    const w_var = (sigmaDf < 0.05) ? this.w_var * 0.1 : this.w_var;       // Мало вариации = мало веса
+    const w_u = (this.emaAbsU < 0.1) ? this.w_u * 0.2 : this.w_u;         // Мало управления = мало веса
+    
+    // Основной cost с адаптивными весами
+    const baseCost = w_phi*this.emaAbsPhi + w_df*this.emaAbsDf + w_var*sigmaDf
+          + w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
+    
     const resourcePenalty = this.w_res * this.emaResourceUsage;  // Минимизация: emaResourceUsage -> 0
     return baseCost + resourcePenalty;
   }
@@ -7519,6 +7633,22 @@ class NeuroHomeo {
     } else if(this.emaResourceUsage < 0.2){
       this.w_res = Math.max(0.2, this.w_res * 0.95); // Немного уменьшаем
     }
+    
+    // ===== НОВОЕ: FREEZE LEARNING при высокой нагрузке или хорошей производительности =====
+    const quality = 1.0 - J;  // Качество = 1 - ошибка
+    if(resourceUsage > 0.85 || (quality > 0.95 && resourceUsage > 0.70)){
+      this.frozenWeights = true;
+      this.lr = this.lrMin * 0.5;  // Почти ничего не обновляется
+    } else if(resourceUsage < 0.50 && quality < 0.80){
+      this.frozenWeights = false;  // Разморозка для обучения
+    }
+    
+    // ===== НОВОЕ: АДАПТИВНАЯ ТОЧНОСТЬ ВЫЧИСЛЕНИЙ =====
+    if(resourceUsage > 0.80){
+      this.useFloat32 = true;    // Переход на float32 для экономии при критических ресурсах
+    } else if(resourceUsage < 0.60){
+      this.useFloat32 = false;   // Вернуться на float64 когда ресурсы в норме
+    }
   }
   _forward(x){
     const H=this.H, D=this.D; const h=this._h, hl=this._h_lin;
@@ -7531,6 +7661,9 @@ class NeuroHomeo {
     return {y, aggr};
   }
   _backward(dJdy){
+    // НОВОЕ: Проверяем не заморозены ли веса
+    if(this.frozenWeights) return;  // Не обновляем веса если заморозены
+    
     const H=this.H, D=this.D, x=this._x, h=this._h, hl=this._h_lin;
     const dJdb2 = dJdy; for(let i=0;i<H;i++){ const dW2 = dJdy * h[i] + this.l2*this.W2[i]; this.W2[i] -= this.lr * dW2; }
     this.b2 -= this.lr * dJdb2;
@@ -7573,6 +7706,10 @@ class NeuroHomeo {
     
     // ===== НОВОЕ: АДАПТИРУЕМ ПАРАМЕТРЫ ПЕРЕД ИСПОЛЬЗОВАНИЕМ =====
     this.adaptParameters(J, conf, inertia, resourceUsage);
+    
+    // ===== НОВОЕ: АВТОМАСШТАБИРОВАНИЕ АРХИТЕКТУРЫ =====
+    const quality = Math.max(0, 1.0 - J);  // Качество = 1 - ошибка
+    this.autoScaleArchitecture(quality, resourceUsage);
 
     const e = -J; this.I = Math.max(-this.Imax, Math.min(this.Imax, this.I + this.Ki*e));
     let aggr_pi = this.aggr + this.Kp*e + this.I; aggr_pi = Math.max(0.5, Math.min(2.0, aggr_pi));
@@ -7602,7 +7739,8 @@ class NeuroHomeo {
     const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - aggr)/1.5; const twoPiBw = 2*Math.PI*bw; const scale = 1/Math.max(40, fs);
     let kp = (2*zeta*twoPiBw) * scale; let kv = (twoPiBw*twoPiBw) * scale * 0.25; let ki = kp * 0.12 * (0.25 + 0.75*snr);
     const slew = 10 + 140 * snr * aggr; const eco = 0.88 + 0.12*snr; kp*=eco; kv*=eco; ki*=eco;
-    return { J, aggr, kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew, resourceUsage };  // НОВОЕ: возвращаем resourceUsage
+    return { J, aggr, kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew, resourceUsage, 
+             H:this.H, frozenWeights:this.frozenWeights, quality };  // НОВОЕ: возвращаем архитектуру и статус
   }
   
   // ===== НОВОЕ: ВЫЧИСЛЕНИЕ МЕТРИКИ ИСПОЛЬЗОВАНИЯ РЕСУРСОВ (0-1) =====
@@ -7880,14 +8018,27 @@ setInterval(step,12);`;
     setT('lrAdaptValue', scan.tuner.lr.toFixed(4));
     setT('mixAdaptValue', (scan.tuner.mix*100).toFixed(0) + '%');
     setT('KpAdaptValue', scan.tuner.Kp.toFixed(4));
+    
+    // НОВОЕ: Метрики масштабирования архитектуры
+    setT('HValue', out.H);
+    setT('qualityValue', (Math.max(0, 1.0 - out.J)*100).toFixed(0) + '%');
+    setW('qualityBar', Math.max(0, 1.0 - out.J)*100);
+    setT('freezeStatusValue', out.frozenWeights ? '🔒 Frozen' : '🔓 Learning');
+    if(out.frozenWeights){
+      const freezeEl = $('freezeStatusValue');
+      if(freezeEl) freezeEl.style.color = '#ff6b6b';
+    } else {
+      const freezeEl = $('freezeStatusValue');
+      if(freezeEl) freezeEl.style.color = '#00aa00';
+    }
+    setT('precisionValue', scan.tuner.useFloat32 ? 'float32' : 'float64');
 
     setT('info',
       `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${(out.conf*100).toFixed(0)}% | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
       `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)} | `+
-      `Ресурсы: ${(out.resourceUsage*100).toFixed(0)}% | LR: ${scan.tuner.lr.toFixed(4)} | `+
-      `Mix: ${(scan.tuner.mix*100).toFixed(0)}%`
+      `🧠 H=${out.H} | Ресурсы: ${(out.resourceUsage*100).toFixed(0)}% | LR: ${scan.tuner.lr.toFixed(4)} | Quality: ${(out.quality*100).toFixed(0)}%`
     );
   }
 
