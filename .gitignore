@@ -70,6 +70,9 @@ settings.local.json
 coverage/
 .nyc_output/
 
+# Memtest results
+memtest-noninput-mobile-results.json
+
 # Производственные данные
 production-data/
 uploads/
