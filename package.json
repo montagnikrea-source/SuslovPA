@@ -1,1 +1,17 @@
-{\n  "name": "suslovpa-memtest",\n  "version": "1.0.0",\n  "description": "Memory-leak smoke tests for SuslovPA noninput-mobile page using Playwright",\n  "scripts": {\n    "install-browsers": "npx playwright install",\n    "memtest": "node memtest-noninput-mobile.js"\n  },\n  "dependencies": {\n    "pidusage": "^3.0.0",\n    "yargs": "^17.7.2",\n    "playwright": "^1.35.0"\n  },\n  "engines": {\n    "node": ">=16"\n  }\n}
+{
+  "name": "suslovpa-memtest",
+  "version": "1.0.0",
+  "description": "Memory-leak smoke tests for SuslovPA noninput-mobile page using Playwright",
+  "scripts": {
+    "install-browsers": "npx playwright install",
+    "memtest": "node memtest-noninput-mobile.js"
+  },
+  "dependencies": {
+    "pidusage": "^3.0.0",
+    "yargs": "^17.7.2",
+    "playwright": "^1.35.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
