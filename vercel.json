@@ -34,6 +34,20 @@
       "use": "@vercel/static"
     }
   ],
+  "rewrites": [
+    {
+      "source": "/api/telegram",
+      "destination": "/api/proxy.js"
+    },
+    {
+      "source": "/api/telegram/secure",
+      "destination": "/api/telegram/secure.js"
+    },
+    {
+      "source": "/api/telegram/updates",
+      "destination": "/api/telegram/updates.js"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
