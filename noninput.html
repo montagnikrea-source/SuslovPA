@@ -7415,8 +7415,44 @@ class NeuroHomeo {
   }
   cost(){
     const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
-    return  this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf
+    const baseJ = this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf
           + this.w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
+    
+    // ===== УСЛОВИЕ ОПТИМИЗАЦИИ РЕСУРСОВ: J_resource → 0 =====
+    // Штрафуем использование вычислительных ресурсов пропорционально их затратам
+    const resourcePenalty = this.calcResourcePenalty();
+    
+    return baseJ + resourcePenalty;
+  }
+  
+  // ===== РАСЧЕТ ШТРАФА ЗА ИСПОЛЬЗОВАНИЕ РЕСУРСОВ =====
+  calcResourcePenalty() {
+    // 1. Штраф за высокие скорости обучения (больше вычислений)
+    const lrPenalty = Math.abs(this.lr - this.lrMin) / (this.lrBase - this.lrMin + 1e-6);
+    
+    // 2. Штраф за частые обновления весов (энергозатраты)
+    const updateFrequency = Math.min(1.0, this.iterCount / 1000);
+    const updatePenalty = updateFrequency * 0.02;
+    
+    // 3. Штраф за высокую агрессивность (aggr > 1 требует больше вычислений)
+    const aggrPenalty = Math.max(0, (this.aggr - 1.0) * 0.01);
+    
+    // 4. Штраф за дрейф (большие изменения параметров = больше вычислений)
+    const driftPenalty = this.prevJ && this.prevAggr ? 
+      Math.abs(this.aggr - this.prevAggr) * 0.005 : 0;
+    
+    // 5. Штраф за использование lock-механизма (включение lock = расход ресурсов)
+    const lockPenalty = this.locked ? 0.03 : 0;
+    
+    // Суммируем все штрафы с весами → стремление к 0
+    const totalResourcePenalty = 
+      0.05 * lrPenalty +       // 5% - обучение
+      updatePenalty +          // обновления весов
+      aggrPenalty +            // агрессивность
+      driftPenalty +           // стабильность
+      lockPenalty;             // защита от переобучения
+    
+    return Math.max(0, totalResourcePenalty);
   }
   _forward(x){
     const H=this.H, D=this.D; const h=this._h, hl=this._h_lin;
@@ -7494,6 +7530,12 @@ class NeuroHomeo {
     const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - aggr)/1.5; const twoPiBw = 2*Math.PI*bw; const scale = 1/Math.max(40, fs);
     let kp = (2*zeta*twoPiBw) * scale; let kv = (twoPiBw*twoPiBw) * scale * 0.25; let ki = kp * 0.12 * (0.25 + 0.75*snr);
     const slew = 10 + 140 * snr * aggr; const eco = 0.88 + 0.12*snr; kp*=eco; kv*=eco; ki*=eco;
+    
+    // ===== ИНКРЕМЕНТ СЧЕТЧИКА ИТЕРАЦИЙ ДЛЯ ОПТИМИЗАЦИИ РЕСУРСОВ =====
+    if (this.enableOpt) {
+      this.iterCount++;
+    }
+    
     return { J, aggr, kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew };
   }
   
