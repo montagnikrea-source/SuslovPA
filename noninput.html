@@ -7529,6 +7529,21 @@ class NeuroHomeo {
       poolAllocated: this.memPool.stats.allocated
     };
   }
+
+  calcResourcePenalty() {
+    if (!this.enableOpt) return 0;
+    
+    // Расчёт штрафов за использование ресурсов
+    const lrPenalty = Math.max(0, this.lr - this.lrBase) * 100; // штраф за высокий LR
+    const updatePenalty = (this.iterCount % this.gcInterval === 0) ? 5 : 0; // штраф при GC
+    const aggrPenalty = Math.abs(this.aggr - 1.0) * 10; // штраф за отклонение aggr
+    const driftPenalty = this.emaVarDf * 0.5; // штраф за дрейф
+    const lockPenalty = this.locked ? 20 : 0; // штраф если locked
+    
+    this.iterCount++;
+    
+    return lrPenalty + updatePenalty + aggrPenalty + driftPenalty + lockPenalty;
+  }
 }
 
 /* ====================== Частотный сканер ====================== */
