@@ -18,12 +18,6 @@
       "use": "@vercel/static"
     }
   ],
-  "functions": {
-    "api/**/*.js": {
-      "memory": 512,
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/api/telegram/secure(.*)",
