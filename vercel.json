@@ -20,6 +20,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/auth/telegram-token(.*)",
+      "destination": "/api/auth/telegram-token.js"
+    },
+    {
       "source": "/api/telegram/secure(.*)",
       "destination": "/api/telegram/secure.js"
     },

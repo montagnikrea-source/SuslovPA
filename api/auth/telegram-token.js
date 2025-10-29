@@ -14,10 +14,28 @@
  */
 
 export default async function handler(request, response) {
+  // Определяем разрешенные источники
+  const allowedOrigins = [
+    'https://pavell.vercel.app',
+    'https://montagnikrea-source.github.io',
+    'http://localhost:3000',
+    'http://localhost:8000'
+  ];
+  
+  // Получаем origin из заголовка запроса
+  const origin = request.headers.origin || request.headers.referer || '';
+  const isAllowedOrigin = allowedOrigins.some(allowed => origin.startsWith(allowed));
+  
   // Устанавливаем CORS заголовки для безопасности
-  response.setHeader('Access-Control-Allow-Origin', 'https://pavell.vercel.app');
+  // Разрешаем все допустимые источники вместо жесткого кодирования одного
+  if (isAllowedOrigin) {
+    response.setHeader('Access-Control-Allow-Origin', origin.match(/^https?:\/\/[^\/]+/)?.[0] || allowedOrigins[0]);
+  } else {
+    response.setHeader('Access-Control-Allow-Origin', allowedOrigins[0]);
+  }
   response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Access-Control-Allow-Credentials', 'true');
   
   // Обработка preflight запроса
   if (request.method === 'OPTIONS') {
@@ -45,18 +63,8 @@ export default async function handler(request, response) {
     }
     
     // Проверяем что это запрос с разрешенного источника
-    const referer = request.headers.referer || '';
-    const allowedOrigins = [
-      'https://pavell.vercel.app',
-      'https://montagnikrea-source.github.io',
-      'http://localhost:3000',
-      'http://localhost:8000'
-    ];
-    
-    const isAllowedOrigin = allowedOrigins.some(origin => referer.startsWith(origin));
-    
     if (!isAllowedOrigin && process.env.NODE_ENV === 'production') {
-      console.warn('⚠️ Попытка доступа к токену с неизвестного источника:', referer);
+      console.warn('⚠️ Попытка доступа к токену с неизвестного источника:', origin);
       return response.status(403).json({ 
         ok: false, 
         error: 'Unauthorized origin' 
@@ -64,7 +72,7 @@ export default async function handler(request, response) {
     }
     
     // Логируем успешный доступ
-    console.log('✅ Токен успешно отправлен клиенту');
+    console.log('✅ Токен успешно отправлен клиенту от источника:', origin);
     
     // Отправляем токен клиенту
     response.status(200).json({ 
