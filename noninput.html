@@ -1112,6 +1112,42 @@ console.log('  • Несанкционированного доступа');
     <div class="hint" style="margin-top:8px">AUTO — параметры настраиваются автоматически; снимите флажок, чтобы управлять вручную.</div>
   </div>
 
+  <!-- НОВОЕ: Панель адаптивных метрик нейросети -->
+  <div class="row controls" style="margin-top:18px;padding:12px;border-radius:12px;background:var(--bg-secondary);border-color:var(--border);border:1px solid var(--border)">
+    <div class="lbl" style="margin-top:0">📊 Адаптивные метрики нейросети:</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+      <div>
+        <div class="lbl">Использование ресурсов:</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="resourceValue" style="font-weight:bold;min-width:40px">0%</span>
+          <div class="bar" style="flex:1"><div id="resourceBar" class="r" style="background:#ff6b6b;"></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Learning Rate (адаптив):</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="lrAdaptValue" style="font-weight:bold;font-family:monospace">0.030</span>
+          <span style="font-size:11px;color:var(--text-secondary)">(авто)</span>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Mix NN/PID (адаптив):</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="mixAdaptValue" style="font-weight:bold">0%</span>
+          <span style="font-size:11px;color:var(--text-secondary)">(авто)</span>
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Kp адаптивный:</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="KpAdaptValue" style="font-weight:bold;font-family:monospace">0.000</span>
+          <span style="font-size:11px;color:var(--text-secondary)">(авто)</span>
+        </div>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:8px">Все параметры автоматически подстраиваются под текущее состояние для минимизации использования ресурсов к нулю.</div>
+  </div>
+
   <!-- ────────────────────────────────────────────────────────────────
        НЕОБЯЗАТЕЛЬНЫЙ ручной рекламный блок (Responsive)
        ВНИМАНИЕ: Чтобы заработал, замени data-ad-slot на свой в кабинете AdSense.
@@ -7354,9 +7390,15 @@ class AdaptiveMode {
 /* =================== Нейро-гомеостаз (с lock и оптимизацией) =================== */
 class NeuroHomeo {
   constructor(enableOptimization = true){
-    this.w_phi=1.0; this.w_df=0.8; this.w_var=0.9; this.w_u=0.7; this.w_c=0.9; this.w_i=0.7;
-    this.a = 0.12;
-    this.emaAbsPhi=0; this.emaAbsDf=0; this.emaVarDf=0; this.emaAbsU=0; this.emaOneMinConf=1; this.emaOneMinIner=1;
+    // ===== ВЕСА КОМПОНЕНТОВ COST FUNCTION (ДИНАМИЧЕСКИ АДАПТИРУЮТСЯ) =====
+    this.w_phi=1.0;   this.w_df=0.8;   this.w_var=0.9;   this.w_u=0.7;
+    this.w_c=0.9;     this.w_i=0.7;    this.w_res=0.4;   // w_res: НОВОЕ - штраф за ресурсы!
+    
+    // ===== АДАПТИВНЫЕ ПАРАМЕТРЫ (ПОДСТРАИВАЮТСЯ В RUNTIME) =====
+    this.a = 0.12;           // EMA коэффициент (адаптивная скорость обучения)
+    this.emaAbsPhi=0; this.emaAbsDf=0; this.emaVarDf=0; this.emaAbsU=0;
+    this.emaOneMinConf=1; this.emaOneMinIner=1;
+    this.emaResourceUsage=0;  // НОВОЕ - отслеживание использования ресурсов
 
     const H=8; const D=9; this.H=H; this.D=D;
     this.W1=new Float64Array(H*D); this.b1=new Float64Array(H);
@@ -7366,8 +7408,15 @@ class NeuroHomeo {
     const r2=Math.sqrt(2/(H)); for(let i=0;i<H;i++) this.W2[i]=(Math.random()*2-1)*r2;
     this.b2=0;
 
+    // ===== АДАПТИВНОЕ УПРАВЛЕНИЕ КОЭФФИЦИЕНТАМИ =====
     this.lr=0.03; this.l2=1e-4; this.mix=0.75;
-    this.aggr=1.0; this.I=0; this.Imax=3.0; this.Kp=0.35; this.Ki=0.10;
+    this.lrAdaptive = true;   // НОВОЕ - адаптивный LR включен
+    this.mixAdaptive = true;   // НОВОЕ - адаптивный mix включен
+    this.KpAdaptive = true;    // НОВОЕ - адаптивный Kp включен
+    
+    this.aggr=1.0; this.I=0; this.Imax=3.0; 
+    this.Kp=0.35; this.Ki=0.10;
+    this.KpBase=0.35; this.KiBase=0.10;  // НОВОЕ - базовые значения для адаптации
     this.prevJ=null; this.prevAggr=null; this.eps=1e-6;
     this._x=new Float64Array(D); this._h=new Float64Array(H); this._h_lin=new Float64Array(H);
 
@@ -7384,6 +7433,7 @@ class NeuroHomeo {
       this.adaptiveMode = new AdaptiveMode();
       this.iterCount = 0;
       this.gcInterval = 100;
+      this.resourceTarget = 0;  // НОВОЕ - целевое использование ресурсов = 0!
     }
     this.enableOpt = enableOptimization;
   }
@@ -7417,8 +7467,58 @@ class NeuroHomeo {
   }
   cost(){
     const sigmaDf = Math.sqrt(Math.max(0, this.emaVarDf));
-    return  this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf
+    // ===== ДОБАВЛЕН ЯВНЫЙ PENALTY ЗА РЕСУРСЫ - СТРЕМИТСЯ К 0! =====
+    const baseCost = this.w_phi*this.emaAbsPhi + this.w_df*this.emaAbsDf + this.w_var*sigmaDf
           + this.w_u*this.emaAbsU + this.w_c*this.emaOneMinConf + this.w_i*this.emaOneMinIner;
+    const resourcePenalty = this.w_res * this.emaResourceUsage;  // Минимизация: emaResourceUsage -> 0
+    return baseCost + resourcePenalty;
+  }
+  
+  // ===== НОВОЕ: АДАПТАЦИЯ КОЭФФИЦИЕНТОВ В ЗАВИСИМОСТИ ОТ СОСТОЯНИЯ =====
+  adaptParameters(J, conf, inertia, resourceUsage){
+    const a = 0.15;  // Адаптивная скорость обновления
+    
+    // Обновляем EMA использования ресурсов (НОВОЕ!)
+    this.emaResourceUsage = (1-a)*this.emaResourceUsage + a*resourceUsage;
+    
+    // АДАПТИВНЫЙ LEARNING RATE - снижаем когда плохо, повышаем когда хорошо
+    if(this.lrAdaptive){
+      const goodState = (conf > 0.6 && inertia > 0.5 && this.emaResourceUsage < 0.3);
+      const badState = (conf < 0.3 || inertia < 0.2);
+      
+      if(goodState){
+        this.lr = Math.min(this.lrBase, this.lr * 1.05);  // Осторожно растет
+      } else if(badState){
+        this.lr = Math.max(this.lrMin, this.lr * 0.8);    // Быстро падает
+      } else {
+        this.lr = this.lrBase * 0.9;  // Вернуться к базе
+      }
+    }
+    
+    // АДАПТИВНЫЙ MIX - больше сети когда хорошо работает, больше PID когда плохо
+    if(this.mixAdaptive){
+      const nnQuality = 1.0 - this.emaOneMinConf;  // Сеть хороша когда conf высок
+      const pidQuality = Math.min(1, (1 - this.emaResourceUsage) * (0.5 + 0.5*inertia));
+      
+      const totalQuality = nnQuality + pidQuality;
+      if(totalQuality > 1e-6){
+        this.mix = 0.5 + 0.45 * (nnQuality / totalQuality);  // Динамический вес
+      }
+    }
+    
+    // АДАПТИВНЫЕ PID КОЭФФИЦИЕНТЫ - зависят от уверенности системы
+    if(this.KpAdaptive){
+      const confidence = Math.max(0, Math.min(1, conf));
+      this.Kp = this.KpBase * (0.5 + 1.5 * confidence);  // Растет с уверенностью
+      this.Ki = this.KiBase * (0.3 + 1.7 * confidence);  // Ki более агрессивен
+    }
+    
+    // ДИНАМИЧЕСКАЯ РЕГУЛИРОВКА ВЕСОВ - увеличиваем штраф за ресурсы если они высокие
+    if(this.emaResourceUsage > 0.6){
+      this.w_res = Math.min(1.0, this.w_res * 1.1);  // Увеличиваем штраф
+    } else if(this.emaResourceUsage < 0.2){
+      this.w_res = Math.max(0.2, this.w_res * 0.95); // Немного уменьшаем
+    }
   }
   _forward(x){
     const H=this.H, D=this.D; const h=this._h, hl=this._h_lin;
@@ -7468,6 +7568,12 @@ class NeuroHomeo {
     const J = this.cost();
     this.maybeLock(J, conf, inertia);
 
+    // ===== НОВОЕ: ВЫЧИСЛЯЕМ ИСПОЛЬЗОВАНИЕ РЕСУРСОВ (0-1) =====
+    const resourceUsage = this.calcResourceUsage();
+    
+    // ===== НОВОЕ: АДАПТИРУЕМ ПАРАМЕТРЫ ПЕРЕД ИСПОЛЬЗОВАНИЕМ =====
+    this.adaptParameters(J, conf, inertia, resourceUsage);
+
     const e = -J; this.I = Math.max(-this.Imax, Math.min(this.Imax, this.I + this.Ki*e));
     let aggr_pi = this.aggr + this.Kp*e + this.I; aggr_pi = Math.max(0.5, Math.min(2.0, aggr_pi));
 
@@ -7496,7 +7602,22 @@ class NeuroHomeo {
     const zeta = 0.8 + 0.5*(1 - snr)*(2.0 - aggr)/1.5; const twoPiBw = 2*Math.PI*bw; const scale = 1/Math.max(40, fs);
     let kp = (2*zeta*twoPiBw) * scale; let kv = (twoPiBw*twoPiBw) * scale * 0.25; let ki = kp * 0.12 * (0.25 + 0.75*snr);
     const slew = 10 + 140 * snr * aggr; const eco = 0.88 + 0.12*snr; kp*=eco; kv*=eco; ki*=eco;
-    return { J, aggr, kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew };
+    return { J, aggr, kp:Math.max(1e-4,kp), kv:Math.max(1e-5,kv), ki:Math.max(1e-6,ki), slew, resourceUsage };  // НОВОЕ: возвращаем resourceUsage
+  }
+  
+  // ===== НОВОЕ: ВЫЧИСЛЕНИЕ МЕТРИКИ ИСПОЛЬЗОВАНИЯ РЕСУРСОВ (0-1) =====
+  calcResourceUsage(){
+    if(!this.enableOpt) return 0;
+    
+    // Комбинируем несколько факторов в один показатель (0-1)
+    const lrPressure = Math.min(1, this.lr / this.lrBase);           // LR выше базового = больше ресурсов
+    const lockPressure = this.locked ? 1 : 0;                         // Locked = максимум
+    const memPressure = (this.adaptiveMode?.memoryPressure || 0);    // Давление памяти
+    
+    // Взвешенная комбинация
+    return Math.min(1, Math.max(0, 
+      0.3 * lrPressure + 0.3 * lockPressure + 0.4 * memPressure
+    ));
   }
   
   // ===== КОНТРОЛЬ ПАМЯТИ И АДАПТАЦИЯ =====
@@ -7753,11 +7874,20 @@ setInterval(step,12);`;
     setT('inertiaValue', (out.inertia*100).toFixed(0)); setW('inertiaBar', out.inertia*100);
     setT('confValue', (out.conf*100).toFixed(0)); setW('confBar', out.conf*100);
 
+    // НОВОЕ: Обновляем адаптивные метрики
+    setT('resourceValue', (out.resourceUsage*100).toFixed(0) + '%');
+    setW('resourceBar', out.resourceUsage*100);
+    setT('lrAdaptValue', scan.tuner.lr.toFixed(4));
+    setT('mixAdaptValue', (scan.tuner.mix*100).toFixed(0) + '%');
+    setT('KpAdaptValue', scan.tuner.Kp.toFixed(4));
+
     setT('info',
       `Состояние: ${out.state} | f=${out.f.toFixed(3)} Гц | `+
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${(out.conf*100).toFixed(0)}% | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
-      `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)}`
+      `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)} | `+
+      `Ресурсы: ${(out.resourceUsage*100).toFixed(0)}% | LR: ${scan.tuner.lr.toFixed(4)} | `+
+      `Mix: ${(scan.tuner.mix*100).toFixed(0)}%`
     );
   }
 
