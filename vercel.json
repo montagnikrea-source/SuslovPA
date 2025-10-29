@@ -2,23 +2,19 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/proxy.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/telegram/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
       "src": "api/index.js",
       "use": "@vercel/node"
     },
     {
-      "src": "api/auth/**/*.js",
+      "src": "api/proxy.js",
       "use": "@vercel/node"
     },
     {
-      "src": "api/counter/**/*.js",
+      "src": "api/telegram/updates.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/telegram/secure.js",
       "use": "@vercel/node"
     },
     {
@@ -34,18 +30,22 @@
       "use": "@vercel/static"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/telegram",
-      "destination": "/api/proxy.js"
+      "src": "/api/telegram/updates(.*)",
+      "dest": "/api/telegram/updates.js"
     },
     {
-      "source": "/api/telegram/secure",
-      "destination": "/api/telegram/secure.js"
+      "src": "/api/telegram/secure(.*)",
+      "dest": "/api/telegram/secure.js"
     },
     {
-      "source": "/api/telegram/updates",
-      "destination": "/api/telegram/updates.js"
+      "src": "/api/telegram(.*)",
+      "dest": "/api/proxy.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
     }
   ],
   "headers": [
