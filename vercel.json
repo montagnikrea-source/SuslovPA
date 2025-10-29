@@ -2,7 +2,23 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/**/*.js",
+      "src": "api/proxy.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/telegram/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/auth/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/counter/**/*.js",
       "use": "@vercel/node"
     },
     {
@@ -16,12 +32,6 @@
     {
       "src": "*.html",
       "use": "@vercel/static"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/telegram",
-      "destination": "/api/proxy"
     }
   ],
   "headers": [
