@@ -67,23 +67,17 @@ html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!imp
 
 /* Фон задаётся глобально через styles.css для единообразия по сайту */
 
-/* Небольшая подложка для читаемости основных карточек */
+/* Подложки панелей: полупрозрачные, чтобы был виден фоновый рисунок сайта */
 .wrap,
 .row.controls,
-.chat-container,
-.main-container{
-  backdrop-filter: none;
-  background-image: linear-gradient(
-    rgba(255,255,255,0.72), rgba(255,255,255,0.72)
-  );
+.chat-container{
+  backdrop-filter: blur(4px);
+  background-color: rgba(255,255,255,0.35);
 }
 html[data-theme="dark"] .wrap,
 html[data-theme="dark"] .row.controls,
-html[data-theme="dark"] .chat-container,
-html[data-theme="dark"] .main-container{
-  background-image: linear-gradient(
-    rgba(13,17,23,0.78), rgba(13,17,23,0.78)
-  );
+html[data-theme="dark"] .chat-container{
+  background-color: rgba(13,17,23,0.40);
 }
   </style>
 
@@ -568,7 +562,7 @@ html[data-theme="dark"] .main-container{
       font-family: ui-monospace, Consolas, Menlo, monospace;
       white-space: pre-wrap;
       color: var(--text);
-      background: var(--bg);
+      background: transparent;
       padding: 12px;
       border-radius: 8px;
       border: 1px solid var(--border);
@@ -654,8 +648,9 @@ html[data-theme="dark"] .main-container{
       border-radius: 8px;
       padding: 12px;
       margin-bottom: 16px;
-      background: var(--bg);
+      background: rgba(255,255,255,0.25);
     }
+    html[data-theme="dark"] .chat-messages { background: rgba(13,17,23,0.25); }
 
     .message {
       margin-bottom: 12px;
