@@ -3,10 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Non Input</title>
+    <meta name="google-site-verification" content="YOUR_VERIFICATION_CODE">
+    <title>Frequency Scanner Neural Network</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>This is a non-input page</h1>
-    <p>Content goes here...</p>
+    <nav>
+        <ul>
+            <li><a href="#">Home</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+        </ul>
+    </nav>
+    <div id="theme-toggle">
+        <button id="toggle-button">Toggle Theme</button>
+    </div>
+    <div id="metrics">
+        <h2>Real-Time Metrics</h2>
+        <p>Current Frequency: <span id="current-frequency"></span></p>
+        <p>Error J: <span id="error-j"></span></p>
+        <p>Quality: <span id="quality"></span></p>
+        <p>Resource Usage: <span id="resource-usage"></span></p>
+        <p>Neuron Count: <span id="neuron-count"></span></p>
+        <div id="progress-bars">
+            <div class="progress-bar">
+                <div class="progress" id="frequency-progress"></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress" id="quality-progress"></div>
+            </div>
+        </div>
+    </div>
+    <div id="charts">
+        <h2>Visualization</h2>
+        <div id="frequency-chart"></div>
+        <div id="quality-chart"></div>
+    </div>
+    <div id="chat-system">
+        <h2>Chat Feedback</h2>
+        <div id="chat-messages"></div>
+        <input type="text" id="chat-input" placeholder="Type your message...">
+        <button id="send-button">Send</button>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>
