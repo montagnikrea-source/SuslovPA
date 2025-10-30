@@ -7296,57 +7296,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // ===== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ТЕМ =====
   initThemeSystem();
   
-  try {
-    multiUserChat = new MultiUserChatSystem();
-    console.log('Чат инициализирован успешно'); // Отладка
-    
-    // Инициализируем отображение активных пользователей
-    setTimeout(() => {
-      if (multiUserChat && multiUserChat.showActiveUsers) {
-        multiUserChat.showActiveUsers();
-      }
-      
-      // Принудительно запускаем глобальный счетчик
-      if (multiUserChat && multiUserChat.forceUpdateGlobalCounter) {
-        multiUserChat.forceUpdateGlobalCounter();
-      } else if (multiUserChat && multiUserChat.updateVisitorCounter) {
-        multiUserChat.updateVisitorCounter();
-      } else if (multiUserChat && multiUserChat.updateOnlineCounter) {
-        multiUserChat.updateOnlineCounter();
-      }
-    }, 1000);
-    
-    // Слушаем изменения в localStorage для синхронизации между вкладками
-    window.addEventListener('storage', (e) => {
-      if (e.key === multiUserChat.sharedKey && e.newValue) {
-        console.log('Обнаружены изменения в другой вкладке');
-        multiUserChat.checkForUpdates();
-      }
-    });
-    
-  } catch (error) {
-    console.error('Ошибка инициализации чата:', error);
-    console.error('Стек ошибки:', error.stack);
-    
-    // Попытка продолжить работу даже при ошибке инициализации
-    try {
-      console.warn('⚠️ Попытка восстановления после ошибки...');
-      if (multiUserChat) {
-        console.log('✅ multiUserChat объект всё ещё доступен');
-      } else {
-        console.warn('⚠️ multiUserChat не инициализирован, создаём заново...');
-        multiUserChat = new MultiUserChatSystem();
-      }
-    } catch (recoveryError) {
-      console.error('❌ Восстановление не удалось:', recoveryError);
-    }
-  }
+  // NOTE: Отложенная инициализация runtime — heavy процессы (чат, глобальные счётчики и др.)
+  // будут запускаться только после нажатия кнопки «Старт». Это предотвращает лишнюю
+  // загрузку ресурсов до явного действия пользователя.
+  console.log('[INIT] Runtime deferred until user presses Start');
 
   // Привязка кнопки отправки
   const sendButton = document.getElementById('sendButton');
   if (sendButton) {
     sendButton.addEventListener('click', function() {
       console.log('Кнопка нажата'); // Отладка
+      if (!window.__appInitialized) {
+        alert('Пожалуйста, нажмите ▶ Старт для инициализации чата и сервисов.');
+        return;
+      }
       sendMessage();
     });
     console.log('Кнопка отправки привязана'); // Отладка
@@ -7361,6 +7324,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         console.log('Enter нажат'); // Отладка
+        if (!window.__appInitialized) {
+          alert('Пожалуйста, нажмите ▶ Старт для инициализации чата и сервисов.');
+          return;
+        }
         sendMessage();
       }
     });
@@ -8280,6 +8247,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 
   async function startSecure(){
+    // Ensure heavy runtime parts (chat, counters) are initialized before starting algorithm
+    try{ await ensureRuntimeInitialized(); }catch(e){ console.warn('Runtime init failed or skipped', e); }
     const sr = Math.max(10, Math.min(240, parseInt($('#startSampleRate')?.value||'60',10)));
     const frz = !!$('#startFreeze')?.checked;
     console.log('[ALG] startSecure clicked', { sr, frz });
@@ -8570,6 +8539,40 @@ setInterval(step,12);`;
   };
 })();
 });
+
+// Lazy initialization of heavy runtime parts (chat, counters, global services)
+window.__appInitialized = false;
+async function initializeRuntime(){
+  if(window.__appInitialized) return;
+  console.log('[INIT] initializeRuntime: starting heavy services...');
+  try{
+    // Create multiUserChat and start its background jobs
+    multiUserChat = new MultiUserChatSystem();
+    console.log('[INIT] multiUserChat created');
+
+    // allow multiUserChat to render and then start counters/updates
+    setTimeout(()=>{
+      try{
+        if (multiUserChat && multiUserChat.showActiveUsers) multiUserChat.showActiveUsers();
+        if (multiUserChat && multiUserChat.forceUpdateGlobalCounter) multiUserChat.forceUpdateGlobalCounter();
+        else if (multiUserChat && multiUserChat.updateVisitorCounter) multiUserChat.updateVisitorCounter();
+        else if (multiUserChat && multiUserChat.updateOnlineCounter) multiUserChat.updateOnlineCounter();
+      }catch(_){/* ignore */}
+    }, 600);
+
+    // storage sync listener
+    window.addEventListener('storage', (e)=>{
+      try{ if (multiUserChat && e.key === multiUserChat.sharedKey && e.newValue) multiUserChat.checkForUpdates(); }catch(_){}
+    });
+
+    window.__appInitialized = true;
+    console.log('[INIT] initializeRuntime: completed');
+  }catch(err){
+    console.error('[INIT] initializeRuntime failed', err);
+  }
+}
+
+async function ensureRuntimeInitialized(){ if(!window.__appInitialized) await initializeRuntime(); }
 </script>
 
 <!-- Виджет счетчика посетителей страницы -->
