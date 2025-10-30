@@ -5,22 +5,32 @@
     <title>SuslovPA - Защищенный доступ</title>
     <meta name="description" content="Анализатор частот с защитой от копирования">
     <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="styles.css">
     
     <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-1128500581050725">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1128500581050725"
             crossorigin="anonymous"></script>
     
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            text-align: center; 
-            padding: 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            min-height: 100vh;
-            margin: 0;
-        }
+        <script>
+            (function(){try{
+                var saved=localStorage.getItem('theme-preference');
+                var siteDark=(localStorage.getItem('site-dark')==='true');
+                var dark=(saved==='dark')||siteDark||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.classList.toggle('dark', dark);
+                if(!saved){document.documentElement.setAttribute('data-theme', dark?'dark':'light');}
+            }catch(e){}})();
+        </script>
+        <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    text-align: center; 
+                    padding: 50px;
+                    background: transparent;
+                    color: var(--text);
+                        min-height: 100vh;
+                        margin: 0;
+                }
         .container {
             max-width: 600px;
             margin: 0 auto;

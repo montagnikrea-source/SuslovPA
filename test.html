@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test Page</title>
+        <link rel="stylesheet" href="styles.css">
+        <script>
+            (function(){try{
+                var saved=localStorage.getItem('theme-preference');
+                var siteDark=(localStorage.getItem('site-dark')==='true');
+                var dark=(saved==='dark')||siteDark||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.classList.toggle('dark', dark);
+                if(!saved){document.documentElement.setAttribute('data-theme', dark?'dark':'light');}
+            }catch(e){}})();
+        </script>
     
     <!-- Google AdSense -->
     <meta name="google-adsense-account" content="ca-pub-1128500581050725">

@@ -65,18 +65,7 @@
 html,body{background-color:#f3f5f7!important;color:#1a1a1a!important}
 html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!important;color:#e6edf3!important}
 
-/* Фон с рисунком: светлая/тёмная темы */
-html{
-  background-repeat: repeat;
-  background-size: 420px auto; /* компактный паттерн */
-  background-position: 0 0;
-}
-html:not([data-theme="dark"]) {
-  background-image: url('assets/bg-tmnt-light.png');
-}
-html[data-theme="dark"] {
-  background-image: url('assets/bg-tmnt-dark.png');
-}
+/* Фон задаётся глобально через styles.css для единообразия по сайту */
 
 /* Небольшая подложка для читаемости основных карточек */
 .wrap,
@@ -386,27 +375,25 @@ html[data-theme="dark"] .main-container{
 
     html, body {
       margin: 0;
-      background: var(--bg);
+      /* background is unified via styles.css on html; keep body transparent */
       color: var(--text);
       font: 14px/1.45 system-ui, Segoe UI, Arial;
     }
 
     /* КРИТИЧЕСКИ ВАЖНО: Явное переопределение html/body для тёмной темы */
-    html[data-theme="dark"],
-    html[data-theme="dark"] body {
-      background: var(--bg) !important;
+    html[data-theme="dark"] {
+      /* keep only background-color fallback; do not override background-image */
       background-color: var(--bg) !important;
       color: var(--text) !important;
     }
 
     body {
-      background: var(--bg);
+      background: transparent;
       color: var(--text);
     }
 
     html[data-theme="dark"] body {
-      background: var(--bg) !important;
-      background-color: var(--bg) !important;
+      background: transparent !important;
       color: var(--text) !important;
     }
 
