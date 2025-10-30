@@ -82,6 +82,7 @@
     if(running) return true;
     running = true;
     if (opts && typeof opts.sampleRate === 'number') sampleRate = opts.sampleRate;
+    if (opts && typeof opts.freeze === 'boolean') freezeLearning = !!opts.freeze;
     loop();
     return true;
   }
