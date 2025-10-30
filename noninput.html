@@ -3773,7 +3773,7 @@ class MultiUserChatSystem {
     // Guard clause to prevent division by zero
     let avgViewsPerVisitor = 0;
     if (uniqueVisitorCount > 0 && totalViews > 0) {
-      avgViewsPerVisitor = (totalViews / uniqueVisitorCount).toFixed(1);
+      avgViewsPerVisitor = parseFloat((totalViews / uniqueVisitorCount).toFixed(1));
     }
     
     return {
