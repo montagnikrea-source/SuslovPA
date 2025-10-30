@@ -31,6 +31,7 @@ export default class SecureShell {
     this.reqId = 0;
     this.pending = new Map();
     this.onTelemetry = opts.onTelemetry || function(){};
+    this._key = null; // AES-GCM key after handshake
   }
 
   init(){
@@ -48,7 +49,11 @@ export default class SecureShell {
           this.ready = true;
           window.removeEventListener('message', onMsg);
           window.addEventListener('message', (msg)=> this._onMessage(msg));
-          resolve(true);
+          // Начинаем рукопожатие
+          this._handshake().then(()=> resolve(true)).catch(err=>{
+            console.error('Handshake failed', err);
+            resolve(true); // продолжаем без шифрования
+          });
         }
       };
       window.addEventListener('message', onMsg);
@@ -76,17 +81,76 @@ export default class SecureShell {
 
   _onMessage(e){
     const d = e.data || {};
+    if(d.type === 'handshake-ack' && d.serverNonce){
+      this._deriveKey(this._clientNonce, d.serverNonce).catch(()=>{});
+      return;
+    }
     if(d.type === 'rpc:res'){
       const p = this.pending.get(d.id);
       if(p){ this.pending.delete(d.id); d.ok ? p.resolve(d.result) : p.reject(new Error(d.error||'error')); }
       return;
     }
-    if(d.type === 'telemetry'){
-      try{ this.onTelemetry(d.payload); }catch(_){ }
-      const decision = this.guardian.decide(d.payload);
-      if (decision && decision.cmd === 'tune') {
-        this._post({ type:'control', params: decision.params });
+    if(d.type === 'telemetry' || d.type === 'telemetry-enc'){
+      let payload = d.payload;
+      if(d.type === 'telemetry-enc' && this._key && d.cipher && d.iv){
+        this._decrypt(d.cipher, d.iv).then(obj=>{
+          try{ this.onTelemetry(obj); }catch(_){ }
+          const decision = this.guardian.decide(obj);
+          if (decision && decision.cmd === 'tune') {
+            this._sendControl(decision.params);
+          }
+        }).catch(()=>{});
+        return;
       }
+      try{ this.onTelemetry(payload); }catch(_){ }
+      const decision = this.guardian.decide(d.payload);
+      if (decision && decision.cmd === 'tune') this._sendControl(decision.params);
+    }
+  }
+
+  async _handshake(){
+    const nonce = new Uint8Array(12);
+    crypto.getRandomValues(nonce);
+    this._clientNonce = nonce;
+    this._post({ type:'handshake', clientNonce: Array.from(nonce) });
+  }
+
+  async _deriveKey(clientNonce, serverNonce){
+    try{
+      const c = new Uint8Array(clientNonce);
+      const s = new Uint8Array(serverNonce);
+      const concat = new Uint8Array(c.length+s.length);
+      concat.set(c,0); concat.set(s,c.length);
+      const hash = await crypto.subtle.digest('SHA-256', concat);
+      const raw = new Uint8Array(hash);
+      this._key = await crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
+    }catch(e){ console.warn('deriveKey error', e); }
+  }
+
+  async _encrypt(obj){
+    if(!this._key) return null;
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const enc = new TextEncoder().encode(JSON.stringify(obj));
+    const buf = await crypto.subtle.encrypt({name:'AES-GCM', iv}, this._key, enc);
+    return { cipher: Array.from(new Uint8Array(buf)), iv: Array.from(iv) };
+  }
+
+  async _decrypt(cipherArr, ivArr){
+    const iv = new Uint8Array(ivArr);
+    const data = new Uint8Array(cipherArr);
+    const buf = await crypto.subtle.decrypt({name:'AES-GCM', iv}, this._key, data);
+    const txt = new TextDecoder().decode(buf);
+    return JSON.parse(txt);
+  }
+
+  _sendControl(params){
+    if(this._key){
+      this._encrypt(params).then(p=>{
+        if(p) this._post({ type:'control-enc', cipher: p.cipher, iv: p.iv });
+        else this._post({ type:'control', params });
+      }).catch(()=> this._post({ type:'control', params }));
+    } else {
+      this._post({ type:'control', params });
     }
   }
 

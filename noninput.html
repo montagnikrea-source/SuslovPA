@@ -8196,7 +8196,10 @@ document.addEventListener('DOMContentLoaded',()=>{
             setT('info', `Sandbox mode • f=${f.toFixed(2)} Hz | conf=${(conf*100).toFixed(0)}% | inertia=${(inertia*100).toFixed(0)}% | fs=${m.fs}`);
           }
         });
-        shell.init().then(()=> shell.start({ sampleRate: 60 })).catch(console.error);
+        shell.init().then(()=> shell.start({ sampleRate: 60 })).then(()=>{
+          // После запуска удаляем загрузчик
+          try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
+        }).catch(console.error);
       }).catch((e)=>{ console.error('Secure loader failed', e); });
       return; // не запускаем локальный небезопасный движок
     }catch(e){ console.error('SecureShell failed, fallback to local engine', e); }
