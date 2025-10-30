@@ -170,8 +170,33 @@ html[data-theme="dark"] .chat-container{
   <!-- Firebase для многопользовательского чата -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <!-- Secure sandbox orchestrator -->
-  <script src="secure/secure-shell.js?v=20251030b"></script>
+  <!-- Secure sandbox loader (module + integrity) -->
+  <script type="module">
+    const EXPECTED = {
+      shell: 'c54255e928fbfec5c1a0ef0870756c4c8578cf519272f830e7575e9291ffdd52',
+      sandbox: '623acbd499066d08a062ac83220c919028c4e95af287dad9cf11f890fa7a5a40'
+    };
+    async function sha256Hex(url){
+      const res = await fetch(url, { cache:'no-store' });
+      if(!res.ok) throw new Error('fetch failed '+url);
+      const buf = await res.arrayBuffer();
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      const arr = Array.from(new Uint8Array(hash));
+      return arr.map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+    async function loadSecureShell(){
+      const shellUrl = 'secure/secure-shell.mjs?v=20251030c';
+      const sandboxUrl = 'secure/algo-sandbox.html?v=20251030c';
+      const [h1,h2] = await Promise.all([ sha256Hex(shellUrl), sha256Hex(sandboxUrl) ]);
+      if(h1!==EXPECTED.shell || h2!==EXPECTED.sandbox) throw new Error('Integrity check failed');
+      const mod = await import('./secure/secure-shell.mjs?v=20251030c');
+      return mod.default;
+    }
+    // Экспортируем безопасным способом (read-only)
+    Object.defineProperty(window, '__loadSecureShell', { value: loadSecureShell, writable:false, configurable:false });
+    // Запечатываем прямой доступ
+    try{ Object.defineProperty(window, 'SecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
+  </script>
 
   <style>
     /* ===== СВЕТЛАЯ ТЕМА (по умолчанию) ===== */
@@ -8149,33 +8174,30 @@ class FrequencyScanner{
 
 /* ============================ UI ============================ */
 document.addEventListener('DOMContentLoaded',()=>{
-  // Всегда запускаем защищённую оболочку при наличии SecureShell
-  if (window.SecureShell) {
+  // Всегда запускаем защищённую оболочку при наличии загрузчика
+  if (typeof window.__loadSecureShell === 'function') {
     try{
       // Упрощённые помощники
       const $=id=>document.getElementById(id);
       const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
       const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
-
-      const shell = new SecureShell({
-        onTelemetry: (m)=>{
-          // m: {f, conf, inertia, J, fs, peak}
-          const f = Number(m.f||0);
-          const conf = Math.max(0, Math.min(1, Number(m.conf||0)));
-          const inertia = Math.max(0, Math.min(1, Number(m.inertia||0)));
-
-          setT('freqValue', f.toFixed(3));
-          setW('freqBar', Math.max(0, Math.min(100, f)));
-          setT('inertiaValue', (inertia*100).toFixed(0));
-          setW('inertiaBar', inertia*100);
-          setT('confValue', (conf*100).toFixed(0));
-          setW('confBar', conf*100);
-
-          // Доп. метрики в панель
-          setT('info', `Sandbox mode • f=${f.toFixed(2)} Hz | conf=${(conf*100).toFixed(0)}% | inertia=${(inertia*100).toFixed(0)}% | fs=${m.fs}`);
-        }
-      });
-      shell.init().then(()=> shell.start({ sampleRate: 60 })).catch(console.error);
+      window.__loadSecureShell().then(SecureShell=>{
+        const shell = new SecureShell({
+          onTelemetry: (m)=>{
+            const f = Number(m.f||0);
+            const conf = Math.max(0, Math.min(1, Number(m.conf||0)));
+            const inertia = Math.max(0, Math.min(1, Number(m.inertia||0)));
+            setT('freqValue', f.toFixed(3));
+            setW('freqBar', Math.max(0, Math.min(100, f)));
+            setT('inertiaValue', (inertia*100).toFixed(0));
+            setW('inertiaBar', inertia*100);
+            setT('confValue', (conf*100).toFixed(0));
+            setW('confBar', conf*100);
+            setT('info', `Sandbox mode • f=${f.toFixed(2)} Hz | conf=${(conf*100).toFixed(0)}% | inertia=${(inertia*100).toFixed(0)}% | fs=${m.fs}`);
+          }
+        });
+        shell.init().then(()=> shell.start({ sampleRate: 60 })).catch(console.error);
+      }).catch((e)=>{ console.error('Secure loader failed', e); });
       return; // не запускаем локальный небезопасный движок
     }catch(e){ console.error('SecureShell failed, fallback to local engine', e); }
   }
