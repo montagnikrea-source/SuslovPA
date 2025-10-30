@@ -3556,13 +3556,34 @@ class MultiUserChatSystem {
 
   // Увеличение счетчиков страницы
   incrementPageCounters() {
-    // Увеличиваем общее количество просмотров
-    let totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
+    // Увеличиваем общее количество просмотров с валидацией
+    let totalViews = 0;
+    try {
+      const totalViewsStr = localStorage.getItem(this.pageCounterKeys.totalViews) || '0';
+      totalViews = parseInt(totalViewsStr, 10);
+      if (!isFinite(totalViews) || isNaN(totalViews)) {
+        totalViews = 0;
+      }
+    } catch (e) {
+      console.error('Error parsing totalViews:', e);
+      totalViews = 0;
+    }
     totalViews++;
     localStorage.setItem(this.pageCounterKeys.totalViews, totalViews.toString());
     
-    // Проверяем уникальных посетителей
-    let uniqueVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}');
+    // Проверяем уникальных посетителей с валидацией
+    let uniqueVisitors = {};
+    try {
+      const uniqueVisitorsStr = localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}';
+      uniqueVisitors = JSON.parse(uniqueVisitorsStr);
+      if (typeof uniqueVisitors !== 'object' || uniqueVisitors === null || Array.isArray(uniqueVisitors)) {
+        uniqueVisitors = {};
+      }
+    } catch (e) {
+      console.error('Error parsing uniqueVisitors:', e);
+      uniqueVisitors = {};
+    }
+    
     const visitorFingerprint = this.generateVisitorFingerprint();
     
     if (!uniqueVisitors[visitorFingerprint]) {
@@ -3578,8 +3599,18 @@ class MultiUserChatSystem {
     
     localStorage.setItem(this.pageCounterKeys.uniqueVisitors, JSON.stringify(uniqueVisitors));
     
-    // Ежедневные уникальные посетители
-    let dailyVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}');
+    // Ежедневные уникальные посетители с валидацией
+    let dailyVisitors = {};
+    try {
+      const dailyVisitorsStr = localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}';
+      dailyVisitors = JSON.parse(dailyVisitorsStr);
+      if (typeof dailyVisitors !== 'object' || dailyVisitors === null || Array.isArray(dailyVisitors)) {
+        dailyVisitors = {};
+      }
+    } catch (e) {
+      console.error('Error parsing dailyVisitors:', e);
+      dailyVisitors = {};
+    }
     dailyVisitors[visitorFingerprint] = Date.now();
     localStorage.setItem(this.pageCounterKeys.dailyVisitors, JSON.stringify(dailyVisitors));
     
@@ -3609,9 +3640,43 @@ class MultiUserChatSystem {
 
   // Обновление отображения счетчика
   updatePageCounterDisplay() {
-    const totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
-    const uniqueVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}');
-    const dailyVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}');
+    // Validate localStorage data with proper error handling
+    let totalViews = 0;
+    let uniqueVisitors = {};
+    let dailyVisitors = {};
+    
+    try {
+      const totalViewsStr = localStorage.getItem(this.pageCounterKeys.totalViews) || '0';
+      totalViews = parseInt(totalViewsStr, 10);
+      if (!isFinite(totalViews) || isNaN(totalViews)) {
+        totalViews = 0;
+      }
+    } catch (e) {
+      console.error('Error parsing totalViews:', e);
+      totalViews = 0;
+    }
+    
+    try {
+      const uniqueVisitorsStr = localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}';
+      uniqueVisitors = JSON.parse(uniqueVisitorsStr);
+      if (typeof uniqueVisitors !== 'object' || uniqueVisitors === null || Array.isArray(uniqueVisitors)) {
+        uniqueVisitors = {};
+      }
+    } catch (e) {
+      console.error('Error parsing uniqueVisitors:', e);
+      uniqueVisitors = {};
+    }
+    
+    try {
+      const dailyVisitorsStr = localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}';
+      dailyVisitors = JSON.parse(dailyVisitorsStr);
+      if (typeof dailyVisitors !== 'object' || dailyVisitors === null || Array.isArray(dailyVisitors)) {
+        dailyVisitors = {};
+      }
+    } catch (e) {
+      console.error('Error parsing dailyVisitors:', e);
+      dailyVisitors = {};
+    }
     
     const totalUniqueCount = Object.keys(uniqueVisitors).length;
     const dailyUniqueCount = Object.keys(dailyVisitors).length;
@@ -3651,23 +3716,71 @@ class MultiUserChatSystem {
 
   // Форматирование чисел для отображения
   formatNumber(num) {
-    if (num < 1000) return num.toString();
-    if (num < 1000000) return (num / 1000).toFixed(1) + 'K';
-    return (num / 1000000).toFixed(1) + 'M';
+    // Validate input - handle NaN, null, undefined, and non-finite values
+    if (!isFinite(num) || num === null || num === undefined) return '0';
+    const validNum = Number(num);
+    if (!isFinite(validNum)) return '0';
+    
+    if (validNum < 1000) return validNum.toString();
+    if (validNum < 1000000) return (validNum / 1000).toFixed(1) + 'K';
+    return (validNum / 1000000).toFixed(1) + 'M';
   }
 
   // Получение статистики страницы
   getPageStats() {
-    const totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
-    const uniqueVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}');
-    const dailyVisitors = JSON.parse(localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}');
+    // Validate localStorage data with proper error handling
+    let totalViews = 0;
+    let uniqueVisitors = {};
+    let dailyVisitors = {};
+    
+    try {
+      const totalViewsStr = localStorage.getItem(this.pageCounterKeys.totalViews) || '0';
+      totalViews = parseInt(totalViewsStr, 10);
+      // Ensure valid number
+      if (!isFinite(totalViews) || isNaN(totalViews)) {
+        totalViews = 0;
+      }
+    } catch (e) {
+      console.error('Error parsing totalViews:', e);
+      totalViews = 0;
+    }
+    
+    try {
+      const uniqueVisitorsStr = localStorage.getItem(this.pageCounterKeys.uniqueVisitors) || '{}';
+      uniqueVisitors = JSON.parse(uniqueVisitorsStr);
+      // Ensure it's an object
+      if (typeof uniqueVisitors !== 'object' || uniqueVisitors === null || Array.isArray(uniqueVisitors)) {
+        uniqueVisitors = {};
+      }
+    } catch (e) {
+      console.error('Error parsing uniqueVisitors:', e);
+      uniqueVisitors = {};
+    }
+    
+    try {
+      const dailyVisitorsStr = localStorage.getItem(this.pageCounterKeys.dailyVisitors) || '{}';
+      dailyVisitors = JSON.parse(dailyVisitorsStr);
+      // Ensure it's an object
+      if (typeof dailyVisitors !== 'object' || dailyVisitors === null || Array.isArray(dailyVisitors)) {
+        dailyVisitors = {};
+      }
+    } catch (e) {
+      console.error('Error parsing dailyVisitors:', e);
+      dailyVisitors = {};
+    }
+    
+    const uniqueVisitorCount = Object.keys(uniqueVisitors).length;
+    // Guard clause to prevent division by zero
+    let avgViewsPerVisitor = 0;
+    if (uniqueVisitorCount > 0 && totalViews > 0) {
+      avgViewsPerVisitor = (totalViews / uniqueVisitorCount).toFixed(1);
+    }
     
     return {
       totalViews,
-      uniqueVisitors: Object.keys(uniqueVisitors).length,
+      uniqueVisitors: uniqueVisitorCount,
       dailyVisitors: Object.keys(dailyVisitors).length,
-      avgViewsPerVisitor: Object.keys(uniqueVisitors).length > 0 ? 
-        (totalViews / Object.keys(uniqueVisitors).length).toFixed(1) : 0
+      avgViewsPerVisitor
     };
   }
 
@@ -6579,7 +6692,6 @@ ${text}
     `;
     
     const stats = this.getPageStats();
-    const totalViews = parseInt(localStorage.getItem(this.pageCounterKeys.totalViews) || '0');
     
     content.innerHTML = `
       <h3>📈 Детальная статистика страницы</h3>
@@ -6588,7 +6700,7 @@ ${text}
         <h4 style="margin: 0 0 10px 0; color: #1976d2;">📊 Основные показатели</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
           <div>
-            <div style="font-size: 24px; font-weight: bold; color: #1976d2;">${this.formatNumber(totalViews)}</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1976d2;">${this.formatNumber(stats.totalViews)}</div>
             <div style="color: #666;">👁️ Всего просмотров</div>
           </div>
           <div>
@@ -7760,15 +7872,22 @@ class NeuroHomeo {
   calcResourceUsage(){
     if(!this.enableOpt) return 0;
     
-    // Комбинируем несколько факторов в один показатель (0-1)
-    const lrPressure = Math.min(1, this.lr / this.lrBase);           // LR выше базового = больше ресурсов
-    const lockPressure = this.locked ? 1 : 0;                         // Locked = максимум
-    const memPressure = (this.adaptiveMode?.memoryPressure || 0);    // Давление памяти
+    // Validate and sanitize inputs to prevent NaN
+    const lr = isFinite(this.lr) && !isNaN(this.lr) ? this.lr : 0;
+    const lrBase = isFinite(this.lrBase) && !isNaN(this.lrBase) && this.lrBase !== 0 ? this.lrBase : 1;
+    const memPressure = this.adaptiveMode?.memoryPressure;
+    const validMemPressure = isFinite(memPressure) && !isNaN(memPressure) ? memPressure : 0;
     
-    // Взвешенная комбинация
-    return Math.min(1, Math.max(0, 
-      0.3 * lrPressure + 0.3 * lockPressure + 0.4 * memPressure
-    ));
+    // Комбинируем несколько факторов в один показатель (0-1)
+    const lrPressure = Math.min(1, lr / lrBase);           // LR выше базового = больше ресурсов
+    const lockPressure = this.locked ? 1 : 0;              // Locked = максимум
+    
+    // Взвешенная комбинация с защитой от NaN
+    const result = 0.3 * lrPressure + 0.3 * lockPressure + 0.4 * validMemPressure;
+    const clampedResult = Math.min(1, Math.max(0, result));
+    
+    // Final NaN protection
+    return isFinite(clampedResult) && !isNaN(clampedResult) ? clampedResult : 0;
   }
   
   // ===== КОНТРОЛЬ ПАМЯТИ И АДАПТАЦИЯ =====
@@ -8025,12 +8144,18 @@ setInterval(step,12);`;
     setT('inertiaValue', (out.inertia*100).toFixed(0)); setW('inertiaBar', out.inertia*100);
     setT('confValue', (out.conf*100).toFixed(0)); setW('confBar', out.conf*100);
 
-    // НОВОЕ: Обновляем адаптивные метрики
-    setT('resourceValue', (out.resourceUsage*100).toFixed(0) + '%');
-    setW('resourceBar', out.resourceUsage*100);
-    setT('lrAdaptValue', scan.tuner.lr.toFixed(4));
-    setT('mixAdaptValue', (scan.tuner.mix*100).toFixed(0) + '%');
-    setT('KpAdaptValue', scan.tuner.Kp.toFixed(4));
+    // НОВОЕ: Обновляем адаптивные метрики с NaN-защитой
+    const resourceUsage = isFinite(out.resourceUsage) && !isNaN(out.resourceUsage) ? out.resourceUsage : 0;
+    setT('resourceValue', (resourceUsage*100).toFixed(0) + '%');
+    setW('resourceBar', resourceUsage*100);
+    
+    const lr = isFinite(scan.tuner.lr) && !isNaN(scan.tuner.lr) ? scan.tuner.lr : 0;
+    const mix = isFinite(scan.tuner.mix) && !isNaN(scan.tuner.mix) ? scan.tuner.mix : 0;
+    const Kp = isFinite(scan.tuner.Kp) && !isNaN(scan.tuner.Kp) ? scan.tuner.Kp : 0;
+    
+    setT('lrAdaptValue', lr.toFixed(4));
+    setT('mixAdaptValue', (mix*100).toFixed(0) + '%');
+    setT('KpAdaptValue', Kp.toFixed(4));
     
     // НОВОЕ: Метрики масштабирования архитектуры (с NaN-защитой)
     const hVal = isFinite(out.H) ? out.H : 4;
@@ -8056,7 +8181,7 @@ setInterval(step,12);`;
       `Стабильность: ${(out.inertia*100).toFixed(0)}% | Уверенность: ${(out.conf*100).toFixed(0)}% | `+
       `fs: ${s.actual_fs.toFixed(1)} Гц | N: ${s.dynamic_n} (hop=${scan.hop}) | `+
       `kp=${scan.kp.toFixed(4)} kv=${scan.kv.toFixed(5)} ki=${scan.ki.toFixed(5)} | `+
-      `🧠 H=${hVal} | Ресурсы: ${(out.resourceUsage*100).toFixed(0)}% | LR: ${scan.tuner.lr.toFixed(4)} | Quality: ${qualityPercent}%`
+      `🧠 H=${hVal} | Ресурсы: ${(resourceUsage*100).toFixed(0)}% | LR: ${lr.toFixed(4)} | Quality: ${qualityPercent}%`
     );
   }
 
