@@ -172,10 +172,12 @@ html[data-theme="dark"] .chat-container{
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <!-- Secure sandbox loader (module + integrity) -->
   <script type="module">
-    const EXPECTED = {
-      shell: 'c54255e928fbfec5c1a0ef0870756c4c8578cf519272f830e7575e9291ffdd52',
-      sandbox: '623acbd499066d08a062ac83220c919028c4e95af287dad9cf11f890fa7a5a40'
+    // Лёгкая обфускация хэшей
+    const parts = {
+      a: ['c54255e9','28fbfec5','c1a0ef08','70756c4c','8578cf51','9272f830','e7575e92','91ffdd52'],
+      b: ['623acbd4','99066d08','a062ac83','220c9190','28c4e95a','f287dad9','cf11f890','fa7a5a40']
     };
+    const EXPECTED = { shell: parts.a.join(''), sandbox: parts.b.join('') };
     async function sha256Hex(url){
       const res = await fetch(url, { cache:'no-store' });
       if(!res.ok) throw new Error('fetch failed '+url);
@@ -189,7 +191,7 @@ html[data-theme="dark"] .chat-container{
       const sandboxUrl = 'secure/algo-sandbox.html?v=20251030c';
       const [h1,h2] = await Promise.all([ sha256Hex(shellUrl), sha256Hex(sandboxUrl) ]);
       if(h1!==EXPECTED.shell || h2!==EXPECTED.sandbox) throw new Error('Integrity check failed');
-      const mod = await import('./secure/secure-shell.mjs?v=20251030c');
+  const mod = await import('./secure/secure-shell.mjs?v=20251030d');
       return mod.default;
     }
     // Экспортируем безопасным способом (read-only)
@@ -8200,10 +8202,12 @@ document.addEventListener('DOMContentLoaded',()=>{
           // После запуска удаляем загрузчик
           try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
         }).catch(console.error);
-      }).catch((e)=>{ console.error('Secure loader failed', e); });
+      }).catch((e)=>{ console.error('Secure loader failed', e); /* локальный движок отключён по требованиям безопасности */ });
       return; // не запускаем локальный небезопасный движок
     }catch(e){ console.error('SecureShell failed, fallback to local engine', e); }
   }
+  // Локальный движок полностью отключён (по требованиям безопасности)
+  return;
   // Инициализация чата (уже выполнена выше)
   
   const s=new CpuJitterSampler();

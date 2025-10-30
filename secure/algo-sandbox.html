@@ -7,6 +7,7 @@
   <title>Algo Sandbox</title>
 </head>
 <body>
+<script src="algorithm-core.js"></script>
 <script>
 (function(){
   'use strict';
@@ -30,6 +31,9 @@
     peak: 0.0,
   };
 
+  // Реальный движок
+  const Engine = window.buildEngine ? window.buildEngine() : null;
+
   async function telemetry(){
     const payload = { f:state.f, conf:state.conf, inertia:state.inertia, J:state.J, fs:state.fs, peak:state.peak };
     if(key){
@@ -43,15 +47,28 @@
   }
 
   function step(){
-    // Упрощённая «модель»: плавное изменение частоты и метрик, чтобы UI жил
-    const t = (performance.now() - state.t0)/1000;
-    state.f = 10 + 5*Math.sin(t*0.5) + 2*Math.cos(t*0.2);
-    state.conf = Math.max(0, Math.min(1, 0.6 + 0.3*Math.sin(t*0.3)));
-    state.inertia = Math.max(0, Math.min(1, 0.3 + 0.5*Math.cos(t*0.25)));
-    state.J = Math.max(0, 1.2 - 0.8*state.conf*state.inertia);
-    state.fs = sampleRate;
-    state.peak = Math.max(0.5, Math.min(2.0, 1.0 + 0.3*Math.sin(t*0.7)));
-    telemetry();
+    // Реальный ход
+    try{
+      // Добираем данные сэмплера
+      const needCnt = Engine.scan.needCount();
+      const avail=((Engine.s.widx - Engine.scan.r) & Engine.s.constructor.MASK);
+      if(avail < needCnt){ for(let i=0;i<180;i++) Engine.s.sample(); telemetry(); return; }
+      Engine.scan.processOnce();
+      state.f = Engine.scan.out_f || 0;
+      state.conf = Engine.scan.out_conf || 0;
+      state.inertia = Engine.scan.out_inertia || 0;
+      state.J = Engine.scan.tuner?.prevJ ?? 1.0;
+      state.fs = Engine.scan.fs || sampleRate;
+      state.peak = Engine.scan.out_peak || 1.0;
+      telemetry();
+    }catch(_){ /* не падаем */ }
+    // Самопроверка целостности
+    if((++_checks % 300)===0){
+      if(_finger() !== baseline){
+        try{ parent.postMessage({ type:'tamper' }, '*'); }catch(_){ }
+        running=false; if(timer){clearTimeout(timer); timer=null;}
+      }
+    }
   }
 
   function loop(){
@@ -72,11 +89,15 @@
   function stop(){ running=false; if(timer){clearTimeout(timer); timer=null;} state.f=0; return true; }
   function getMetrics(){ return { ...state, sampleRate, freeze: freezeLearning }; }
 
+  // Самопроверка целостности (каждые ~300 шагов)
+  let _checks=0; const _finger = () => (''+step).length ^ (''+loop).length ^ (''+encrypt).length;
+  const baseline = _finger();
+
   window.addEventListener('message', (e)=>{
     const d = e.data || {};
     if(d.type==='handshake' && d.clientNonce){
-      deriveKey(d.clientNonce).then(serverNonce=>{
-        parent.postMessage({ type:'handshake-ack', serverNonce: Array.from(serverNonce) }, '*');
+      deriveKey(d.clientNonce, d.clientSalt).then(reply=>{
+        parent.postMessage({ type:'handshake-ack', serverNonce: reply.serverNonce, serverSalt: reply.serverSalt }, '*');
       }).catch(()=>{});
       return;
     }
@@ -109,15 +130,20 @@
   // Сообщаем, что готовы
   parent.postMessage({ type:'sandbox:ready' }, '*');
 
-  async function deriveKey(clientNonceArr){
+  async function deriveKey(clientNonceArr, clientSaltArr){
+    // HKDF с солью и ротацией
     const client = new Uint8Array(clientNonceArr);
-    const server = crypto.getRandomValues(new Uint8Array(12));
-    const concat = new Uint8Array(client.length+server.length);
-    concat.set(client,0); concat.set(server,client.length);
-    const hash = await crypto.subtle.digest('SHA-256', concat);
-    const raw = new Uint8Array(hash);
-    key = await crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
-    return server;
+    const clientSalt = new Uint8Array(clientSaltArr||new Uint8Array(16));
+    const serverNonce = crypto.getRandomValues(new Uint8Array(12));
+    const serverSalt = crypto.getRandomValues(new Uint8Array(16));
+    const saltConcat = new Uint8Array(clientSalt.length+serverSalt.length);
+    saltConcat.set(clientSalt,0); saltConcat.set(serverSalt,clientSalt.length);
+    const saltHash = await crypto.subtle.digest('SHA-256', saltConcat);
+    const ikm = new Uint8Array(client.length+serverNonce.length);
+    ikm.set(client,0); ikm.set(serverNonce,client.length);
+    const base = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveKey']);
+    key = await crypto.subtle.deriveKey({ name:'HKDF', hash:'SHA-256', salt: new Uint8Array(saltHash), info: new TextEncoder().encode('suslov-secure') }, base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+    return { serverNonce: Array.from(serverNonce), serverSalt: Array.from(serverSalt) };
   }
   async function encrypt(obj){
     const iv = crypto.getRandomValues(new Uint8Array(12));

@@ -81,6 +81,11 @@ export default class SecureShell {
 
   _onMessage(e){
     const d = e.data || {};
+    if(d.type === 'tamper'){
+      try{ this.pause().catch(()=>{}); }catch(_){ }
+      console.error('Sandbox integrity violation detected. Engine paused.');
+      return;
+    }
     if(d.type === 'handshake-ack' && d.serverNonce){
       this._deriveKey(this._clientNonce, d.serverNonce).catch(()=>{});
       return;
@@ -109,21 +114,25 @@ export default class SecureShell {
   }
 
   async _handshake(){
-    const nonce = new Uint8Array(12);
-    crypto.getRandomValues(nonce);
-    this._clientNonce = nonce;
-    this._post({ type:'handshake', clientNonce: Array.from(nonce) });
+    const nonce = crypto.getRandomValues(new Uint8Array(12));
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    this._clientNonce = nonce; this._clientSalt = salt;
+    this._post({ type:'handshake', clientNonce: Array.from(nonce), clientSalt: Array.from(salt) });
   }
 
-  async _deriveKey(clientNonce, serverNonce){
+  async _deriveKey(clientNonce, server){
     try{
-      const c = new Uint8Array(clientNonce);
-      const s = new Uint8Array(serverNonce);
-      const concat = new Uint8Array(c.length+s.length);
-      concat.set(c,0); concat.set(s,c.length);
-      const hash = await crypto.subtle.digest('SHA-256', concat);
-      const raw = new Uint8Array(hash);
-      this._key = await crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
+      const serverNonce = new Uint8Array(server.serverNonce||server);
+      const serverSalt = new Uint8Array(server.serverSalt||new Uint8Array(16));
+      const saltConcat = new Uint8Array(this._clientSalt.length+serverSalt.length);
+      saltConcat.set(this._clientSalt,0); saltConcat.set(serverSalt,this._clientSalt.length);
+      const saltHash = await crypto.subtle.digest('SHA-256', saltConcat);
+      const ikm = new Uint8Array(clientNonce.length+serverNonce.length);
+      ikm.set(clientNonce,0); ikm.set(serverNonce,clientNonce.length);
+      const base = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveKey']);
+      this._key = await crypto.subtle.deriveKey({ name:'HKDF', hash:'SHA-256', salt: new Uint8Array(saltHash), info: new TextEncoder().encode('suslov-secure') }, base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+      // Ротация ключа раз в 60с
+      clearTimeout(this._rekeyTimer); this._rekeyTimer = setTimeout(()=>{ try{ this._handshake(); }catch(_){ } }, 60000);
     }catch(e){ console.warn('deriveKey error', e); }
   }
 
