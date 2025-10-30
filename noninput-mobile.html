@@ -1,49 +1,78 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru" style="background-color:#f3f5f7!important;color:#1a1a1a!important">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Non-Input Mobile</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Frequency Scanner — Mobile</title>
+
+    <!-- Theme bootstrap (как на desktop) -->
     <script>
-        const eventManager = (() => {
-            const listeners = new WeakMap();
-
-            const addListener = (element, event, handler) => {
-                if (!listeners.has(element)) {
-                    listeners.set(element, []);
-                }
-                listeners.get(element).push({ event, handler });
-                element.addEventListener(event, handler);
-            };
-
-            const removeListeners = (element) => {
-                if (listeners.has(element)) {
-                    const registeredListeners = listeners.get(element);
-                    for (const { event, handler } of registeredListeners) {
-                        element.removeEventListener(event, handler);
-                    }
-                    listeners.delete(element);
-                }
-            };
-
-            return { addListener, removeListeners };
-        })();
-
-        window.addEventListener('beforeunload', () => {
-            // Cleanup logic
-            const chatSection = document.getElementById('chat');
-            eventManager.removeListeners(chatSection);
-            clearInterval(someInterval);
-        });
-
-        // Example usage
-        // eventManager.addListener(element, 'event', handler);
+    (function(){try{const s=localStorage.getItem('theme-preference');const p=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;const h=new Date().getHours();const d=s?(s==='dark'):(p||h>=21||h<6||(h>=18&&h<21));const t=d?'dark':'light';const b=d?'#0d1117':'#f3f5f7';const c=d?'#e6edf3':'#1a1a1a';document.documentElement.style.backgroundColor=b+'!important';document.documentElement.style.color=c+'!important';document.documentElement.setAttribute('data-theme',t);window.__THEME={t,d,h};}catch(e){}})();
     </script>
+
+    <style>
+    :root{ --header-h:56px; }
+    html,body{margin:0;padding:0;height:100%;}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif}
+
+    /* Backgrounds like desktop */
+    html{background-repeat:repeat;background-size:420px auto;background-position:0 0;}
+    html:not([data-theme="dark"]) { background-image:url('assets/bg-tmnt-light.png'); }
+    html[data-theme="dark"] { background-image:url('assets/bg-tmnt-dark.png'); }
+
+    .m-header{
+        height:var(--header-h);
+        display:flex;align-items:center;justify-content:space-between;
+        padding:0 12px;position:sticky;top:0;z-index:2;
+        background:rgba(255,255,255,0.82);backdrop-filter:saturate(1.1) blur(6px);
+        border-bottom:1px solid rgba(0,0,0,0.08);
+    }
+    html[data-theme="dark"] .m-header{background:rgba(13,17,23,0.82);border-bottom-color:rgba(255,255,255,0.08)}
+    .m-title{font-weight:600}
+    .m-actions{display:flex;gap:8px}
+    .btn{appearance:none;border:1px solid rgba(0,0,0,0.12);padding:6px 10px;border-radius:8px;background:transparent;color:inherit;font-size:14px}
+    html[data-theme="dark"] .btn{border-color:rgba(255,255,255,0.15)}
+
+    .m-content{height:calc(100dvh - var(--header-h));}
+    .m-frame{width:100%;height:100%;border:0;display:block;background:transparent}
+    </style>
 </head>
 <body>
-    <div id="chat"></div>
+    <header class="m-header">
+        <div class="m-title">Frequency Scanner — Mobile</div>
+        <div class="m-actions">
+            <button class="btn" id="themeToggleMobile" title="Переключить тему">Тема</button>
+            <a class="btn" href="noninput.html?skip=mobile" title="Полная версия">Desktop</a>
+        </div>
+    </header>
+    <main class="m-content">
+        <!-- Встраиваем основное приложение. skip=mobile предотвращает обратный редирект. -->
+        <iframe class="m-frame" id="appFrame" src="noninput.html?skip=mobile"></iframe>
+    </main>
+
     <script>
-        // Additional logic for managing chat and DOM updates
+        // Переключение темы синхронно с desktop-страницей в iframe
+        const btn = document.getElementById('themeToggleMobile');
+        btn?.addEventListener('click',()=>{
+            const cur = document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
+            const next = (cur==='dark')?'light':'dark';
+            localStorage.setItem('theme-preference', next);
+            document.documentElement.setAttribute('data-theme', next);
+            // Небольшая задержка чтобы CSS применился
+            setTimeout(()=>{
+                const fr=document.getElementById('appFrame');
+                try{ fr?.contentWindow?.postMessage({type:'set-theme', theme:next}, '*'); }catch(e){}
+            },30);
+        });
+
+        // Пытаемся синхронизировать тему, если desktop страница поддерживает postMessage
+        window.addEventListener('message', (e)=>{
+            if(!e || !e.data) return;
+            if(e.data.type==='set-theme'){
+                document.documentElement.setAttribute('data-theme', e.data.theme);
+                localStorage.setItem('theme-preference', e.data.theme);
+            }
+        });
     </script>
 </body>
 </html>
