@@ -1151,6 +1151,10 @@ console.log('  • Несанкционированного доступа');
     </label>
   <button id="btnStartAlgo" class="btn small start-btn" style="padding:6px 14px">▶ Старт</button>
     <button id="btnStopAlgo" class="btn small outline" style="padding:6px 10px">■ Стоп</button>
+    <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
+      <input id="toggleNeuroAnim" type="checkbox" checked>
+      Показать анимацию
+    </label>
     <span id="startStatus" style="margin-left:8px;color:var(--text-secondary)">Ожидание запуска…</span>
   </div>
 </section>
@@ -8245,6 +8249,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
   const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
 
+  // ===== Управление нейро-анимацией (оверлей) =====
+  const OVERLAY_KEY = 'neuroOverlayEnabled';
+  function isOverlayEnabled(){ const v = localStorage.getItem(OVERLAY_KEY); return (v===null) ? true : v==='1'; }
+  function setOverlayEnabled(on){ localStorage.setItem(OVERLAY_KEY, on?'1':'0'); const cb=$('toggleNeuroAnim'); if(cb) cb.checked = !!on; setNeuroOverlayVisible(!!on); }
+  function setNeuroOverlayVisible(show){ const overlay=$('neuroOverlay'); if(!overlay) return; if(show){ overlay.classList.add('visible','buff'); } else { overlay.classList.remove('buff','visible'); } }
+
   let shellInstance=null;
   function attachTelemetryHandler(SecureShell){
     shellInstance = new SecureShell({
@@ -8268,16 +8278,17 @@ document.addEventListener('DOMContentLoaded',()=>{
       try{
         const SecureShell = await window.__loadSecureShell();
         attachTelemetryHandler(SecureShell);
-        await shellInstance.init();
-        await shellInstance.start({ sampleRate: sr, freeze: frz });
-  // Красиво показать запуск — радужная нейросеть и баф-волна (бесконечная)
-  showNeuroBuff();
+    await shellInstance.init();
+    await shellInstance.start({ sampleRate: sr, freeze: frz });
+    // Красиво показать запуск — радужная нейросеть и баф-волна (если включено)
+    if (isOverlayEnabled()) showNeuroBuff();
         try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
         $('#startStatus').textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
-      }catch(e){ console.error('Secure start failed', e); $('#startStatus').textContent = 'Ошибка запуска, псевдо-режим'; startPseudoTelemetry(); }
+      }catch(e){ console.error('Secure start failed', e); $('#startStatus').textContent = 'Ошибка запуска, псевдо-режим'; if (isOverlayEnabled()) showNeuroBuff(); startPseudoTelemetry(); }
     } else {
       $('#startStatus').textContent = 'Загрузчик недоступен, псевдо-режим';
-      startPseudoTelemetry();
+      if (isOverlayEnabled()) showNeuroBuff();
+  startPseudoTelemetry();
     }
   }
 
@@ -8291,6 +8302,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   $('#btnStartAlgo')?.addEventListener('click', startSecure);
   $('#btnStopAlgo')?.addEventListener('click', stopSecure);
+  // Тумблер: показать/скрыть анимацию
+  const _initOverlayToggle = () => { const enabled = isOverlayEnabled(); const cb=$('toggleNeuroAnim'); if(cb){ cb.checked = enabled; cb.addEventListener('change', (e)=> setOverlayEnabled(!!e.target.checked)); } if(!enabled) setNeuroOverlayVisible(false); };
 
   // Показывает радужную нейросеть и «баф»-волну на 1.6–2.4s
   function showNeuroBuff(){
@@ -8298,6 +8311,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(!overlay) return;
     overlay.classList.add('visible','buff');
   }
+  // инициализируем состояние тумблера после рендера DOM
+  _initOverlayToggle();
   // Инициализация чата (уже выполнена выше)
   (function(){ /* legacy local engine disabled (isolated scope) */
   
@@ -8475,7 +8490,11 @@ setInterval(step,12);`;
       setTimeout(loop, 700);
     }
   }
-  loop();
+  // Отключаем автозапуск локального двигателя: он мешал ожиданию нажатия кнопки «Старт».
+  // Теперь его можно запустить вручную при необходимости (например, для офлайн-демо).
+  window.__legacyEngine = {
+    start(){ try{ loop(); }catch(e){ console.error(e); } }
+  };
 })();
 });
 </script>
