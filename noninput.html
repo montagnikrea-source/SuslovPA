@@ -8246,14 +8246,17 @@ document.addEventListener('DOMContentLoaded',()=>{
     });
   }
 
+  // Safe helper to update #startStatus without throwing if element is missing
+  function safeSetStartStatus(v){ const el = document.getElementById('startStatus'); if(el) el.textContent = v; }
+
   async function startSecure(){
     // Ensure heavy runtime parts (chat, counters) are initialized before starting algorithm
     try{ await ensureRuntimeInitialized(); }catch(e){ console.warn('Runtime init failed or skipped', e); }
     const sr = Math.max(10, Math.min(240, parseInt($('#startSampleRate')?.value||'60',10)));
     const frz = !!$('#startFreeze')?.checked;
     console.log('[ALG] startSecure clicked', { sr, frz });
-    const changelog = document.getElementById('algoChangeLog'); if(changelog) changelog.textContent = 'Запуск: инициализация...';
-    $('#startStatus').textContent = 'Инициализация…';
+  const changelog = document.getElementById('algoChangeLog'); if(changelog) changelog.textContent = 'Запуск: инициализация...';
+  safeSetStartStatus('Инициализация…');
     if (typeof window.__loadSecureShell === 'function'){
       try{
         const SecureShell = await window.__loadSecureShell();
@@ -8268,11 +8271,11 @@ document.addEventListener('DOMContentLoaded',()=>{
           setTimeout(ensureNeuroAnimation, 450);
         }
         try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
-        $('#startStatus').textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
+        safeSetStartStatus(`Запущено (SR=${sr}${frz?', freeze':''})`);
         if(changelog) changelog.textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
-      }catch(e){ console.error('Secure start failed', e); $('#startStatus').textContent = 'Ошибка запуска, псевдо-режим'; if (isOverlayEnabled()) showNeuroBuff(); startPseudoTelemetry(); }
+      }catch(e){ console.error('Secure start failed', e); safeSetStartStatus('Ошибка запуска, псевдо-режим'); if (isOverlayEnabled()) showNeuroBuff(); startPseudoTelemetry(); }
     } else {
-      $('#startStatus').textContent = 'Загрузчик недоступен, псевдо-режим';
+      safeSetStartStatus('Загрузчик недоступен, псевдо-режим');
       if (isOverlayEnabled()) showNeuroBuff();
       const changelog = document.getElementById('algoChangeLog'); if(changelog) changelog.textContent = 'Псевдо-режим: запущено';
       startPseudoTelemetry();
