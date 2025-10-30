@@ -1139,6 +1139,11 @@ console.log('  • Несанкционированного доступа');
   <a href="../privacy-policy.html">🔒 Конфиденциальность</a>
 </div>
 
+<!-- Инструкция / changelog для алгоритма (верхний левый угол) -->
+<div id="algoChangeLog" style="position:fixed;left:14px;top:72px;z-index:1500;background:linear-gradient(135deg,#222,rgba(255,255,255,0.04));color:#fff;padding:8px 12px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.35);font-size:13px;max-width:320px">
+  <strong>Алгоритм:</strong> Нажмите ▶ Старт чтобы инициализировать песочницу. После инициализации появится анимация и статус изменится.
+</div>
+
 <!-- Панель предварительных настроек безопасного запуска -->
 <section id="secure-settings" style="max-width:960px;margin:10px auto 0;padding:12px 14px;background:rgba(255,255,255,0.35);border-radius:10px;border:1px solid var(--border-light);">
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -8269,8 +8274,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 
   async function startSecure(){
-    const sr = Math.max(10, Math.min(240, parseInt($('#startSampleRate').value||'60',10)));
-    const frz = !!$('#startFreeze').checked;
+    const sr = Math.max(10, Math.min(240, parseInt($('#startSampleRate')?.value||'60',10)));
+    const frz = !!$('#startFreeze')?.checked;
+    console.log('[ALG] startSecure clicked', { sr, frz });
+    const changelog = document.getElementById('algoChangeLog'); if(changelog) changelog.textContent = 'Запуск: инициализация...';
     $('#startStatus').textContent = 'Инициализация…';
     if (typeof window.__loadSecureShell === 'function'){
       try{
@@ -8282,17 +8289,20 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (isOverlayEnabled()) showNeuroBuff();
         try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
         $('#startStatus').textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
+        if(changelog) changelog.textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
       }catch(e){ console.error('Secure start failed', e); $('#startStatus').textContent = 'Ошибка запуска, псевдо-режим'; if (isOverlayEnabled()) showNeuroBuff(); startPseudoTelemetry(); }
     } else {
       $('#startStatus').textContent = 'Загрузчик недоступен, псевдо-режим';
       if (isOverlayEnabled()) showNeuroBuff();
-  startPseudoTelemetry();
+      const changelog = document.getElementById('algoChangeLog'); if(changelog) changelog.textContent = 'Псевдо-режим: запущено';
+      startPseudoTelemetry();
     }
   }
 
   function stopSecure(){
     try{ shellInstance && shellInstance.pause && shellInstance.pause(); }catch(_){ }
     $('#startStatus').textContent = 'Остановлено';
+    const changelog = document.getElementById('algoChangeLog'); if(changelog) changelog.textContent = 'Остановлено пользователем';
     // По желанию скрываем оверлей при стопе
     const overlay = document.getElementById('neuroOverlay');
     if(overlay){ overlay.classList.remove('buff','visible'); }
@@ -8308,7 +8318,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     const overlay = document.getElementById('neuroOverlay');
     if(!overlay) return;
     overlay.classList.add('visible','buff');
+    overlay.setAttribute('aria-hidden','false');
   }
+  function hideNeuroBuff(){ const overlay = document.getElementById('neuroOverlay'); if(!overlay) return; overlay.classList.remove('visible','buff'); overlay.setAttribute('aria-hidden','true'); }
   // инициализируем состояние тумблера после рендера DOM
   _initOverlayToggle();
   // Инициализация чата (уже выполнена выше)
