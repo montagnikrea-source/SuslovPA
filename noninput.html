@@ -8285,8 +8285,13 @@ document.addEventListener('DOMContentLoaded',()=>{
         attachTelemetryHandler(SecureShell);
     await shellInstance.init();
     await shellInstance.start({ sampleRate: sr, freeze: frz });
-    // Красиво показать запуск — радужная нейросеть и баф-волна (если включено)
-    if (isOverlayEnabled()) showNeuroBuff();
+        // Красиво показать запуск — радужная нейросеть и баф-волна (если включено)
+        if (isOverlayEnabled()){
+          showNeuroBuff();
+          // попытка убедиться, что браузер не приостановил анимации
+          setTimeout(ensureNeuroAnimation, 120);
+          setTimeout(ensureNeuroAnimation, 450);
+        }
         try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
         $('#startStatus').textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
         if(changelog) changelog.textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
@@ -8317,8 +8322,48 @@ document.addEventListener('DOMContentLoaded',()=>{
   function showNeuroBuff(){
     const overlay = document.getElementById('neuroOverlay');
     if(!overlay) return;
+    // Respect reduced motion preference
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      // show a subtle static indicator instead of full animation
+      overlay.classList.add('visible');
+      overlay.classList.remove('buff');
+      overlay.setAttribute('aria-hidden','false');
+      return;
+    }
+
+    // Try to start animations — add classes, then ensure animation-play-state running
     overlay.classList.add('visible','buff');
     overlay.setAttribute('aria-hidden','false');
+    // Force restart of CSS animations in case browser suppressed them
+    requestAnimationFrame(()=>{
+      try{
+        const svg = overlay.querySelector('.neuro-svg');
+        const buff = overlay.querySelector('.buff-wave');
+        // toggle to restart
+        if(svg){ svg.style.animationPlayState = 'running'; svg.getBoundingClientRect(); svg.style.animation = svg.style.animation || '' }
+        if(buff){ buff.style.animationPlayState = 'running'; buff.getBoundingClientRect(); buff.style.animation = buff.style.animation || '' }
+        // some browsers need class toggle
+        overlay.classList.remove('visible'); void overlay.offsetWidth; overlay.classList.add('visible');
+      }catch(e){ /* ignore */ }
+    });
+  }
+  function ensureNeuroAnimation(){
+    const overlay = document.getElementById('neuroOverlay'); if(!overlay) return;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce) return;
+    // If overlay visible but animations not running, try again
+    const svg = overlay.querySelector('.neuro-svg'); const buff = overlay.querySelector('.buff-wave');
+    const cs = svg?getComputedStyle(svg):null; const cb = buff?getComputedStyle(buff):null;
+    const animStopped = (cs && (cs.animationPlayState === 'paused' || cs.animationName==='none')) || (cb && (cb.animationPlayState === 'paused' || cb.animationName==='none'));
+    if(animStopped){
+      // try restart
+      overlay.classList.remove('visible','buff');
+      void overlay.offsetWidth;
+      overlay.classList.add('visible','buff');
+      if(svg) svg.style.animationPlayState='running';
+      if(buff) buff.style.animationPlayState='running';
+    }
   }
   function hideNeuroBuff(){ const overlay = document.getElementById('neuroOverlay'); if(!overlay) return; overlay.classList.remove('visible','buff'); overlay.setAttribute('aria-hidden','true'); }
   // инициализируем состояние тумблера после рендера DOM
