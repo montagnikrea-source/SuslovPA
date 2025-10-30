@@ -1,3 +1,39 @@
-<!DOCTYPE html> <html lang="ru"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Frequency Scanner — J→0 Neuro Homeostasis</title> <link rel="stylesheet" href="styles.css"> <script> if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) { location.href = "noninput.html?mobile=1"; } </script> </head> <body> <div class="container"> <h1>🧠 Frequency Scanner</h1> <p>Архитектура нейросети: <b>авто 4-бесконечно</b></p> <div> <button onclick="toggleTheme()">🌙 Тема</button> </div> <div> <input type="number" id="neuronCount" min="4" value="8" onchange="updateNN()"> <label for="neuronCount">Количество нейронов (auto 4+)</label> </div> <div id="metricsPanel"></div> </div> <script src="script.js"></script> <script> let nn = new NeuralNetwork(8); function updateNN() { const n = Math.max(4, document.getElementById('neuronCount').value|0); nn = new NeuralNetwork(n); for(let i=0;i<50;i++) nn.run([Math.random(), Math.random()]); document.getElementById('metricsPanel').innerHTML = `<pre>Neurons: ${nn.H}
-ResourceUsage: ${nn.metrics.resourceUsage.toFixed(1)}%
-Frozen: ${nn.metrics.frozen}</pre>`; } updateNN(); function toggleTheme() { document.body.classList.toggle('dark'); } </script> </body> </html>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Frequency Scanner — J→0 Neuro Homeostasis</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Frequency Scanner</h1>
+        <p>Архитектура нейросети: <b>авто 4-бесконечно</b></p>
+        <div>
+            <button onclick="toggleTheme()">🌙 Тема</button>
+        </div>
+        <div>
+            <input type="number" id="neuronCount" min="4" value="8" onchange="updateNN()">
+            <label for="neuronCount">Количество нейронов (auto 4+)</label>
+        </div>
+        <div id="metricsPanel"></div>
+    </div>
+    <script src="script.js"></script>
+    <script>
+        let nn = new NeuralNetwork(8);
+        function updateNN() {
+            const n = Math.max(4, document.getElementById('neuronCount').value|0);
+            nn = new NeuralNetwork(n);
+            for(let i=0;i<50;i++) nn.run([Math.random(), Math.random()]);
+            document.getElementById('metricsPanel').innerHTML =
+                `<pre>Neurons: ${nn.H}\nResourceUsage: ${nn.metrics.resourceUsage.toFixed(1)}%\nFrozen: ${nn.metrics.frozen}</pre>`;
+        }
+        updateNN();
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+        }
+    </script>
+</body>
+</html>
