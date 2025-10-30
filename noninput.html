@@ -1007,6 +1007,25 @@ html[data-theme="dark"] .chat-container{
       margin: 5px 0;
       font-size: 16px;
     }
+    /* Stylish Start button */
+    .start-btn{background:linear-gradient(90deg,#7F5AF0,#2CB67D); border:none; color:#fff; font-weight:700; letter-spacing:0.2px; box-shadow:0 10px 24px rgba(127,90,240,0.28),0 6px 16px rgba(44,182,125,0.18); transition:transform .15s ease, box-shadow .15s ease, filter .15s ease}
+    .start-btn:hover{transform:translateY(-1px); box-shadow:0 12px 28px rgba(127,90,240,0.36),0 8px 18px rgba(44,182,125,0.22); filter:saturate(1.05)}
+    .start-btn:active{transform:translateY(0); box-shadow:0 6px 14px rgba(127,90,240,0.25),0 4px 10px rgba(44,182,125,0.18)}
+
+    /* ===== NEURO OVERLAY ANIMATION ===== */
+  .neuro-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);backdrop-filter:blur(4px);display:none;z-index:2000;pointer-events:none}
+    .neuro-overlay.visible{display:block;animation:overlayFade 200ms ease-out}
+    @keyframes overlayFade{from{opacity:0}to{opacity:1}}
+    .neuro-scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+    .neuro-svg{width:min(1100px,96vw);height:auto;filter:hue-rotate(0deg);animation:rainbowShift 6s linear infinite}
+    @keyframes rainbowShift{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
+    .neuro-path{stroke:url(#rg);stroke-width:3;fill:none;stroke-dasharray:9 14;animation:pathFlow 2.4s linear infinite}
+    @keyframes pathFlow{from{stroke-dashoffset:0}to{stroke-dashoffset:-300}}
+    .neuro-node{fill:url(#rg);filter:url(#glow);opacity:0.95}
+    .buff-wave{position:absolute;left:50%;top:50%;width:40vmax;height:40vmax;border-radius:50%;transform:translate(-50%,-50%) scale(0.8);box-shadow:0 0 0 2px rgba(255,255,255,0.7) inset,0 0 40px rgba(255,255,255,0.5);opacity:0.0;}
+  .neuro-overlay.buff .buff-wave{animation:buffPulse 1600ms ease-out infinite}
+    @keyframes buffPulse{0%{opacity:0.0;transform:translate(-50%,-50%) scale(0.85)}20%{opacity:0.8}70%{opacity:0.45}100%{opacity:0;transform:translate(-50%,-50%) scale(1.25)}}
+    html[data-theme="dark"] .neuro-overlay{background:rgba(4,6,10,0.42)}
   </style>
 </head>
 <body>
@@ -1130,7 +1149,7 @@ console.log('  • Несанкционированного доступа');
     <label style="display:flex;align-items:center;gap:6px">
       <input id="startFreeze" type="checkbox"> Freeze при старте
     </label>
-    <button id="btnStartAlgo" class="btn small" style="padding:6px 10px">▶ Старт</button>
+  <button id="btnStartAlgo" class="btn small start-btn" style="padding:6px 14px">▶ Старт</button>
     <button id="btnStopAlgo" class="btn small outline" style="padding:6px 10px">■ Стоп</button>
     <span id="startStatus" style="margin-left:8px;color:var(--text-secondary)">Ожидание запуска…</span>
   </div>
@@ -8194,9 +8213,9 @@ class FrequencyScanner{
 document.addEventListener('DOMContentLoaded',()=>{
   // Псевдотелеметрия на случай недоступности защищённой песочницы
   function startPseudoTelemetry(){
-    const $=id=>document.getElementById(id);
-    const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
-    const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
+    const $_p = id=>document.getElementById(id);
+    const setT=(id,v)=>{const el=$_p(id); if(el) el.textContent=v;};
+    const setW=(id,p)=>{const el=$_p(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
     const t0 = performance.now();
     let frozen = false; let flip=0;
     function tick(){
@@ -8214,7 +8233,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       setT('KpAdaptValue', (0.10 + 0.30*Math.abs(Math.cos(t*0.29))).toFixed(4));
       setT('HValue', 4 + ((Math.sin(t*0.13)>0)?4:0));
       const quality = Math.max(0, Math.min(1, (conf*0.6 + iner*0.4))); setT('qualityValue',(quality*100).toFixed(0)+'%'); setW('qualityBar', quality*100);
-      if(++flip % 40 === 0) frozen = !frozen; setT('freezeStatusValue', frozen ? '🔒 Frozen' : '🔓 Learning'); const fsEl=$('freezeStatusValue'); if(fsEl) fsEl.style.color = frozen?'#ff6b6b':'#00aa00';
+  if(++flip % 40 === 0) frozen = !frozen; setT('freezeStatusValue', frozen ? '🔒 Frozen' : '🔓 Learning'); const fsEl=$_p('freezeStatusValue'); if(fsEl) fsEl.style.color = frozen?'#ff6b6b':'#00aa00';
       setT('precisionValue', (Math.sin(t*0.5)>0)?'float32':'float64');
       setT('statusText','Анализируется… (pseudo)');
       setT('info', `Псевдо-режим • f=${f.toFixed(2)} Гц | conf=${(conf*100).toFixed(0)}% | inertia=${(iner*100).toFixed(0)}% | fs≈60`);
@@ -8251,6 +8270,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         attachTelemetryHandler(SecureShell);
         await shellInstance.init();
         await shellInstance.start({ sampleRate: sr, freeze: frz });
+  // Красиво показать запуск — радужная нейросеть и баф-волна (бесконечная)
+  showNeuroBuff();
         try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
         $('#startStatus').textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
       }catch(e){ console.error('Secure start failed', e); $('#startStatus').textContent = 'Ошибка запуска, псевдо-режим'; startPseudoTelemetry(); }
@@ -8263,11 +8284,22 @@ document.addEventListener('DOMContentLoaded',()=>{
   function stopSecure(){
     try{ shellInstance && shellInstance.pause && shellInstance.pause(); }catch(_){ }
     $('#startStatus').textContent = 'Остановлено';
+    // По желанию скрываем оверлей при стопе
+    const overlay = document.getElementById('neuroOverlay');
+    if(overlay){ overlay.classList.remove('buff','visible'); }
   }
 
   $('#btnStartAlgo')?.addEventListener('click', startSecure);
   $('#btnStopAlgo')?.addEventListener('click', stopSecure);
+
+  // Показывает радужную нейросеть и «баф»-волну на 1.6–2.4s
+  function showNeuroBuff(){
+    const overlay = document.getElementById('neuroOverlay');
+    if(!overlay) return;
+    overlay.classList.add('visible','buff');
+  }
   // Инициализация чата (уже выполнена выше)
+  (function(){ /* legacy local engine disabled (isolated scope) */
   
   const s=new CpuJitterSampler();
   const scan=new FrequencyScanner(s);
@@ -8444,6 +8476,7 @@ setInterval(step,12);`;
     }
   }
   loop();
+})();
 });
 </script>
 
@@ -8480,6 +8513,44 @@ setInterval(step,12);`;
   <div style="font-size: 9px; opacity: 0.8; margin-top: 3px;">
     Нажмите для подробностей
   </div>
+</div>
+
+<!-- NEURO OVERLAY (Hidden by default) -->
+<div id="neuroOverlay" class="neuro-overlay" aria-hidden="true">
+  <div class="neuro-scene">
+    <svg class="neuro-svg" viewBox="0 0 800 600" role="img" aria-label="Neural rainbow">
+      <defs>
+        <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#ff0040"/>
+          <stop offset="20%" stop-color="#ff7a00"/>
+          <stop offset="40%" stop-color="#ffee00"/>
+          <stop offset="60%" stop-color="#00d084"/>
+          <stop offset="80%" stop-color="#007cff"/>
+          <stop offset="100%" stop-color="#a100ff"/>
+        </linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="b"/>
+          <feMerge>
+            <feMergeNode in="b"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <!-- Curved neural paths -->
+      <path class="neuro-path" d="M50,500 C180,350 260,420 380,300 C500,180 620,260 760,120"/>
+      <path class="neuro-path" d="M60,120 C240,240 300,180 420,300 C540,420 620,360 740,500"/>
+      <path class="neuro-path" d="M100,300 C220,220 300,340 400,260 C540,160 620,220 720,200"/>
+      <!-- Nodes -->
+      <circle class="neuro-node" cx="120" cy="420" r="8"/>
+      <circle class="neuro-node" cx="220" cy="360" r="7"/>
+      <circle class="neuro-node" cx="320" cy="300" r="9"/>
+      <circle class="neuro-node" cx="420" cy="240" r="7"/>
+      <circle class="neuro-node" cx="520" cy="200" r="8"/>
+      <circle class="neuro-node" cx="640" cy="180" r="7"/>
+    </svg>
+    <div class="buff-wave"></div>
+  </div>
+  
 </div>
 
 </body>
