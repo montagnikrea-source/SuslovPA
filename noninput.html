@@ -8245,9 +8245,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     requestAnimationFrame(tick);
   }
-  const $=id=>document.getElementById(id);
-  const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
-  const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
+  // Используем общие $ / setT / setW, объявленные выше в DOMContentLoaded
 
   // ===== Управление нейро-анимацией (оверлей) =====
   const OVERLAY_KEY = 'neuroOverlayEnabled';
