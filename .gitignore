@@ -21,6 +21,7 @@ ssl/
 node_modules/
 .npm
 .yarn-integrity
+package-lock.json
 
 # Секретные файлы
 config/secrets.js
