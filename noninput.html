@@ -1160,7 +1160,7 @@ console.log('  • Несанкционированного доступа');
     <label style="display:flex;align-items:center;gap:6px">
       <input id="startFreeze" type="checkbox"> Freeze при старте
     </label>
-  <button id="btnStartAlgo" class="btn small start-btn" style="padding:6px 14px">▶ Старт</button>
+  <button id="btnStartAlgo" class="btn small start-btn" style="padding:6px 14px" onclick="console.log('[INLINE] btnStartAlgo clicked'); if(window.startSecure) startSecure();">▶ Старт</button>
     <button id="btnStopAlgo" class="btn small outline" style="padding:6px 10px">■ Стоп</button>
     <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
       <input id="toggleNeuroAnim" type="checkbox" checked>
@@ -8319,8 +8319,20 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(overlay){ overlay.classList.remove('buff','visible'); }
   }
 
-  $('#btnStartAlgo')?.addEventListener('click', startSecure);
-  $('#btnStopAlgo')?.addEventListener('click', stopSecure);
+  // Bind Start/Stop handlers robustly (direct + delegated fallback)
+  try{
+    const startBtn = document.getElementById('btnStartAlgo');
+    const stopBtn = document.getElementById('btnStopAlgo');
+    console.log('[INIT] binding Start/Stop handlers, startBtn=', startBtn, 'stopBtn=', stopBtn);
+    if(startBtn){
+      // extra check: ensure click produces visible output
+      startBtn.addEventListener('click', async (e)=>{ try{ console.log('[HANDLER] startBtn click handler invoked'); startBtn.disabled=true; await startSecure(); }catch(er){ console.error('start handler error',er); } finally{ startBtn.disabled=false; } });
+      console.log('[INIT] start handler bound');
+    }
+    else { document.addEventListener('click', (e)=>{ const el = e.target; if(el && (el.id==='btnStartAlgo' || el.closest && el.closest('#btnStartAlgo'))){ startSecure(); } }); console.warn('[INIT] start button not found, using delegated click'); }
+    if(stopBtn){ stopBtn.addEventListener('click',(e)=>{ try{ stopSecure(); }catch(er){ console.error('stop handler error',er); } }); console.log('[INIT] stop handler bound'); }
+    else { document.addEventListener('click', (e)=>{ const el = e.target; if(el && (el.id==='btnStopAlgo' || el.closest && el.closest('#btnStopAlgo'))){ stopSecure(); } }); console.warn('[INIT] stop button not found, using delegated click'); }
+  }catch(bindErr){ console.error('Error binding Start/Stop handlers', bindErr); }
   // Тумблер: показать/скрыть анимацию
   const _initOverlayToggle = () => { const enabled = isOverlayEnabled(); const cb=$('toggleNeuroAnim'); if(cb){ cb.checked = enabled; cb.addEventListener('change', (e)=> setOverlayEnabled(!!e.target.checked)); } if(!enabled) setNeuroOverlayVisible(false); };
 
