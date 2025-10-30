@@ -8149,10 +8149,8 @@ class FrequencyScanner{
 
 /* ============================ UI ============================ */
 document.addEventListener('DOMContentLoaded',()=>{
-  // Включаем защищённый режим по умолчанию (можно отключить флагом из консоли)
-  if (window.__PROTECTED_MODE__ === undefined) window.__PROTECTED_MODE__ = true;
-
-  if (window.__PROTECTED_MODE__ === true && window.SecureShell) {
+  // Всегда запускаем защищённую оболочку при наличии SecureShell
+  if (window.SecureShell) {
     try{
       // Упрощённые помощники
       const $=id=>document.getElementById(id);
