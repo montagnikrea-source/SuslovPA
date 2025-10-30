@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; connect-src 'none'; img-src 'none'; style-src 'none'; frame-ancestors 'none'; base-uri 'none'">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+  <title>Algo Sandbox</title>
+</head>
+<body>
+<script>
+(function(){
+  'use strict';
+  // Заморозка опасных примитивов
+  try{ Function.prototype.constructor = undefined; }catch(_){ }
+  try{ Object.freeze(Function); Object.freeze(eval); }catch(_){ }
+
+  let running = false;
+  let timer = null;
+  let sampleRate = 60; // Гц
+  let freezeLearning = false;
+
+  const state = {
+    t0: performance.now(),
+    f: 0,
+    conf: 0.5,
+    inertia: 0.2,
+    J: 1.0,
+    fs: 60,
+    peak: 0.0,
+  };
+
+  function telemetry(){
+    const payload = { f:state.f, conf:state.conf, inertia:state.inertia, J:state.J, fs:state.fs, peak:state.peak };
+    parent.postMessage({ type:'telemetry', payload }, '*');
+  }
+
+  function step(){
+    // Упрощённая «модель»: плавное изменение частоты и метрик, чтобы UI жил
+    const t = (performance.now() - state.t0)/1000;
+    state.f = 10 + 5*Math.sin(t*0.5) + 2*Math.cos(t*0.2);
+    state.conf = Math.max(0, Math.min(1, 0.6 + 0.3*Math.sin(t*0.3)));
+    state.inertia = Math.max(0, Math.min(1, 0.3 + 0.5*Math.cos(t*0.25)));
+    state.J = Math.max(0, 1.2 - 0.8*state.conf*state.inertia);
+    state.fs = sampleRate;
+    state.peak = Math.max(0.5, Math.min(2.0, 1.0 + 0.3*Math.sin(t*0.7)));
+    telemetry();
+  }
+
+  function loop(){
+    if(!running) return;
+    step();
+    const dt = 1000/Math.max(10, sampleRate);
+    timer = setTimeout(loop, dt);
+  }
+
+  function start(opts){
+    if(running) return true;
+    running = true;
+    if (opts && typeof opts.sampleRate === 'number') sampleRate = opts.sampleRate;
+    loop();
+    return true;
+  }
+  function pause(){ running=false; if(timer){clearTimeout(timer); timer=null;} return true; }
+  function stop(){ running=false; if(timer){clearTimeout(timer); timer=null;} state.f=0; return true; }
+  function getMetrics(){ return { ...state, sampleRate, freeze: freezeLearning }; }
+
+  window.addEventListener('message', (e)=>{
+    const d = e.data || {};
+    if(d.type==='rpc'){
+      let ok=true, result=null, error=null;
+      try{
+        if(d.method==='start') result = start(d.params||{});
+        else if(d.method==='pause') result = pause();
+        else if(d.method==='stop') result = stop();
+        else if(d.method==='getMetrics') result = getMetrics();
+        else { ok=false; error='unknown method'; }
+      }catch(err){ ok=false; error=String(err&&err.message||err); }
+      parent.postMessage({ type:'rpc:res', id:d.id, ok, result, error }, '*');
+      return;
+    }
+    if(d.type==='control' && d.params){
+      if(typeof d.params.sampleRate === 'number') sampleRate = Math.max(10, Math.min(240, d.params.sampleRate));
+      if(typeof d.params.freeze === 'boolean') freezeLearning = d.params.freeze;
+    }
+  });
+
+  // Сообщаем, что готовы
+  parent.postMessage({ type:'sandbox:ready' }, '*');
+})();
+</script>
+</body>
+</html>

@@ -170,6 +170,8 @@ html[data-theme="dark"] .chat-container{
   <!-- Firebase для многопользовательского чата -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- Secure sandbox orchestrator -->
+  <script src="secure/secure-shell.js?v=20251030b"></script>
 
   <style>
     /* ===== СВЕТЛАЯ ТЕМА (по умолчанию) ===== */
@@ -8147,6 +8149,38 @@ class FrequencyScanner{
 
 /* ============================ UI ============================ */
 document.addEventListener('DOMContentLoaded',()=>{
+  // Включаем защищённый режим по умолчанию (можно отключить флагом из консоли)
+  if (window.__PROTECTED_MODE__ === undefined) window.__PROTECTED_MODE__ = true;
+
+  if (window.__PROTECTED_MODE__ === true && window.SecureShell) {
+    try{
+      // Упрощённые помощники
+      const $=id=>document.getElementById(id);
+      const setT=(id,v)=>{const el=$(id); if(el) el.textContent=v;};
+      const setW=(id,p)=>{const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p)).toFixed(0)+'%';};
+
+      const shell = new SecureShell({
+        onTelemetry: (m)=>{
+          // m: {f, conf, inertia, J, fs, peak}
+          const f = Number(m.f||0);
+          const conf = Math.max(0, Math.min(1, Number(m.conf||0)));
+          const inertia = Math.max(0, Math.min(1, Number(m.inertia||0)));
+
+          setT('freqValue', f.toFixed(3));
+          setW('freqBar', Math.max(0, Math.min(100, f)));
+          setT('inertiaValue', (inertia*100).toFixed(0));
+          setW('inertiaBar', inertia*100);
+          setT('confValue', (conf*100).toFixed(0));
+          setW('confBar', conf*100);
+
+          // Доп. метрики в панель
+          setT('info', `Sandbox mode • f=${f.toFixed(2)} Hz | conf=${(conf*100).toFixed(0)}% | inertia=${(inertia*100).toFixed(0)}% | fs=${m.fs}`);
+        }
+      });
+      shell.init().then(()=> shell.start({ sampleRate: 60 })).catch(console.error);
+      return; // не запускаем локальный небезопасный движок
+    }catch(e){ console.error('SecureShell failed, fallback to local engine', e); }
+  }
   // Инициализация чата (уже выполнена выше)
   
   const s=new CpuJitterSampler();
