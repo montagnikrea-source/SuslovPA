@@ -7,6 +7,9 @@ html{background-repeat:repeat;background-size:420px auto;background-position:0 0
 html:not(.dark):not([data-theme="dark"]) { background-image:url('assets/bg-tmnt-light.png'); }
 /* Dark if either .dark class (index) or data-theme=dark (app/mobile) is used */
 html.dark, html[data-theme="dark"] { background-image:url('assets/bg-tmnt-dark.png'); }
+/* Контраст текста на пёстром фоне */
+.auto-contrast{color:#111; text-shadow:0 1px 2px rgba(255,255,255,0.6)}
+:root.dark .auto-contrast, html[data-theme="dark"] .auto-contrast{color:#e6edf3; text-shadow:0 1px 2px rgba(0,0,0,0.7)}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{font-family:Inter,ui-sans-serif,system-ui,Arial,sans-serif;background:transparent;color:var(--text);margin:0;padding:0;}

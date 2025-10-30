@@ -246,15 +246,15 @@ html[data-theme="dark"] .chat-container{
     }
     
     /* Переопределяем белые элементы в темной теме */
+    /* Тёмная тема: секции полупрозрачные, чтобы был виден общий фон */
     html[data-theme="dark"] #how-it-works,
-    html[data-theme="dark"] #use-cases,
-    html[data-theme="dark"] section {
-      background: var(--panel) !important;
+    html[data-theme="dark"] #use-cases {
+      background-color: rgba(13,17,23,0.40) !important;
     }
 
     /* Темная тема для чат контейнера и всех элементов внутри */
     html[data-theme="dark"] .chat-container {
-      background: var(--panel) !important;
+      background-color: rgba(13,17,23,0.40) !important;
       color: var(--text) !important;
       border-color: var(--border) !important;
     }
@@ -281,7 +281,7 @@ html[data-theme="dark"] .chat-container{
 
     /* Темная тема для контролей обучения */
     html[data-theme="dark"] .row.controls {
-      background: var(--bg-secondary) !important;
+      background-color: rgba(13,17,23,0.40) !important;
       border-color: var(--border) !important;
       color: var(--text) !important;
     }
@@ -298,12 +298,10 @@ html[data-theme="dark"] .chat-container{
     }
 
     /* ===== ТЕМНАЯ ТЕМА: ОСНОВНОЙ КОНТЕНТ ===== */
-    html[data-theme="dark"] .main-container {
-      background: var(--bg) !important;
-    }
+    html[data-theme="dark"] .main-container { background: transparent !important; }
 
     html[data-theme="dark"] .wrap {
-      background: var(--panel) !important;
+      background-color: rgba(13,17,23,0.40) !important;
       color: var(--text) !important;
       border-color: var(--border-light) !important;
     }
@@ -467,7 +465,7 @@ html[data-theme="dark"] .chat-container{
     .wrap {
       flex: 1;
       padding: 24px;
-      background: var(--panel);
+      background: transparent;
       border-radius: 16px;
       box-shadow: 0 2px 22px var(--shadow);
       border: 1px solid var(--border-light);
@@ -475,7 +473,7 @@ html[data-theme="dark"] .chat-container{
 
     .chat-container {
       width: 350px;
-      background: var(--panel);
+      background: transparent;
       border-radius: 16px;
       box-shadow: 0 2px 22px var(--shadow);
       padding: 20px;
@@ -786,13 +784,14 @@ html[data-theme="dark"] .chat-container{
 
     /* ===== НАВИГАЦИЯ ===== */
     .nav-header {
-      background: var(--panel);
+      background: rgba(255,255,255,0.25);
       padding: 10px 0;
       margin-bottom: 20px;
       border-radius: 8px;
       text-align: center;
       border: 1px solid var(--border-light);
     }
+    html[data-theme="dark"] .nav-header{ background: rgba(13,17,23,0.35); }
 
     .nav-header a {
       margin: 0 10px;
@@ -1423,12 +1422,12 @@ console.log('  • Несанкционированного доступа');
 </div>
 
 <!-- ====== ОПИСАНИЯ (можно оставить как есть) ====== -->
-<section id="how-it-works" style="max-width:960px;margin:24px auto;padding:18px 20px;background:var(--panel);color:var(--text);border-radius:16px;box-shadow:0 2px 22px var(--shadow);font:14px/1.55 system-ui,Segoe UI,Arial">
+<section id="how-it-works" style="max-width:960px;margin:24px auto;padding:18px 20px;background:rgba(255,255,255,0.35);color:var(--text);border-radius:16px;box-shadow:0 2px 22px var(--shadow);font:14px/1.55 system-ui,Segoe UI,Arial">
   <h2 style="margin:0 0 12px">Как это работает</h2>
   <p>Приложение измеряет «микродрожание» CPU, извлекает частоты (Goertzel), стабилизирует фазу (Kalman) и онлайновой мини-нейросетью подбирает агрессивность регулятора, стремясь к <b>J→0</b>. Встроена lock-защита от переобучения.</p>
 </section>
 
-<section id="use-cases" style="max-width:960px;margin:24px auto;padding:18px 20px;background:var(--panel);color:var(--text);border-radius:16px;box-shadow:0 2px 22px var(--shadow);font:14px/1.55 system-ui,Segoe UI,Arial">
+<section id="use-cases" style="max-width:960px;margin:24px auto;padding:18px 20px;background:rgba(255,255,255,0.35);color:var(--text);border-radius:16px;box-shadow:0 2px 22px var(--shadow);font:14px/1.55 system-ui,Segoe UI,Arial">
   <h2 style="margin:0 0 12px">Где можно применить</h2>
   <ul style="margin:6px 0 0 18px">
     <li>Стабилизация таймеров/процессов (меньше джиттера → меньше лишнего тепла).</li>
