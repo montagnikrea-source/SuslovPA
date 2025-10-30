@@ -8295,7 +8295,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     console.log('[INIT] binding Start/Stop handlers, startBtn=', startBtn, 'stopBtn=', stopBtn);
     if(startBtn){
       // extra check: ensure click produces visible output
-      startBtn.addEventListener('click', async (e)=>{ try{ console.log('[HANDLER] startBtn click handler invoked'); startBtn.disabled=true; await startSecure(); }catch(er){ console.error('start handler error',er); } finally{ startBtn.disabled=false; } });
+      startBtn.addEventListener('click', async (e)=>{ try{ console.log('[HANDLER] startBtn click handler invoked'); startBtn.disabled=false; await startSecure(); }catch(er){ console.error('start handler error',er); } finally{ startBtn.disabled=false; } });
       console.log('[INIT] start handler bound');
     }
     else { document.addEventListener('click', (e)=>{ const el = e.target; if(el && (el.id==='btnStartAlgo' || el.closest && el.closest('#btnStartAlgo'))){ startSecure(); } }); console.warn('[INIT] start button not found, using delegated click'); }
