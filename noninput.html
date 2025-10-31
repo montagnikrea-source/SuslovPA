@@ -4,14 +4,12 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Ensure minimal DOM helper $ is available early to avoid "$ is not defined" errors -->
   <script>
     if (!window.$) {
       try{ window.$ = function(id){ return document.getElementById(id); }; console.log('Injected $ helper'); }catch(e){}
     }
   </script>
  
-  <!-- Mobile Redirect Script -->
   <script>
     (function() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -39,11 +37,19 @@
   <meta http-equiv="cache-control" content="no-cache,no-store,must-revalidate">
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
-  <!-- Cache Rebuild: 2025-10-28T21:33Z -->
  
+  <!-- ИСПРАВЛЕНО: Полный код скрипта (убраны [...] и обрезка) -->
   <script>
-(function(){try{const s=localStorage.getItem('theme-preference');const p=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;const h=new Date().getHours();const d=s?(s==='dark'[...]
+    (function(){try{
+      const s = localStorage.getItem('theme-preference');
+      const p = window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)').matches;
+      const h = new Date().getHours();
+      const d = s ? (s === 'dark') : p ? 'dark' : (h >= 21 || h < 6) ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', d);
+      console.log('Theme preference loaded:', d);
+    }catch(e){console.warn('Theme load error:', e);}})();
   </script>
+
   <script>
   window.addEventListener('message', (e)=>{
     try{
@@ -53,8 +59,8 @@
         localStorage.setItem('theme-preference', t);
         document.documentElement.setAttribute('data-theme', t);
       }
-    }catch(_){}}
-  );
+    }catch(_){}
+  });
   </script>
  
   <style>
@@ -97,6 +103,7 @@ html[data-theme="dark"] .chat-container{
       https://api.github.com
       https://jsonplaceholder.typicode.com
       https://1.1.1.1
+      https://www
       https://www.google.com
       https://mozilla.org;
     script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:
