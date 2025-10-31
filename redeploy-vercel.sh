@@ -52,8 +52,8 @@ echo "════════════════════════�
 FILES_TO_CHECK=(
     "api/index.js"
     "api/telegram.js"
-    "api/telegram/updates.js"
-    "api/telegram/secure.js"
+    "api/telegram-updates.js"
+    "api/telegram-secure.js"
     "vercel.json"
     "noninput.html"
 )
@@ -165,7 +165,8 @@ echo "Environment: production (pavell.vercel.app)"
 echo ""
 echo "API Endpoints to be deployed:"
 echo "  • POST https://pavell.vercel.app/api/telegram"
-echo "  • GET  https://pavell.vercel.app/api/telegram/updates"
+echo "  • GET  https://pavell.vercel.app/api/telegram-updates"
+echo "  • POST https://pavell.vercel.app/api/telegram-secure"
 echo "  • Other existing endpoints"
 echo ""
 
