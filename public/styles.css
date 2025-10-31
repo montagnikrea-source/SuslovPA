@@ -25,6 +25,7 @@ body{font-family:Inter,ui-sans-serif,system-ui,Arial,sans-serif;background:trans
 .btn.outline{background:transparent;color:var(--accent);border:1px solid rgba(0,102,255,0.12)}
 .btn.huge{padding:14px 20px;font-size:16px}
 
+/* Build trigger: bumped at 2025-10-31T00:00:00Z to force GitHub Pages rebuild */
 .hero{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:transparent}
 .hero-inner{max-width:980px;background:linear-gradient(180deg,var(--glass),rgba(255,255,255,0.6));padding:28px;border-radius:14px;box-shadow:0 8px 40px rgba(13,60,120,0.08)}
 .hero-inner h2{margin:0 0 12px;font-size:22px}
