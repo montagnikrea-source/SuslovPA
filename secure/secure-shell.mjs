@@ -20,7 +20,7 @@ export default class SecureShell {
   async start({ sampleRate = 60, freeze = false } = {}) {
     this.sampleRate = sampleRate;
     this.freeze = freeze;
-    console.log(`SecureShell: start (SR=${sampleRate}, freeze=${freeze})`);
+    console.log();
 
     const loop = () => {
       try {
@@ -45,7 +45,6 @@ export default class SecureShell {
       } catch (e) {
         console.error('SecureShell error:', e);
       }
-      if (!this.paused) requestAnimationFrame(loop);
     };
     this.paused = false;
     requestAnimationFrame(loop);
@@ -55,3 +54,4 @@ export default class SecureShell {
     this.paused = true;
   }
 }
+
