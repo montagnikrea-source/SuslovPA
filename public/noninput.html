@@ -194,10 +194,10 @@ html[data-theme="dark"] .chat-container{
   <script type="module">
     // Лёгкая обфускация хэшей
     const parts = {
-      a: ['c54255e9','28fbfec5','c1a0ef08','70756c4c','8578cf51','9272f830','e7575e92','91ffdd52'],
-      b: ['623acbd4','99066d08','a062ac83','220c9190','28c4e95a','f287dad9','cf11f890','fa7a5a40']
-    };
-    const EXPECTED = { shell: parts.a.join(''), sandbox: parts.b.join('') };
+  a: ["7af0bf8b","2b788f80","6dca647d","ba0922b8","3f29e3c6","b8d3aa97","3745f0fe","10d10689"],
+  b: ["aceec066","86424234","7887ae24","5cc4ae37","be84f37d","00675aa6","40e5ad27","ed12c948"]
+};
+const EXPECTED = { shell: parts.a.join("") , sandbox: parts.b.join("") };
     async function sha256Hex(url){
       const res = await fetch(url, { cache:'no-store' });
       if(!res.ok) throw new Error('fetch failed '+url);
