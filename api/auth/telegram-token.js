@@ -13,9 +13,19 @@
  * - Рассмотрите добавление rate limiting
  */
 
-export default async function handler(request, response) {
-  // Устанавливаем CORS заголовки для безопасности
-  response.setHeader('Access-Control-Allow-Origin', 'https://pavell.vercel.app');
+module.exports = async function handler(request, response) {
+  // Определяем допустимые источники и корректно выставляем CORS
+  const allowedOrigins = [
+    'https://pavell.vercel.app',
+    'https://montagnikrea-source.github.io',
+    'http://localhost:3000',
+    'http://localhost:8000'
+  ];
+
+  const reqOrigin = request.headers.origin || request.headers.referer || '';
+  // Если origin присутствует и входит в allowed -> отражаем его в заголовке, иначе ставим '*'
+  const acao = allowedOrigins.some(o => reqOrigin.startsWith(o)) && request.headers.origin ? request.headers.origin : '*';
+  response.setHeader('Access-Control-Allow-Origin', acao);
   response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
@@ -46,13 +56,6 @@ export default async function handler(request, response) {
     
     // Проверяем что это запрос с разрешенного источника
     const referer = request.headers.referer || '';
-    const allowedOrigins = [
-      'https://pavell.vercel.app',
-      'https://montagnikrea-source.github.io',
-      'http://localhost:3000',
-      'http://localhost:8000'
-    ];
-    
     const isAllowedOrigin = allowedOrigins.some(origin => referer.startsWith(origin));
     
     if (!isAllowedOrigin && process.env.NODE_ENV === 'production') {
