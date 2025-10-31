@@ -105,55 +105,93 @@ html[data-theme="dark"] .chat-container{
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <!-- ВСТРОЕННЫЙ secure-shell.mjs + startSecure -->
-  <script type="module">
-    // === ВСТРОЕННЫЙ secure-shell.mjs ===
-    const secureShellCode = `
-      export default class SecureShell {
-        constructor(options = {}) {
-          this.onTelemetry = options.onTelemetry || (() => {});
-          this.sampleRate = 60;
-          this.freeze = false;
-        }
+<script type="module">
+  console.log('Secure mode: integrity check DISABLED (dev mode)');
 
-        async init() {
-          this.sampler = new CpuJitterSampler();
-          this.scanner = new FrequencyScanner(this.sampler);
-          this.blender = new OutputBlender();
-          this.tuner = new NeuroHomeo();
-          return this;
-        }
-
-        async start({ sampleRate = 60, freeze = false } = {}) {
-          this.sampleRate = sampleRate;
-          this.freeze = freeze;
-          const loop = () => {
-            try {
-              for (let i = 0; i < 8; i++) this.sampler.sample();
-              if (this.scanner.needCount() <= ((this.sampler.widx - this.scanner.r) & 16383)) {
-                this.scanner.processOnce();
-                const out = this.blender.blend({
-                  f: this.scanner.out_f,
-                  conf: this.scanner.out_conf,
-                  inertia: this.scanner.out_inertia,
-                  state: this.scanner.out_state
-                });
-                this.onTelemetry({
-                  f: out.f,
-                  conf: out.conf,
-                  inertia: out.inertia,
-                  fs: this.sampler.actual_fs
-                });
-              }
-            } catch (e) { console.error(e); }
-            if (!this.paused) requestAnimationFrame(loop);
-          };
-          this.paused = false;
-          requestAnimationFrame(loop);
-        }
-
-        pause() { this.paused = true; }
+  // === ВСТРОЕННЫЙ secure-shell.mjs ===
+  const secureShellCode = `
+    export default class SecureShell {
+      constructor(options = {}) {
+        this.onTelemetry = options.onTelemetry || (() => {});
       }
-    `;
+
+      async init() {
+        // Загружаем все классы из глобального scope
+        this.sampler = new window.CpuJitterSampler();
+        this.scanner = new window.FrequencyScanner(this.sampler);
+        this.blender = new window.OutputBlender();
+        this.tuner = new window.NeuroHomeo();
+        return this;
+      }
+
+      async start({ sampleRate = 60, freeze = false } = {}) {
+        this.sampleRate = sampleRate;
+        this.freeze = freeze;
+
+        const loop = () => {
+          try {
+            // Сэмплируем 8 раз
+            for (let i = 0; i < 8; i++) this.sampler.sample();
+
+            // Если достаточно данных — обрабатываем
+            const avail = (this.sampler.widx - this.scanner.r) & 16383;
+            if (avail >= this.scanner.needCount()) {
+              this.scanner.processOnce();
+              const out = this.blender.blend({
+                f: this.scanner.out_f,
+                conf: this.scanner.out_conf,
+                inertia: this.scanner.out_inertia,
+                state: this.scanner.out_state
+              });
+              this.onTelemetry({
+                f: out.f,
+                conf: out.conf,
+                inertia: out.inertia,
+                fs: this.sampler.actual_fs
+              });
+            }
+          } catch (e) {
+            console.error('SecureShell loop error:', e);
+          }
+          if (!this.paused) requestAnimationFrame(loop);
+        };
+
+        this.paused = false;
+        requestAnimationFrame(loop);
+      }
+
+      pause() { this.paused = true; }
+    }
+  `;
+
+  // === window.__loadSecureShell ===
+  window.__loadSecureShell = async () => {
+    const blob = new Blob([secureShellCode], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    const mod = await import(url);
+    URL.revokeObjectURL(url);
+    return mod.default;
+  };
+
+  // === window.startSecure ===
+  window.startSecure = async function() {
+    const SecureShell = await window.__loadSecureShell();
+    window.shell = new SecureShell({
+      onTelemetry: (data) => {
+        const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        const setW = (id, p) => { const el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, p)).toFixed(0) + '%'; };
+        setT('freqValue', data.f.toFixed(3));
+        setW('freqBar', data.f);
+        setT('confValue', (data.conf * 100).toFixed(0));
+        setW('confBar', data.conf * 100);
+        setT('inertiaValue', (data.inertia * 100).toFixed(0));
+        setW('inertiaBar', data.inertia * 100);
+      }
+    });
+    await window.shell.init();
+    await window.shell.start({ sampleRate: 60 });
+  };
+</script>
 
     // === window.__loadSecureShell ===
     window.__loadSecureShell = async () => {
