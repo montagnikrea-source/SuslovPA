@@ -83,29 +83,29 @@
   <!-- === ВСТРОЕННЫЙ secure-shell.mjs + startSecure (БЕЗ ПРОВЕРКИ ХЭШЕЙ) === -->
   <script type="module">
     // Лёгкая обфускация хэшей
-    const parts = {
-      a: ['ce05c316','fe9ad68f','028c1d63','b75ed55d','b6369988','8dca4900','614c270b','63032604'],
-      b: ['aceec066','86424234','7887ae24','5cc4ae37','be84f37d','00675aa6','40e5ad27','ed12c948']
-    };
-    const EXPECTED = { shell: parts.a.join(''), sandbox: parts.b.join('') };
-    async function sha256Hex(url){
-      const res = await fetch(url, { cache:'no-store' });
-      if(!res.ok) throw new Error('fetch failed '+url);
-      const buf = await res.arrayBuffer();
-      const hash = await crypto.subtle.digest('SHA-256', buf);
-      const arr = Array.from(new Uint8Array(hash));
-      return arr.map(b=>b.toString(16).padStart(2,'0')).join('');
-    }
-    async function loadSecureShell(){
-      const shellUrl = 'secure/secure-shell.mjs?v=20251030d';
-      const sandboxUrl = 'secure/algo-sandbox.html?v=20251030d';
-      const [h1,h2] = await Promise.all([ sha256Hex(shellUrl), sha256Hex(sandboxUrl) ]);
-      if(h1!==EXPECTED.shell || h2!==EXPECTED.sandbox) throw new Error('Integrity check failed');
-      const mod = await import('./secure/secure-shell.mjs?v=20251030d');
-      return mod.default;
-    }
-    Object.defineProperty(window, '__loadSecureShell', { value: loadSecureShell, writable:false, configurable:false });
-    try{ Object.defineProperty(window, 'SecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
+   const parts = {
+  a: ['78aa8a8d','f99f42ca','74a5a60b','559d7fbf','43ce82d2'],
+  b: ['332185fc','0aba7585','a2230668','6bc5556f','35dd8d5f']
+};
+const EXPECTED = { shell: parts.a.join(''), sandbox: parts.b.join('') };
+async function sha256Hex(url){
+  const res = await fetch(url, { cache:'no-store' });
+  if(!res.ok) throw new Error('fetch failed '+url);
+  const buf = await res.arrayBuffer();
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  const arr = Array.from(new Uint8Array(hash));
+  return arr.map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function loadSecureShell(){
+  const shellUrl = 'secure/secure-shell.mjs?v=20251030d';
+  const sandboxUrl = 'secure/algo-sandbox.html?v=20251030d';
+  const [h1,h2] = await Promise.all([ sha256Hex(shellUrl), sha256Hex(sandboxUrl) ]);
+  if(h1!==EXPECTED.shell || h2!==EXPECTED.sandbox) throw new Error('Integrity check failed');
+  const mod = await import('./secure/secure-shell.mjs?v=20251030d');
+  return mod.default;
+}
+Object.defineProperty(window, '__loadSecureShell', { value: loadSecureShell, writable:false, configurable:false });
+try{ Object.defineProperty(window, 'SecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
   </script>
 
   <!-- Стили -->
