@@ -45,17 +45,109 @@
 (function(){try{const s=localStorage.getItem('theme-preference');const p=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;const h=new Date().getHours();const d=s?(s==='dark'[...]
   </script>
   <script>
-  window.addEventListener('message', (e)=>{
-    try{
-      if(!e || !e.data) return;
-      if(e.data.type==='set-theme'){
-        const t = (e.data.theme==='dark')?'dark':'light';
-        localStorage.setItem('theme-preference', t);
-        document.documentElement.setAttribute('data-theme', t);
+  <script>
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM загружен — инициализация интерфейса');
+
+  initThemeSystem();
+
+  // Инициализируем чат и сервисы СРАЗУ
+  initializeRuntime().catch(err => console.error('Ошибка инициализации:', err));
+
+  const $ = id => document.getElementById(id);
+
+  // Кнопка "Отправить"
+<script>
+function sendMessage() {
+  console.log('sendMessage вызвана');
+
+  const input = document.getElementById('messageInput');
+  const button = document.getElementById('sendButton');
+
+  if (!input || !input.value.trim()) return;
+
+  if (!multiUserChat) {
+    alert('Чат не инициализирован. Обновите страницу.');
+    return;
+  }
+
+  const text = input.value.trim();
+
+  if (!window.SecurityManager.validateMessage(text)) {
+    alert('Сообщение содержит недопустимые символы.');
+    return;
+  }
+
+  if (!window.SecurityManager.checkRateLimit('message_' + (multiUserChat?.userId || 'unknown'), 20, 60000)) {
+    alert('Слишком много сообщений. Подождите.');
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Отправка...';
+  input.disabled = true;
+
+  try {
+    const wasFiltered = multiUserChat.addMessage(text);
+    if (wasFiltered) {
+      setTimeout(() => alert('Сообщение было отфильтровано.'), 100);
+    }
+    input.value = '';
+  } catch (err) {
+    console.error('Ошибка отправки:', err);
+    alert('Ошибка при отправке.');
+  } finally {
+    setTimeout(() => {
+      button.disabled = false;
+      button.textContent = 'Отправить';
+      input.disabled = false;
+      input.focus();
+    }, 300);
+  }
+}
+</script>
+
+  // Кнопка "Старт"
+  const startBtn = $('btnStartAlgo');
+  if (startBtn) {
+    startBtn.addEventListener('click', async () => {
+      console.log('Кнопка "Старт" нажата');
+      startBtn.disabled = true;
+      try {
+        await startSecure();
+      } catch (err) {
+        console.error('Ошибка запуска:', err);
+      } finally {
+        startBtn.disabled = false;
       }
-    }catch(_){}}
-  );
-  </script>
+    });
+  }
+
+  // Кнопка "Стоп"
+  const stopBtn = $('btnStopAlgo');
+  if (stopBtn) {
+    stopBtn.addEventListener('click', () => {
+      console.log('Кнопка "Стоп" нажата');
+      stopSecure();
+    });
+  }
+
+  // Тумблер анимации
+  const animToggle = $('toggleNeuroAnim');
+  if (animToggle) {
+    const enabled = localStorage.getItem('neuroOverlayEnabled') !== '0';
+    animToggle.checked = enabled;
+    animToggle.addEventListener('change', (e) => {
+      const on = e.target.checked;
+      localStorage.setItem('neuroOverlayEnabled', on ? '1' : '0');
+      setNeuroOverlayVisible(on);
+    });
+    setNeuroOverlayVisible(enabled);
+  }
+
+  console.log('Все кнопки привязаны');
+});
+</script>
  
   <style>
 /* Базовые цвета */
