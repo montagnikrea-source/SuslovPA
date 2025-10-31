@@ -20,9 +20,12 @@ export default class SecureShell {
     this.sampleRate = sampleRate;
     this.freeze = freeze;
     console.log(`SecureShell: start (SR=${sampleRate}, freeze=${freeze})`);
-
+    this.paused = false;
+    // Run continuous loop driven by requestAnimationFrame so telemetry is updated repeatedly
     const loop = () => {
       try {
+        if (this.paused) return;
+        // perform several sampler ticks per frame to keep buffer filled
         for (let i = 0; i < 8; i++) {
           this.sampler.sample();
         }
@@ -44,12 +47,15 @@ export default class SecureShell {
       } catch (e) {
         console.error('SecureShell error:', e);
       }
+      // schedule next frame if not paused
+      if (!this.paused) this._rafId = requestAnimationFrame(loop);
     };
-    this.paused = false;
-    requestAnimationFrame(loop);
+    // start looping
+    this._rafId = requestAnimationFrame(loop);
   }
 
   pause() {
     this.paused = true;
+    if (typeof this._rafId === 'number') try{ cancelAnimationFrame(this._rafId); }catch(_){}
   }
 }
