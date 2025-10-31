@@ -23,6 +23,17 @@ function makeServer(root){
       }
       const ct = contentType(file);
       res.setHeader('Content-Type', ct);
+      // Allow local API requests during tests (so page can contact http://localhost:3000)
+      const csp = "default-src 'self' 'unsafe-inline' data: blob:; connect-src 'self' http://localhost:3000 https://api.telegram.org https://api.countapi.xyz https://api.counterapi.dev https://counter-api.dev https://api.allorigins.win https://cors.bridged.cc https://yacdn.org https://api.ipify.org https://ipapi.co https://ipinfo.io https://freegeoip.app https://api.db-ip.com https://httpbin.org https://api.github.com https://jsonplaceholder.typicode.com https://1.1.1.1 https://www.google.com https://mozilla.org;"
+      res.setHeader('Content-Security-Policy', csp);
+      if(file.endsWith('noninput.html')){
+        try{
+          let content = fs.readFileSync(file,'utf8');
+          content = content.replace(/connect-src\s+'self'/, "connect-src 'self' http://localhost:3000");
+          res.end(content);
+          return;
+        }catch(e){}
+      }
       fs.createReadStream(file).pipe(res);
     }catch(err){ res.statusCode=500; res.end(String(err)); }
   });
