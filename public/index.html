@@ -1,72 +1,13 @@
 <!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>SuslovPA — Frequency Scanner</title>
-    <meta name="description" content="Интерактивный Frequency Scanner с нейро-гомеостазом и динамической адаптацией входных признаков.">
-    <link rel="stylesheet" href="styles.css?v=20251030b">
-    <!-- AdSense: enable Auto Ads on landing too -->
-    <meta name="google-adsense-account" content="ca-pub-1128500581050725">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1128500581050725" crossorigin="anonymous"></script>
-    <script>
-        // Redirect small devices to mobile wrapper (keeps iframe behavior safe)
-        if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            try { location.href = 'noninput-mobile.html'; } catch(e){}
-        }
-    </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SuslovPA — Site</title>
+  <link rel="icon" href="/SuslovPA/favicon.ico">
+  <meta http-equiv="refresh" content="0; url=noninput.html">
 </head>
 <body>
-    <div class="page-wrap">
-        <!-- TEST: обновление страницы Vercel 2025-10-31 -->
-        <header class="site-header">
-            <div class="brand">
-                <img src="assets/bg-tmnt-light.png" alt="logo" class="logo" aria-hidden="true">
-                <div>
-                    <h1>Frequency Scanner</h1>
-                    <p class="tag">Нейро-гомеостаз онлайн — адаптивный анализ частот и ресурсный контроль</p>
-                </div>
-            </div>
-            <nav class="actions">
-                <a class="btn" href="noninput.html">Открыть приложение</a>
-                <a class="btn ghost" href="noninput-mobile.html">Мобильная версия</a>
-                <a class="btn outline" href="https://github.com/montagnikrea-source/SuslovPA" target="_blank" rel="noopener">Исходники</a>
-            </nav>
-        </header>
-
-        <main class="hero">
-            <section class="hero-inner">
-                <h2>Адаптивный анализ частот и онлайн-адаптация нейросети</h2>
-                <p>Сканер собирает джиттер процессора, анализирует пики частот, использует Калман для стабилизации и небольшую нейросеть для управления. Нейросеть умеет автоматически расширять входные признаки и сама ограничивает свою сложность по ресурсам.</p>
-
-                <div class="cta-row">
-                    <a class="btn huge" href="noninput.html">Запустить сканер</a>
-                    <a class="btn ghost" href="noninput-mobile.html">Открыть на мобильном</a>
-                </div>
-
-                <div class="meta-cards">
-                    <div class="card"><strong>Деплой:</strong><br><a href="https://montagnikrea-source.github.io/SuslovPA/" target="_blank">Vercel preview</a></div>
-                    <div class="card"><strong>Репозиторий:</strong><br><a href="https://github.com/montagnikrea-source/SuslovPA" target="_blank">GitHub</a></div>
-                    <div class="card"><strong>Версия:</strong><br>main</div>
-                </div>
-            </section>
-        </main>
-
-        <footer class="site-footer">
-            <div>© 2025 SuslovPA · <a href="HOSTING_LINKS.md">Hosting</a> · <a href="noninput.html">Run app</a></div>
-            <div class="theme-toggle">Тема: <button id="themeBtn" class="small">переключить</button></div>
-        </footer>
-    </div>
-
-    <script>
-        const themeBtn = document.getElementById('themeBtn');
-        function setTheme(dark){
-            document.documentElement.classList.toggle('dark', !!dark);
-            try { localStorage.setItem('site-dark', !!dark); } catch(e){}
-        }
-        themeBtn.addEventListener('click', ()=> setTheme(!document.documentElement.classList.contains('dark')));
-        // Init from preference
-        try { setTheme(localStorage.getItem('site-dark') === 'true'); } catch(e){}
-    </script>
+  <p>Перенаправление на <a href="noninput.html">приложение</a>…</p>
 </body>
 </html>

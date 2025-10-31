@@ -1,4 +1,4 @@
-// Copied fallback: algorithm-core.js (from secure directory)
+// algorithm-core.js: fallback copy of the sandbox algorithm (clean, no merge markers)
 'use strict';
 
 class CpuJitterSampler {
@@ -54,3 +54,8 @@ function buildEngine(){
 }
 
 if(typeof window !== 'undefined') window.buildEngine = buildEngine;
+
+// Also support CommonJS / ESM consumers
+if(typeof module !== 'undefined' && module.exports) module.exports = { buildEngine };
+try{ if(typeof define === 'function' && define.amd) define(function(){ return { buildEngine }; }); }catch(_){}
+export default { buildEngine };
