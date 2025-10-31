@@ -50,7 +50,7 @@ echo "📋 STEP 3: Verify API Files"
 echo "═══════════════════════════════════════════════════════════════"
 
 FILES_TO_CHECK=(
-    "api/index.js"
+    "api/health.js"
     "api/telegram.js"
     "api/telegram-updates.js"
     "api/telegram-secure.js"
