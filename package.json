@@ -8,6 +8,7 @@
     "start": "node server-proxy.js",
     "dev": "nodemon server-proxy.js",
     "test": "jest",
+    "site-test": "node scripts/site_test.js",
     "lint": "eslint *.js",
     "install-browsers": "npx playwright install",
     "memtest": "node memtest-noninput-mobile.js"

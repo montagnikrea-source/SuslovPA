@@ -1,0 +1,62 @@
+{
+  "base": "https://montagnikrea-source.github.io/SuslovPA",
+  "checkedAt": "2025-10-31T21:13:19.611Z",
+  "http": {
+    "https://montagnikrea-source.github.io/SuslovPA/": 200,
+    "https://montagnikrea-source.github.io/SuslovPA/noninput.html": 200,
+    "https://montagnikrea-source.github.io/SuslovPA/secure/algorithm-core.js": 200,
+    "https://montagnikrea-source.github.io/SuslovPA/algorithm-core.js": 404,
+    "https://montagnikrea-source.github.io/SuslovPA/favicon.ico": 404,
+    "https://montagnikrea-source.github.io/SuslovPA/about.html": 200,
+    "https://montagnikrea-source.github.io/SuslovPA/contact.html": 200,
+    "https://montagnikrea-source.github.io/SuslovPA/privacy-policy.html": 200
+  },
+  "raw": {
+    "algorithm-core.js": 200,
+    "favicon.ico": 200,
+    "about.html": 200,
+    "contact.html": 200,
+    "privacy-policy.html": 200,
+    "secure/algorithm-core.js": 200
+  },
+  "playwright": {
+    "console": [
+      "LOG: 🔧 $ helper injected",
+      "LOG: 🎨[THEME] dark",
+      "ERROR: X-Frame-Options may only be set via an HTTP header sent along with a document. It may not be set inside <meta>.",
+      "LOG: 🎨 Theme applied immediately (inline): dark",
+      "LOG: %c✅ СИСТЕМА ЗАЩИТЫ АКТИВИРОВАНА color: green; font-size: 18px; font-weight: bold;",
+      "LOG: %cЭтот сайт защищен от:",
+      "LOG:   • Копирования исходного кода",
+      "LOG:   • Доступа через DevTools",
+      "LOG:   • XSS атак и инъекций",
+      "LOG:   • Несанкционированного доступа",
+      "LOG: DOM загружен, инициализируем чат",
+      "LOG: [INIT] Runtime deferred until user presses Start",
+      "LOG: Кнопка отправки привязана",
+      "LOG: Поле ввода привязано",
+      "LOG: [INIT] binding Start/Stop handlers, startBtn= JSHandle@node stopBtn= JSHandle@node",
+      "LOG: [INIT] start handler bound",
+      "LOG: [INIT] stop handler bound",
+      "ERROR: Refused to load the script 'https://fundingchoicesmessages.google.com/i/ca-pub-1128500581050725?href=https%3A%2F%2Fmontagnikrea-source.github.io%2FSuslovPA%2Fnoninput.html&ers=2' because it violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:\n      https://pagead2.googlesyndication.com \n      https://www.gstatic.com\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback.\n"
+    ],
+    "errors": [
+      "ERROR: X-Frame-Options may only be set via an HTTP header sent along with a document. It may not be set inside <meta>.",
+      "ERROR: Refused to load the script 'https://fundingchoicesmessages.google.com/i/ca-pub-1128500581050725?href=https%3A%2F%2Fmontagnikrea-source.github.io%2FSuslovPA%2Fnoninput.html&ers=2' because it violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:\n      https://pagead2.googlesyndication.com \n      https://www.gstatic.com\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback.\n"
+    ],
+    "checks": {
+      "hasBuildEngine": false,
+      "buildEngineType": "undefined",
+      "hasLoadSecureShell": true,
+      "integrityAttributes": []
+    },
+    "gotoStatus": 200,
+    "secure_algo_status": 200,
+    "secure_algo_has_buildEngine": true
+  },
+  "passed": false,
+  "failures": [
+    "window.buildEngine not available on page",
+    "page errors: 2"
+  ]
+}
