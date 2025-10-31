@@ -33,7 +33,13 @@ jobs:
           node tests/browser_check.js
 
       - name: Deploy to Vercel
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
+          echo "VERCEL_TOKEN found — deploying to Vercel"
           npx vercel --prod --yes --token "$VERCEL_TOKEN"
+      - name: Skip deploy notice
+        if: ${{ secrets.VERCEL_TOKEN == '' }}
+        run: |
+          echo "VERCEL_TOKEN is not set in repository secrets — skipping deploy step. To enable deploy, add VERCEL_TOKEN to Secrets." 
