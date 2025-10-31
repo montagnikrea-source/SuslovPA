@@ -8273,7 +8273,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         try { Object.defineProperty(window, '__loadSecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
         safeSetStartStatus(`Запущено (SR=${sr}${frz?', freeze':''})`);
         if(changelog) changelog.textContent = `Запущено (SR=${sr}${frz?', freeze':''})`;
-      }catch(e){ console.error('Secure start failed', e); safeSetStartStatus('Ошибка запуска, псевдо-режим'); if (isOverlayEnabled()) showNeuroBuff(); startPseudoTelemetry(); }
+      }catch(e){ console.error('Secure start failed', e); safeSetStartStatus(''); if (isOverlayEnabled()) showNeuroBuff(); startPseudoTelemetry(); }
     } else {
       safeSetStartStatus('Загрузчик недоступен, псевдо-режим');
       if (isOverlayEnabled()) showNeuroBuff();
