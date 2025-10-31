@@ -1160,7 +1160,32 @@ console.log('  • Несанкционированного доступа');
     <label style="display:flex;align-items:center;gap:6px">
       <input id="startFreeze" type="checkbox"> Freeze при старте
     </label>
-  <button id="btnStartAlgo" class="btn small start-btn" style="padding:6px 14px" onclick="console.log('[INLINE] btnStartAlgo clicked'); if(window.startSecure) startSecure();">▶ Старт</button>
+ <button id="btnStartAlgo" class="btn small start-btn" style="padding:6px 14px">▶ Старт</button>
+
+<!-- Новый обработчик для кнопки, добавьте перед </body> или рядом с кнопкой -->
+<script>
+document.getElementById('btnStartAlgo').addEventListener('click', async function () {
+  try {
+    // Основная функция запуска: сначала пытаемся вызвать window.startSecure
+    if (typeof window.startSecure === 'function') {
+      await window.startSecure();
+    }
+    // Альтернатива - если есть __loadSecureShell
+    else if (typeof window.__loadSecureShell === 'function') {
+      const secureShell = await window.__loadSecureShell();
+      if (typeof secureShell === 'function') {
+        await secureShell();
+      }
+    }
+    else {
+      alert('Ошибка запуска: функция безопасности не найдена.');
+    }
+  } catch (e) {
+    alert('Ошибка запуска защищённого режима:\n' + (e && e.message ? e.message : e));
+    console.error('Secure start failed:', e);
+  }
+});
+</script>
     <button id="btnStopAlgo" class="btn small outline" style="padding:6px 10px">■ Стоп</button>
     <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
       <input id="toggleNeuroAnim" type="checkbox" checked>
