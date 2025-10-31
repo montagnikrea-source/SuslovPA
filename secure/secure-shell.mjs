@@ -54,8 +54,3 @@ export default class SecureShell {
     this.paused = true;
   }
 }
-<<<<<<< HEAD
-// touch for redeploy: Fri Oct 31 07:14:37 UTC 2025
-=======
-
->>>>>>> main
