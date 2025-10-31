@@ -178,7 +178,7 @@ localStorage.getItem('theme-set-at');
 ```
 
 **Где это видно:**
-- F12 → Application → Local Storage → https://pavell.vercel.app
+- F12 → Application → Local Storage → https://montagnikrea-source.github.io/SuslovPA
 - Ключи: `theme-preference`, `theme-set-at`
 
 **Как очистить:**

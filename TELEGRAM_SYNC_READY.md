@@ -111,7 +111,7 @@ telegramConfig = {
 ### Способ 1: Через DevTools консоль
 
 ```bash
-# 1. Откройте https://pavell.vercel.app/noninput.html
+# 1. Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 # 2. Нажмите F12 → Console
 # 3. Смотрите логи каждые 5 секунд:
 
@@ -126,7 +126,7 @@ telegramConfig = {
 ```
 1. Откройте канал https://t.me/noninput
 2. Напишите тестовое сообщение
-3. Вернитесь на сайт https://pavell.vercel.app/noninput.html
+3. Вернитесь на сайт https://montagnikrea-source.github.io/SuslovPA/noninput.html
 4. Через 5 секунд сообщение должно появиться в чате!
 ```
 

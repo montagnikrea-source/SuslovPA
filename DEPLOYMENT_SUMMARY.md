@@ -4,7 +4,7 @@
 
 ### 🌐 Живые ссылки
 
-- **Основной сайт (Vercel)**: https://pavell.vercel.app/
+- **Основной сайт (Vercel)**: https://montagnikrea-source.github.io/SuslovPA/
 - **Альтернативный сайт (GitHub Pages)**: https://montagnikrea-source.github.io/SuslovPA/
 - **Telegram канал**: https://t.me/noninput
 

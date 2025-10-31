@@ -84,7 +84,7 @@ Browser → /api/telegram (POST)
 
 ```bash
 # Отправить сообщение
-curl -X POST https://pavell.vercel.app/api/telegram \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -H "Content-Type: application/json" \
   -d '{
     "method": "sendMessage",
@@ -141,7 +141,7 @@ Browser → /api/telegram/updates?limit=50
 
 ```bash
 # Получить последние 5 сообщений
-curl https://pavell.vercel.app/api/telegram/updates?limit=5
+curl https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?limit=5
 
 # Ответ
 {
@@ -240,7 +240,7 @@ curl https://pavell.vercel.app/api/telegram/updates?limit=5
 
 ```bash
 # Тест 1: Проверка соединения
-curl -X POST https://pavell.vercel.app/api/telegram \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 
@@ -248,7 +248,7 @@ curl -X POST https://pavell.vercel.app/api/telegram \
 # {"ok":true,"result":{"id":8223995698,"is_bot":true,"first_name":"Inputlag","username":"Inputlagthebot",...}}
 
 # Тест 2: Получение сообщений
-curl https://pavell.vercel.app/api/telegram/updates?limit=1
+curl https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?limit=1
 
 # Ответ должен быть:
 # {"success":true,"updates":[...],"count":...}
@@ -333,7 +333,7 @@ Changes:
 ## 🔗 Ссылки
 
 **Основная страница:**
-https://pavell.vercel.app/noninput.html
+https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 **Vercel Dashboard:**
 https://vercel.com/montagnikrea-source/SuslovPA

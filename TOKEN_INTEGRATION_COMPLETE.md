@@ -41,7 +41,7 @@
 │  Browser/Client │
 └────────┬────────┘
          │
-         │ https://pavell.vercel.app/api/telegram
+         │ https://montagnikrea-source.github.io/SuslovPA/api/telegram
          │ (POST с методом и параметрами)
          │
          ▼
@@ -94,13 +94,13 @@ this.telegramConfig = {
   enabled: true,
   botToken: null,  // ← Всегда null!
   chatId: '@noninput',
-  apiUrl: 'https://pavell.vercel.app/api/telegram',  // ← Используем прокси
+  apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram',  // ← Используем прокси
   secureMode: true
 };
 
 // Все запросы идут через прокси
 async sendTelegramRequest(method, params = {}) {
-  const proxyUrl = 'https://pavell.vercel.app/api/telegram';
+  const proxyUrl = 'https://montagnikrea-source.github.io/SuslovPA/api/telegram';
   // POST запрос с методом и параметрами (токен НЕ передается)
   return fetch(proxyUrl, {
     method: 'POST',
@@ -130,7 +130,7 @@ if (!config.telegramBotToken) {
 
 ### Проверка 1: API доступен ✅
 ```bash
-curl -X POST https://pavell.vercel.app/api/telegram \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 # Ожидаемо: информация о боте или ошибка (но не раскрытие токена)
@@ -139,14 +139,14 @@ curl -X POST https://pavell.vercel.app/api/telegram \
 ### Проверка 2: Токен недоступен клиенту ✅
 ```javascript
 // В браузерной консоли
-fetch('https://pavell.vercel.app/api/telegram')
+fetch('https://montagnikrea-source.github.io/SuslovPA/api/telegram')
   .then(r => r.json())
   .then(d => console.log(d))
 // Ожидаемо: Токен НИКОГДА не видим в ответе
 ```
 
 ### Проверка 3: Chat работает с новым токеном ✅
-1. Откройте https://pavell.vercel.app/noninput.html
+1. Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 2. Откройте Console (F12)
 3. Напишите сообщение в чат
 4. Проверьте логи - должны быть успешные запросы

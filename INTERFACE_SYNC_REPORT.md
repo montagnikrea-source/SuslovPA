@@ -131,7 +131,7 @@ const conf=Math.max(0, Math.min(1, conf_raw));
 |-----------|--------|-----|
 | **main** | ✅ Pushed | `origin/main` |
 | **gh-pages** | ✅ Merged | `origin/gh-pages` |
-| **Vercel** | ✅ Deployed | `https://pavell-6r3pqnkoi-montagnikrea-sources-projects.vercel.app` |
+| **Vercel** | ✅ Deployed | `https://montagnikrea-source.github.io/SuslovPA` |
 | **GitHub Pages** | ✅ Active | `https://montagnikrea-source.github.io/SuslovPA/noninput.html` |
 
 ---

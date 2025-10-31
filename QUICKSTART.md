@@ -32,7 +32,7 @@
 ### Шаг 2: Проверить API на Vercel (2 минуты)
 
 ```bash
-curl -X POST https://pavell.vercel.app/api/telegram.js \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram.js \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 ```
@@ -41,7 +41,7 @@ curl -X POST https://pavell.vercel.app/api/telegram.js \
 
 ### Шаг 3: Протестировать в браузере (2 минуты)
 
-1. Откройте: https://pavell.vercel.app/noninput.html
+1. Откройте: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 2. Введите сообщение в чате
 3. Проверьте его появление в Telegram канале @noninput
 
@@ -98,15 +98,15 @@ git log --oneline -10
 
 ```bash
 # Проверить API
-curl https://pavell.vercel.app/api/
+curl https://montagnikrea-source.github.io/SuslovPA/api/
 
 # Проверить telegram.js
-curl -X POST https://pavell.vercel.app/api/telegram.js \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram.js \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 
 # Проверить updates
-curl https://pavell.vercel.app/api/telegram/updates.js?limit=5
+curl https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates.js?limit=5
 ```
 
 ---
@@ -235,7 +235,7 @@ console.log(`J=${result.J.toFixed(3)}, aggr=${result.aggr.toFixed(2)}`);
 - 🚀 Vercel: https://vercel.com/dashboard/projects/pavell
 - 🤖 Telegram Bot: https://t.me/Inputlagthebot
 - 📢 Telegram Channel: https://t.me/noninput
-- 🌐 Live Site: https://pavell.vercel.app/noninput.html
+- 🌐 Live Site: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 ---
 

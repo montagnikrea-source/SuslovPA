@@ -27,7 +27,7 @@ User-agent: Googlebot
 Allow: /
 
 # Sitemap location (if exists)
-# Sitemap: https://pavell.vercel.app/sitemap.xml
+# Sitemap: https://montagnikrea-source.github.io/SuslovPA/sitemap.xml
 # Sitemap: https://montagnikrea-source.github.io/SuslovPA/sitemap.xml
 
 # Crawl delay to be nice to server

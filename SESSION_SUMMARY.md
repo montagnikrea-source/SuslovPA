@@ -89,8 +89,8 @@
 
 ### После установки токена (2 минуты)
 ```
-[ ] Проверить API: curl https://pavell.vercel.app/api/telegram.js
-[ ] Открыть сайт: https://pavell.vercel.app/noninput.html
+[ ] Проверить API: curl https://montagnikrea-source.github.io/SuslovPA/api/telegram.js
+[ ] Открыть сайт: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 ```
 
 ### Полная проверка (5 минут)

@@ -99,7 +99,7 @@ User clarity: Values match perfectly!
 2. **gh-pages branch** ✅ Merged and synchronized  
 3. **Vercel Production** ✅ New deployment: 
    ```
-   https://pavell-7wy6yxblo-montagnikrea-sources-projects.vercel.app
+   https://montagnikrea-source.github.io/SuslovPA
    ```
 4. **GitHub Pages** ✅ Synchronized with fix
 

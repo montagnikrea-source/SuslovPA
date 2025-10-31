@@ -10,8 +10,8 @@ echo "║  Testing message sending and receiving functionality           ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-API_URL="https://pavell.vercel.app/api/telegram"
-UPDATES_URL="https://pavell.vercel.app/api/telegram/updates"
+API_URL="https://montagnikrea-source.github.io/SuslovPA/api/telegram"
+UPDATES_URL="https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates"
 CHAT_ID="@noninput"
 TEST_MESSAGE="Test message from bash at $(date '+%Y-%m-%d %H:%M:%S')"
 

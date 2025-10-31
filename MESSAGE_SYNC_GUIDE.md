@@ -28,7 +28,7 @@
 
 **Режим 1: Получение полной истории**
 ```bash
-curl "https://pavell.vercel.app/api/telegram/updates?history=true&limit=100"
+curl "https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?history=true&limit=100"
 ```
 Ответ:
 ```json
@@ -54,7 +54,7 @@ curl "https://pavell.vercel.app/api/telegram/updates?history=true&limit=100"
 
 **Режим 2: Получение новых сообщений (polling)**
 ```bash
-curl "https://pavell.vercel.app/api/telegram/updates?lastId=12349"
+curl "https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?lastId=12349"
 ```
 Ответ включает только сообщения с ID > 12349
 
@@ -117,7 +117,7 @@ curl "https://pavell.vercel.app/api/telegram/updates?lastId=12349"
 ## ✅ Как проверить
 
 ### Через веб-интерфейс
-1. Откройте https://pavell.vercel.app/noninput.html
+1. Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 2. Откройте DevTools (F12) → Console
 3. Посмотрите логи:
    - "📥 Загрузка полной истории сообщений из Telegram..." - история загружается
@@ -127,16 +127,16 @@ curl "https://pavell.vercel.app/api/telegram/updates?lastId=12349"
 ### Через API
 ```bash
 # Проверить что история есть
-curl "https://pavell.vercel.app/api/telegram/updates?history=true" | jq '.count'
+curl "https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?history=true" | jq '.count'
 
 # Отправить тестовое сообщение
-curl -X POST https://pavell.vercel.app/api/telegram \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -H "Content-Type: application/json" \
   -d '{"method":"sendMessage","params":{"chat_id":"@noninput","text":"Test"}}'
 
 # Проверить что оно появилось в истории
 sleep 2
-curl "https://pavell.vercel.app/api/telegram/updates?history=true" | jq '.updates[-1]'
+curl "https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?history=true" | jq '.updates[-1]'
 ```
 
 ## 🚀 После Redeploy на Vercel

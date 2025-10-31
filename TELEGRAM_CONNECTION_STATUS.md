@@ -27,7 +27,7 @@ this.telegramConfig = {
   enabled: true,                           // ✅ Включен
   botToken: null,                          // ⚠️ Получается с сервера
   chatId: '@noninput',                     // ✅ Канал t.me/noninput
-  apiUrl: 'https://pavell.vercel.app/api/telegram',  // ⚠️ API 404
+  apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram',  // ⚠️ API 404
   pollInterval: 5000,                      // Опрос каждые 5 сек
   maxRetries: 2,
   timeout: 10000,
@@ -145,7 +145,7 @@ npm run dev
 # 1. После добавления токена и перезаразвертывания
 
 # 2. Открыть страницу
-curl https://pavell.vercel.app/api/telegram \
+curl https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -X POST \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
@@ -187,9 +187,9 @@ curl https://pavell.vercel.app/api/telegram \
 
 - **Канал Telegram:** `@noninput` (https://t.me/noninput)
 - **Бот:** `@Inputlagthebot` (https://t.me/Inputlagthebot)
-- **Прокси:** https://pavell.vercel.app/api/telegram
+- **Прокси:** https://montagnikrea-source.github.io/SuslovPA/api/telegram
 - **Версии сайта:**
-  - Vercel: https://pavell.vercel.app/noninput.html
+  - Vercel: https://montagnikrea-source.github.io/SuslovPA/noninput.html
   - GitHub Pages: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 ### Методы Telegram API используемые:
@@ -223,7 +223,7 @@ curl https://pavell.vercel.app/api/telegram \
 ## 💬 Как использовать после настройки
 
 **На сайте:**
-1. Откройте https://pavell.vercel.app/noninput.html
+1. Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 2. В чате внизу напишите сообщение
 3. Нажмите "Отправить"
 4. Сообщение появится в Telegram канале @noninput

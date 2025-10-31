@@ -30,7 +30,7 @@
 ## 📊 See It In Action
 
 ### Current URL
-**Production Live:** https://pavell-7q9fogj2m-montagnikrea-sources-projects.vercel.app
+**Production Live:** https://montagnikrea-source.github.io/SuslovPA
 
 ### What to Look For
 1. **Quality Metric** - Shows 0% → 100% (not NaN)

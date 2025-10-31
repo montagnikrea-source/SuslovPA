@@ -237,7 +237,7 @@ bb97ce3  feat: add dynamic light/dark theme system
 
 ### 1️⃣ Откройте сайт
 ```
-https://pavell.vercel.app/noninput.html
+https://montagnikrea-source.github.io/SuslovPA/noninput.html
 ```
 
 ### 2️⃣ Система автоматически:
@@ -279,7 +279,7 @@ JavaScript функций:         4
 
 ```
 Основной сайт (Vercel):
-https://pavell.vercel.app/noninput.html
+https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 GitHub репозиторий:
 https://github.com/montagnikrea-source/SuslovPA

@@ -174,7 +174,7 @@ Continue monitoring
 | Platform | Status | URL |
 |----------|--------|-----|
 | **GitHub Pages** | ✅ Updated | https://montagnikrea-source.github.io/SuslovPA/ |
-| **Vercel** | ✅ Deployed | https://pavell-7q9fogj2m-montagnikrea-sources-projects.vercel.app |
+| **Vercel** | ✅ Deployed | https://montagnikrea-source.github.io/SuslovPA |
 | **GitHub** | ✅ Pushed | main + gh-pages branches |
 
 **Deployment Time:** ~30 seconds

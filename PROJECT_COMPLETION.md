@@ -41,8 +41,8 @@
 ### 3. Deployment & Testing ✅
 
 **Vercel Deployment:**
-- **Preview URL:** https://pavell-co06xx2em-montagnikrea-sources-projects.vercel.app ✅ **WORKING**
-- **Production URL:** https://pavell-omci40jkt-montagnikrea-sources-projects.vercel.app (with Deployment Protection)
+- **Preview URL:** https://montagnikrea-source.github.io/SuslovPA ✅ **WORKING**
+- **Production URL:** https://montagnikrea-source.github.io/SuslovPA (with Deployment Protection)
 
 **GitHub Pages:**
 - **URL:** https://montagnikrea-source.github.io/SuslovPA/noninput.html ✅ **DEPLOYED**
@@ -197,7 +197,7 @@ a30c9e7 Add neural resource optimization to GitHub Pages version
 
 ## 🔗 Quick Access Links
 
-- **Live Application:** https://pavell-co06xx2em-montagnikrea-sources-projects.vercel.app
+- **Live Application:** https://montagnikrea-source.github.io/SuslovPA
 - **GitHub Repository:** https://github.com/montagnikrea-source/SuslovPA
 - **GitHub Pages:** https://montagnikrea-source.github.io/SuslovPA/noninput.html
 - **Telegram Bot:** @Inputlagthebot

@@ -31,10 +31,10 @@
 
 ```bash
 # 1. Проверьте здоровье API
-curl https://pavell.vercel.app/api/
+curl https://montagnikrea-source.github.io/SuslovPA/api/
 
 # 2. Проверьте бота
-curl -X POST https://pavell.vercel.app/api/telegram.js \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram.js \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 

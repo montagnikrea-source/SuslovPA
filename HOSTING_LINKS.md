@@ -9,7 +9,7 @@
 - 🔄 Обновляется: При push в gh-pages
 
 ### 2. **Vercel Production** (Альтернативный CDN)
-- 📍 URL: https://pavell.vercel.app
+- 📍 URL: https://montagnikrea-source.github.io/SuslovPA
 - 📚 Проект: pavell
 - ⚡ Статус: ✅ LIVE (всегда актуально)
 - 🔄 Обновляется: При push в main
@@ -27,7 +27,7 @@
 
 | Использование | Рекомендация | Ссылка |
 |---|---|---|
-| **Просмотр сайта** | Vercel (быстрее) | https://pavell.vercel.app |
+| **Просмотр сайта** | Vercel (быстрее) | https://montagnikrea-source.github.io/SuslovPA |
 | **Альтернатива** | GitHub Pages | https://montagnikrea-source.github.io/SuslovPA/ |
 | **Мобильный** | Оба работают одинаково хорошо | Любая из выше |
 | **Исходный код** | GitHub Repository | https://github.com/montagnikrea-source/SuslovPA |
@@ -43,7 +43,7 @@ Git commit → Push to main
             ↓
          Vercel deployment (автоматически)
             ↓
-      https://pavell.vercel.app (обновлено)
+      https://montagnikrea-source.github.io/SuslovPA (обновлено)
 
 
 Git commit → Push to gh-pages
@@ -70,7 +70,7 @@ URL: https://montagnikrea-source.github.io/SuslovPA/
 ### Vercel
 ```
 ✅ PRODUCTION
-URL: https://pavell.vercel.app
+URL: https://montagnikrea-source.github.io/SuslovPA
 Последний деплой: ~30 минут назад (коммит 2157deb)
 Время обновления: ~2-3 минуты после push в main
 ```
@@ -80,7 +80,7 @@ URL: https://pavell.vercel.app
 ## 🚀 Быстрые ссылки
 
 ### 🔹 Попробовать прямо сейчас
-- **Vercel:** https://pavell.vercel.app ⚡ (рекомендуется)
+- **Vercel:** https://montagnikrea-source.github.io/SuslovPA ⚡ (рекомендуется)
 - **GitHub Pages:** https://montagnikrea-source.github.io/SuslovPA/ 
 
 ### 🔹 Посмотреть код

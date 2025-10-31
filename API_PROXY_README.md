@@ -23,7 +23,7 @@ vercel link
 vercel deploy --prod
 ```
 
-Копируйте URL вашего Vercel приложения (например: `https://your-project.vercel.app`).
+Копируйте URL вашего Vercel приложения (например: `https://montagnikrea-source.github.io/SuslovPA`).
 
 ## 🔧 Локальное тестирование
 

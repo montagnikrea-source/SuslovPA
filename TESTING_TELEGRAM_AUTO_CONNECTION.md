@@ -19,7 +19,7 @@
 ### Вариант 1: Интерактивный тестер (Рекомендуется)
 
 ```
-1. Откройте: https://pavell.vercel.app/test-telegram-auto-connection.html
+1. Откройте: https://montagnikrea-source.github.io/SuslovPA/test-telegram-auto-connection.html
 2. Все статусы обновляются в реальном времени
 3. Используйте кнопки для проверки каждой функции
 4. Смотрите логи в живой консоли
@@ -36,7 +36,7 @@
 ### Вариант 2: Debug скрипт в браузерной консоли
 
 ```javascript
-// 1. Откройте: https://pavell.vercel.app/noninput.html
+// 1. Откройте: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 // 2. Нажмите F12 → Console
 // 3. Скопируйте и вставьте содержимое файла: telegram-debug-script.js
 // 4. Нажмите Enter
@@ -56,7 +56,7 @@ TelegramDebug.help()                // Справка по командам
 ### Вариант 3: Ручная проверка
 
 ```
-1. Откройте: https://pavell.vercel.app/noninput.html
+1. Откройте: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 2. Нажмите F12 для открытия DevTools
 3. Перейдите на вкладку Console
 4. Смотрите логи инициализации...
@@ -168,7 +168,7 @@ TelegramDebug.help()                // Справка по командам
 ### Используйте интерактивный тестер
 
 ```
-https://pavell.vercel.app/test-telegram-auto-connection.html
+https://montagnikrea-source.github.io/SuslovPA/test-telegram-auto-connection.html
 ```
 
 **Видимые метрики:**
@@ -423,7 +423,7 @@ console.log(window.location.protocol); // 'https:'
 - ✅ Отказоустойчивость реализована
 
 **Используйте интерактивный тестер для мониторинга:**
-https://pavell.vercel.app/test-telegram-auto-connection.html
+https://montagnikrea-source.github.io/SuslovPA/test-telegram-auto-connection.html
 
 ---
 

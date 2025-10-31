@@ -36,7 +36,7 @@
 
 ### Primary Deployment (Vercel)
 ```
-https://pavell-psu8hljpm-montagnikrea-sources-projects.vercel.app
+https://montagnikrea-source.github.io/SuslovPA
 ```
 - ✅ Full Frequency Scanner application
 - ✅ Neural optimization active
@@ -208,7 +208,7 @@ ed3ea8b Trigger fresh Vercel rebuild
 ## 📞 Support & Access
 
 ### Primary Access
-- **Application:** https://pavell-psu8hljpm-montagnikrea-sources-projects.vercel.app
+- **Application:** https://montagnikrea-source.github.io/SuslovPA
 - **Code:** https://github.com/montagnikrea-source/SuslovPA
 - **Issues:** GitHub Issues
 

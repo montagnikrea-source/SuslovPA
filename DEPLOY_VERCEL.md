@@ -55,7 +55,7 @@
 ### Шаг 5: Получить URL прокси
 
 После развёртывания:
-1. Скопируйте URL вашего проекта Vercel (例: `https://suslvopa-chat-proxy.vercel.app`)
+1. Скопируйте URL вашего проекта Vercel (例: `https://montagnikrea-source.github.io/SuslovPA`)
 2. Откройте `/api/telegram` - должно быть сообщение об ошибке (это нормально)
 
 ---
@@ -64,7 +64,7 @@
 
 Откройте `noninput.html` и найдите строку:
 ```javascript
-proxyUrl = 'https://suslvopa-chat-proxy.vercel.app/api/telegram';
+proxyUrl = 'https://montagnikrea-source.github.io/SuslovPA/api/telegram';
 ```
 
 **Замените на ваш URL Vercel:**

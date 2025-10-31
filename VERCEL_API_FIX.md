@@ -69,10 +69,10 @@ Single unified handler checks `req.url` and routes to appropriate logic:
 `noninput.html` now uses `.js` extensions:
 ```javascript
 // Before (broken):
-apiUrl: 'https://pavell.vercel.app/api/telegram',
+apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram',
 
 // After (working):
-apiUrl: 'https://pavell.vercel.app/api/telegram.js',
+apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram.js',
 ```
 
 Updated in 5 locations:
@@ -108,7 +108,7 @@ This allows OPTIONAL access without `.js` extension (though frontend now uses it
 
 ### Before Fix
 ```bash
-$ curl -X POST https://pavell.vercel.app/api/telegram \
+$ curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 
@@ -117,7 +117,7 @@ $ curl -X POST https://pavell.vercel.app/api/telegram \
 
 ### After Fix
 ```bash
-$ curl -X POST https://pavell.vercel.app/api/telegram.js \
+$ curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram.js \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 
@@ -191,18 +191,18 @@ git push origin main
 ## Testing
 ```bash
 # Test 1: Health check
-curl https://pavell.vercel.app/api/
+curl https://montagnikrea-source.github.io/SuslovPA/api/
 
 # Test 2: Telegram proxy  
-curl -X POST https://pavell.vercel.app/api/telegram.js \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram.js \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 
 # Test 3: Get messages
-curl https://pavell.vercel.app/api/telegram/updates.js?limit=10
+curl https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates.js?limit=10
 
 # Test 4: Secure endpoint
-curl -X POST https://pavell.vercel.app/api/telegram/secure.js \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram/secure.js \
   -H "Content-Type: application/json" \
   -d '{"method":"sendMessage","params":{"chat_id":"@noninput","text":"test"}}'
 ```

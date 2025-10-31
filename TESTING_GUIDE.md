@@ -6,13 +6,13 @@
 
 **Health Check:**
 ```bash
-curl https://pavell.vercel.app/api
+curl https://montagnikrea-source.github.io/SuslovPA/api
 # Ответ: {"ok":true,"message":"API работает!"}
 ```
 
 **Отправка сообщений в Telegram:**
 ```bash
-curl -X POST https://pavell.vercel.app/api/telegram \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -H "Content-Type: application/json" \
   -d '{"method":"sendMessage","params":{"chat_id":"@noninput","text":"Test"}}'
 # Ответ: {"ok":true,"result":{...}}
@@ -20,14 +20,14 @@ curl -X POST https://pavell.vercel.app/api/telegram \
 
 **Получение обновлений из Telegram:**
 ```bash
-curl "https://pavell.vercel.app/api/telegram/updates?fromStart=true&limit=10"
+curl "https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?fromStart=true&limit=10"
 # Ответ: {"success":true,"updates":[...],"lastId":...,"count":...}
 ```
 
 ### 2. Сайты работают ✅
 
 - **GitHub Pages**: https://montagnikrea-source.github.io/SuslovPA/noninput.html
-- **Vercel**: https://pavell.vercel.app/noninput.html
+- **Vercel**: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 ### 3. Синхронизация сообщений ✅
 
@@ -37,7 +37,7 @@ curl "https://pavell.vercel.app/api/telegram/updates?fromStart=true&limit=10"
 
 ### Способ 1: Веб-интерфейс (рекомендуется)
 
-1. Откройте https://pavell.vercel.app/noninput.html в браузере
+1. Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html в браузере
 2. Введите свое имя в поле "Имя пользователя"
 3. Напишите сообщение в чат
 4. Нажмите кнопку отправки
@@ -48,12 +48,12 @@ curl "https://pavell.vercel.app/api/telegram/updates?fromStart=true&limit=10"
 
 ```bash
 # Отправить сообщение
-curl -X POST https://pavell.vercel.app/api/telegram \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram \
   -H "Content-Type: application/json" \
   -d '{"method":"sendMessage","params":{"chat_id":"@noninput","text":"Привет, это тестовое сообщение!"}}'
 
 # Получить все сообщения (подождите 2 сек)
-sleep 2 && curl "https://pavell.vercel.app/api/telegram/updates?fromStart=true&limit=50"
+sleep 2 && curl "https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates?fromStart=true&limit=50"
 ```
 
 ## 📊 Что происходит при отправке сообщения
@@ -82,7 +82,7 @@ sleep 2 && curl "https://pavell.vercel.app/api/telegram/updates?fromStart=true&l
 
 ### Проверить статус Vercel API:
 ```bash
-curl -I https://pavell.vercel.app/api
+curl -I https://montagnikrea-source.github.io/SuslovPA/api
 # Should return: HTTP/2 200
 ```
 
@@ -90,7 +90,7 @@ curl -I https://pavell.vercel.app/api
 
 - **Telegram канал**: https://t.me/noninput (все сообщения)
 - **GitHub Pages чат**: https://montagnikrea-source.github.io/SuslovPA/noninput.html (синхронизирует последние 50)
-- **Vercel чат**: https://pavell.vercel.app/noninput.html (синхронизирует последние 50)
+- **Vercel чат**: https://montagnikrea-source.github.io/SuslovPA/noninput.html (синхронизирует последние 50)
 
 ## 🚀 Production готов!
 

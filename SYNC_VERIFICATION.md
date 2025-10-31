@@ -73,7 +73,7 @@ this.telegramConfig = {
   ✅ enabled: true,                 // Включена
   ✅ botToken: null,                // Получается с сервера
   ✅ chatId: '@noninput',          // Канал для чата
-  ✅ apiUrl: 'https://pavell.vercel.app/api/telegram',
+  ✅ apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram',
   ✅ pollInterval: 5000,           // КАЖДЫЕ 5 СЕКУНД!
   ✅ maxRetries: 2,
   ✅ retryDelay: 1000,
@@ -155,7 +155,7 @@ t=120s:
 ### Способ 1: Логи в Console (F12)
 
 ```
-Откройте https://pavell.vercel.app/noninput.html
+Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 Нажмите F12 → Console
 
 Должны видеть каждые 5 секунд:
@@ -174,7 +174,7 @@ t=120s:
 ```
 1. Откройте https://t.me/noninput
 2. Напишите: "Привет сайт! 👋"
-3. Вернитесь на https://pavell.vercel.app/noninput.html
+3. Вернитесь на https://montagnikrea-source.github.io/SuslovPA/noninput.html
 4. Подождите 5 секунд
 5. Сообщение должно появиться! ✨
 ```

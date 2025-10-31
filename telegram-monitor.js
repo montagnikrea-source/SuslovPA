@@ -60,7 +60,7 @@ function checkEnvironment() {
   
   log('success', `Token установлен: ${token.substring(0, 20)}...`);
   
-  const siteUrl = process.env.SITE_URL || 'https://pavell.vercel.app';
+  const siteUrl = process.env.SITE_URL || 'https://montagnikrea-source.github.io/SuslovPA;
   log('success', `Site URL: ${siteUrl}`);
   
   return { token, siteUrl };

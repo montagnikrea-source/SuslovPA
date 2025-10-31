@@ -20,7 +20,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Переменные
-PRODUCTION_URL="https://pavell.vercel.app"
+PRODUCTION_URL="https://montagnikrea-source.github.io/SuslovPA
 MAX_WAIT_TIME=300  # 5 минут
 CHECK_INTERVAL=10  # 10 секунд
 ATTEMPT=0

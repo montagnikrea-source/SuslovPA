@@ -3,7 +3,7 @@
 # 🧪 Скрипт для тестирования синхронизации Telegram чата
 # Используйте: bash test_telegram_sync.sh
 
-SITE_URL="https://pavell.vercel.app"
+SITE_URL="https://montagnikrea-source.github.io/SuslovPA
 API_BASE="$SITE_URL/api"
 CHANNEL="@noninput"
 
@@ -98,7 +98,7 @@ echo "════════════════════════�
 echo "✅ Тестирование завершено!"
 echo ""
 echo "💡 Рекомендации:"
-echo "   • Откройте https://pavell.vercel.app/noninput.html в браузере"
+echo "   • Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html в браузере"
 echo "   • Нажмите F12 → Console для просмотра логов"
 echo "   • Проверьте канал t.me/noninput в Telegram"
 echo "   • Попробуйте написать сообщение на сайте и в канале"

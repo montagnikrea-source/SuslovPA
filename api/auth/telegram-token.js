@@ -16,7 +16,7 @@
 module.exports = async function handler(request, response) {
   // Определяем допустимые источники и корректно выставляем CORS
   const allowedOrigins = [
-    'https://pavell.vercel.app',
+    'https://montagnikrea-source.github.io/SuslovPA
     'https://montagnikrea-source.github.io',
     'http://localhost:3000',
     'http://localhost:8000'

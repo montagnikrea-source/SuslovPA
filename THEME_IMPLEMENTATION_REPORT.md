@@ -131,7 +131,7 @@ bb97ce3 feat: add dynamic light/dark theme system with time-of-day automation
 ### Статус Vercel
 - 🔄 Автоматическое развертывание в процессе
 - ⏱️ Ожидаемое время активации: 2-5 минут
-- 🔗 URL: https://pavell.vercel.app/noninput.html
+- 🔗 URL: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 ---
 
@@ -177,7 +177,7 @@ bb97ce3 feat: add dynamic light/dark theme system with time-of-day automation
 ## 🎯 Как использовать
 
 ### 1️⃣ Автоматическая работа
-Просто откройте https://pavell.vercel.app/noninput.html
+Просто откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 - Система автоматически определит время суток
 - Применит соответствующую тему
 - Часы будут обновляться каждую секунду
@@ -284,7 +284,7 @@ location.reload();
 ## 🎬 Следующие шаги
 
 1. **Проверить на Vercel**
-   - [ ] Открыть https://pavell.vercel.app/noninput.html
+   - [ ] Открыть https://montagnikrea-source.github.io/SuslovPA/noninput.html
    - [ ] Убедиться что тема применяется правильно
    - [ ] Нажать кнопку переключения
    - [ ] Перезагрузить страницу

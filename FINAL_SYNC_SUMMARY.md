@@ -55,7 +55,7 @@
 |-----------|--------|
 | ✅ GitHub main | Pushed & Verified |
 | ✅ GitHub gh-pages | Merged & Pushed |
-| ✅ Vercel Production | https://pavell-d8p5qhirt-montagnikrea-sources-projects.vercel.app |
+| ✅ Vercel Production | https://montagnikrea-source.github.io/SuslovPA |
 | ✅ GitHub Pages | https://montagnikrea-source.github.io/SuslovPA/noninput.html |
 
 ---

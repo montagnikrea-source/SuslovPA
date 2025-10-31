@@ -4,7 +4,7 @@
 
 ### 1. **Загрузка истории при открытии сайта**
 ```
-Посетитель открывает https://pavell.vercel.app/noninput.html
+Посетитель открывает https://montagnikrea-source.github.io/SuslovPA/noninput.html
          ↓
 JavaScript инициализирует чат
          ↓
@@ -54,7 +54,7 @@ this.telegramConfig = {
   enabled: true,                    // ✅ Включено
   botToken: null,                   // Получается с сервера
   chatId: '@noninput',             // Канал для обмена
-  apiUrl: 'https://pavell.vercel.app/api/telegram',
+  apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram',
   pollInterval: 5000,              // ✅ Каждые 5 секунд
   maxRetries: 2,
   retryDelay: 1000,
@@ -237,7 +237,7 @@ startActivityTracking() → отслеживает активность
 
 ### Проверка 1: История загружается
 ```
-1. Откройте https://pavell.vercel.app/noninput.html
+1. Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 2. Откройте F12 → Console
 3. Должны появиться логи:
    📥 Загрузка полной истории сообщений...

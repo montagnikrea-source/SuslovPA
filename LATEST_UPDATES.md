@@ -35,7 +35,7 @@
 
 ### Primary (Vercel)
 ```
-https://pavell-7wy6yxblo-montagnikrea-sources-projects.vercel.app
+https://montagnikrea-source.github.io/SuslovPA
 ```
 - ✅ Latest code with UI fix
 - ✅ All metrics display correctly
@@ -140,7 +140,7 @@ f134e14 Update main noninput.html with full version from gh-pages (with neural o
 ## 🌍 Access
 
 **Users can access from either platform and get identical experience:**
-- Vercel: https://pavell-7wy6yxblo-montagnikrea-sources-projects.vercel.app
+- Vercel: https://montagnikrea-source.github.io/SuslovPA
 - GitHub Pages: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 - Source: https://github.com/montagnikrea-source/SuslovPA
 

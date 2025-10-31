@@ -23,7 +23,7 @@
 4. **Канал @noninput** → показывает сообщения всем
 
 ### Проверка:
-- ✅ Откройте https://pavell.vercel.app/noninput.html
+- ✅ Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 - ✅ Напишите сообщение в чат
 - ✅ Проверьте F12 → Console
 - ✅ Проверьте t.me/noninput - сообщение должно быть

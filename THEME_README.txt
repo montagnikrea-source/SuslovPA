@@ -76,7 +76,7 @@ Git commits:                  4
 
 🚀 КАК НАЧАТЬ
 
-1. Откройте: https://pavell.vercel.app/noninput.html
+1. Откройте: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 2. Система автоматически:
    • Определит ваше время суток
@@ -195,7 +195,7 @@ Git commits:                  4
 Отчет: /THEME_IMPLEMENTATION_REPORT.md
 
 GitHub: https://github.com/montagnikrea-source/SuslovPA
-Vercel: https://pavell.vercel.app/noninput.html
+Vercel: https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 ═══════════════════════════════════════════════════════════════
 

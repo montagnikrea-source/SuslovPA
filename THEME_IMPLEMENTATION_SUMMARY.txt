@@ -95,7 +95,7 @@ THEME_README.txt
 🚀 КАК НАЧАТЬ ИСПОЛЬЗОВАТЬ
 
 Шаг 1: Откройте сайт
-  → https://pavell.vercel.app/noninput.html
+  → https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 Шаг 2: Смотрите как система автоматически применила тему
   → Если сейчас день - светлая тема
@@ -216,7 +216,7 @@ GitHub репозиторий:
   https://github.com/montagnikrea-source/SuslovPA
 
 Сайт:
-  https://pavell.vercel.app/noninput.html
+  https://montagnikrea-source.github.io/SuslovPA/noninput.html
 
 ═══════════════════════════════════════════════════════════════════════════════
 

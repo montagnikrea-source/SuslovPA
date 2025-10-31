@@ -190,7 +190,7 @@ LR: lrMin * 0.5 (минимальные обновления)
 |-----------|--------|-----|
 | **main** | ✅ Pushed | `origin/main` |
 | **gh-pages** | ✅ Merged & Pushed | `origin/gh-pages` |
-| **Vercel** | ✅ Deployed | `https://pavell-kdx3c7rpp-montagnikrea-sources-projects.vercel.app` |
+| **Vercel** | ✅ Deployed | `https://montagnikrea-source.github.io/SuslovPA` |
 | **GitHub Pages** | ✅ Live | `https://montagnikrea-source.github.io/SuslovPA/noninput.html` |
 
 ---

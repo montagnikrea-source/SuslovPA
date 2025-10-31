@@ -15,7 +15,7 @@ const colors = {
   cyan: '\x1b[36m'
 };
 
-const SITE_URL = 'https://pavell.vercel.app';
+const SITE_URL = 'https://montagnikrea-source.github.io/SuslovPA;
 
 function log(type, message) {
   const timestamp = new Date().toLocaleTimeString();

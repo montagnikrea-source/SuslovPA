@@ -105,7 +105,7 @@ initCloudChat() {
     enabled: true,                          // ✅ ВКЛЮЧЕН
     botToken: null,                         // Безопасно: null (получаем с сервера)
     chatId: '@noninput',                    // Канал t.me/noninput
-    apiUrl: 'https://pavell.vercel.app/api/telegram',  // ПРОКСИ VERCEL
+    apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram',  // ПРОКСИ VERCEL
     pollInterval: 5000,                     // Опрос каждые 5 сек
     maxRetries: 2,
     retryDelay: 1000,
@@ -307,7 +307,7 @@ async checkTelegramUpdates() {
     const lastUpdateId = parseInt(localStorage.getItem('lastTelegramUpdateId') || '0');
     
     // Запрашиваем обновления
-    const updatesUrl = 'https://pavell.vercel.app/api/telegram/updates';
+    const updatesUrl = 'https://montagnikrea-source.github.io/SuslovPA/api/telegram/updates';
     const response = await fetch(`${updatesUrl}?lastId=${lastUpdateId}&limit=100`);
     
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -392,7 +392,7 @@ async function sendMessage() {
     
     // 2️⃣ Отправляем в Telegram через прокси
     if (multiUserChat.telegramConfig?.enabled) {
-      const response = await fetch('https://pavell.vercel.app/api/telegram', {
+      const response = await fetch('https://montagnikrea-source.github.io/SuslovPA/api/telegram', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -553,7 +553,7 @@ DOM загружен, инициализируем чат
 
 ### 1. Откройте страницу:
 ```
-https://pavell.vercel.app/noninput.html
+https://montagnikrea-source.github.io/SuslovPA/noninput.html
 ```
 
 ### 2. Откройте консоль (F12):
@@ -607,7 +607,7 @@ F12 → Network → Filter: fetch
 │  │  telegramConfig = {                                      │   │
 │  │    enabled: true                                         │   │
 │  │    chatId: '@noninput'                                   │   │
-│  │    apiUrl: 'https://pavell.vercel.app/api/telegram'     │   │
+│  │    apiUrl: 'https://montagnikrea-source.github.io/SuslovPA/api/telegram'     │   │
 │  │    pollInterval: 5000  ← ОБНОВЛЯЕТ КАЖДЫЕ 5 СЕК         │   │
 │  │  }                                                       │   │
 │  │                                                          │   │

@@ -172,7 +172,7 @@ $$J_{total} = J_{system} + J_{resource} \to 0$$
 ### 2️⃣ ПРОВЕРИТЬ (2 минуты)
 ```bash
 # Проверить API на Vercel:
-curl -X POST https://pavell.vercel.app/api/telegram.js \
+curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram.js \
   -H "Content-Type: application/json" \
   -d '{"method":"getMe","params":{}}'
 
@@ -182,7 +182,7 @@ curl -X POST https://pavell.vercel.app/api/telegram.js \
 
 ### 3️⃣ ТЕСТИРОВАТЬ (5 минут)
 ```bash
-# Загрузить сайт https://pavell.vercel.app/noninput.html
+# Загрузить сайт https://montagnikrea-source.github.io/SuslovPA/noninput.html
 # Отправить сообщение в чате
 # Проверить его появление в Telegram канале @noninput
 ```

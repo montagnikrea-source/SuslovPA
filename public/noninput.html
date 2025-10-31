@@ -92,7 +92,7 @@ html[data-theme="dark"] .chat-container{
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self' 'unsafe-inline' 'unsafe-eval';
     connect-src 'self' 
-      https://pavell.vercel.app
+      https://montagnikrea-source.github.io/SuslovPA
       https://api.telegram.org 
       https://api.countapi.xyz 
       https://api.counterapi.dev 
@@ -173,10 +173,10 @@ html[data-theme="dark"] .chat-container{
             // when the production API (pavell.vercel.app) is not reachable or not
             // configured with proper CORS. This reduces cross-origin security
             // but prevents the browser from blocking requests with CORS errors.
-            if (host.includes('github.io') || host.includes('pages.github')) return window.location.origin || 'https://pavell.vercel.app';
-            return window.location.origin || 'https://pavell.vercel.app';
+            if (host.includes('github.io') || host.includes('pages.github')) return window.location.origin || 'https://montagnikrea-source.github.io/SuslovPA;
+            return window.location.origin || 'https://montagnikrea-source.github.io/SuslovPA;
         } catch (e) {
-          return 'https://pavell.vercel.app';
+          return 'https://montagnikrea-source.github.io/SuslovPA;
         }
       };
     })();
@@ -3951,7 +3951,7 @@ class MultiUserChatSystem {
       botToken: null, // Всегда получаем с сервера
       chatId: '@noninput', // Канал t.me/noninput
   // Используем серверный прокси API вместо прямого подключения
-  apiUrl: (window.getProxyBase ? window.getProxyBase() : 'https://pavell.vercel.app') + '/api/telegram',
+  apiUrl: (window.getProxyBase ? window.getProxyBase() : 'https://montagnikrea-source.github.io/SuslovPA + '/api/telegram',
       pollInterval: 5000, // Опрос обновлений каждые 5 секунд через безопасный API
       maxRetries: 2,
       retryDelay: 1000,

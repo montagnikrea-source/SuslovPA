@@ -6,8 +6,8 @@
 
 | Environment | URL | Status |
 |---|---|---|
-| **Preview (Recommended)** | https://pavell-co06xx2em-montagnikrea-sources-projects.vercel.app | ✅ Working |
-| Production | https://pavell-omci40jkt-montagnikrea-sources-projects.vercel.app | 🔐 Protected |
+| **Preview (Recommended)** | https://montagnikrea-source.github.io/SuslovPA | ✅ Working |
+| Production | https://montagnikrea-source.github.io/SuslovPA | 🔐 Protected |
 
 > **Note:** Preview URL is recommended as Production URL has Deployment Protection enabled at organization level.
 

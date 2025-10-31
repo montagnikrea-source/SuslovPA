@@ -27,7 +27,7 @@ After setting the environment variable:
 
 1. **Check via API:**
    ```bash
-   curl -X POST https://pavell.vercel.app/api/telegram.js \
+   curl -X POST https://montagnikrea-source.github.io/SuslovPA/api/telegram.js \
      -H "Content-Type: application/json" \
      -d '{"method":"getMe","params":{}}'
    ```
@@ -47,7 +47,7 @@ After setting the environment variable:
 
 2. **Check via Debug Endpoint:**
    ```bash
-   curl https://pavell.vercel.app/api/debug.js
+   curl https://montagnikrea-source.github.io/SuslovPA/api/debug.js
    ```
 
 ## 📋 Environment Variable Status

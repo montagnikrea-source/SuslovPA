@@ -107,7 +107,7 @@
 
 ### Быстрый тест (5 минут)
 
-1. Откройте https://pavell.vercel.app/noninput.html
+1. Откройте https://montagnikrea-source.github.io/SuslovPA/noninput.html
 2. Откройте DevTools (F12) → Console
 3. Напишите первое сообщение
 4. Перезагрузите страницу
@@ -145,7 +145,7 @@ JSON.parse(localStorage.getItem('chatMessages')).length
 // Должно вывести количество сохраненных сообщений
 
 // Смотрите в DevTools:
-// Storage → Local Storage → https://pavell.vercel.app
+// Storage → Local Storage → https://montagnikrea-source.github.io/SuslovPA
 // Там должен быть ключ 'chatMessages' с JSON массивом
 ```
 
@@ -177,4 +177,4 @@ JSON.parse(localStorage.getItem('chatMessages')).length
 1. https://vercel.com/montagnikrea-source/pavell/deployments
 2. Нажмите "Redeploy" на последнем деплое
 3. Ждите 1-2 минуты
-4. Проверьте https://pavell.vercel.app/noninput.html
+4. Проверьте https://montagnikrea-source.github.io/SuslovPA/noninput.html
