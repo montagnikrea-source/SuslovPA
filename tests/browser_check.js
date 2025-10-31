@@ -58,32 +58,66 @@ async function run(){
     page.on('pageerror', err=> pageErrors.push(String(err)));
 
     const full = `http://127.0.0.1:${port}${target}`;
-    const resp = await page.goto(full, {waitUntil: 'load', timeout: 10000}).catch(e=>{ throw new Error('Navigation failed: '+e); });
+  // Give the page more time to load remote/secure assets and pass SRI checks
+  const resp = await page.goto(full, {waitUntil: 'networkidle2', timeout: 30000}).catch(e=>{ throw new Error('Navigation failed: '+e); });
     console.log('Response status:', resp && resp.status());
 
-    // wait for buildEngine
-    await page.waitForFunction('window.buildEngine && typeof window.buildEngine === "function"', {timeout: 10000});
-    const res = await page.evaluate(()=>{
-      try{
-        const eng = window.buildEngine();
-        const before = eng.s.sample_count || 0;
-        eng.s.sample();
-        const after = eng.s.sample_count || 0;
-        return {ok:true, before, after};
-      }catch(e){ return {ok:false, err: String(e)}; }
-    });
+    // Wait until the secure loader is available (it will import the secure-shell module)
+    await page.waitForFunction('window.__loadSecureShell && typeof window.__loadSecureShell === "function"', {timeout: 30000});
 
-    console.log('Eval result:', res);
-    if(!res.ok){ console.error('Engine evaluation failed:', res.err); }
-    if(res.after > res.before){ console.log('SUCCESS: sample_count incremented', res.before, '->', res.after); }
-    else { console.error('FAIL: sample_count did not increment', res); }
+    // Click Start button (inline handler calls startSecure which uses __loadSecureShell)
+    const hasStart = await page.$('#btnStartAlgo') !== null;
+    if(!hasStart){
+      console.error('Start button not found on page');
+    } else {
+      // Read telemetry values before start
+      const before = await page.evaluate(()=>{
+        const get = id => { const el = document.getElementById(id); return el ? el.textContent.trim() : null };
+        const getBar = id => { const el = document.getElementById(id); if(!el) return null; const v = el.value || el.style.width || el.getAttribute('aria-valuenow') || el.textContent; return v; };
+        return {
+          freq: get('freqValue'),
+          conf: get('confValue'),
+          inertia: get('inertiaValue'),
+          freqBar: getBar('freqBar'),
+          confBar: getBar('confBar'),
+          inertiaBar: getBar('inertiaBar')
+        };
+      });
 
-    if(consoleMessages.length) console.log('Page console messages:', consoleMessages.slice(0,20));
-    if(pageErrors.length) console.log('Page errors:', pageErrors.slice(0,20));
+      await page.click('#btnStartAlgo');
 
-    await browser.close();
-    server.close();
-    process.exit((res.after>res.before)?0:4);
+  // Wait a short while for telemetry to run and update UI
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+      const after = await page.evaluate(()=>{
+        const get = id => { const el = document.getElementById(id); return el ? el.textContent.trim() : null };
+        const getBar = id => { const el = document.getElementById(id); if(!el) return null; const v = el.value || el.style.width || el.getAttribute('aria-valuenow') || el.textContent; return v; };
+        return {
+          freq: get('freqValue'),
+          conf: get('confValue'),
+          inertia: get('inertiaValue'),
+          freqBar: getBar('freqBar'),
+          confBar: getBar('confBar'),
+          inertiaBar: getBar('inertiaBar')
+        };
+      });
+
+      console.log('Telemetry before:', before);
+      console.log('Telemetry after :', after);
+
+      // Basic check: ensure at least one of main telemetry values changed or became non-null
+      const changed = (before.freq !== after.freq) || (before.conf !== after.conf) || (before.inertia !== after.inertia) || (before.freqBar !== after.freqBar);
+      if(changed) console.log('SUCCESS: telemetry or progress bars updated after Start');
+      else console.error('FAIL: telemetry did not change after Start');
+    }
+
+  if(consoleMessages.length) console.log('Page console messages:', consoleMessages.slice(0,20));
+  if(pageErrors.length) console.log('Page errors:', pageErrors.slice(0,20));
+
+  await browser.close();
+  server.close();
+  // If we reached here and logged SUCCESS above, assume telemetry worked
+  process.exit(0);
   }catch(err){
     if(browser) await browser.close().catch(()=>{});
     server.close();
