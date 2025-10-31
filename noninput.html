@@ -84,10 +84,10 @@
   <script type="module">
     // Лёгкая обфускация хэшей
    const parts = {
-  a: ['78aa8a8d','f99f42ca','74a5a60b','559d7fbf','43ce82d2'],
-  b: ['332185fc','0aba7585','a2230668','6bc5556f','35dd8d5f']
+  a: ["74e961ae","e3b94c8a","f13c91c3","347e1b1d","09f1f23e","5be2ef75","e7c32f66","30f09081"],
+  b: ["aceec066","86424234","7887ae24","5cc4ae37","be84f37d","00675aa6","40e5ad27","ed12c948"]
 };
-const EXPECTED = { shell: parts.a.join(''), sandbox: parts.b.join('') };
+const EXPECTED = { shell: parts.a.join(""), sandbox: parts.b.join("") };
 async function sha256Hex(url){
   const res = await fetch(url, { cache:'no-store' });
   if(!res.ok) throw new Error('fetch failed '+url);
