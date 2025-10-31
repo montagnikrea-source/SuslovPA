@@ -1178,10 +1178,10 @@ document.getElementById('btnStartAlgo').addEventListener('click', async function
       }
     }
     else {
-      alert('Ошибка запуска: функция безопасности не найдена.');
+      alert('');
     }
   } catch (e) {
-    alert('Ошибка запуска защищённого режима:\n' + (e && e.message ? e.message : e));
+    alert(':\n' + (e && e.message ? e.message : e));
     console.error('Secure start failed:', e);
   }
 });
