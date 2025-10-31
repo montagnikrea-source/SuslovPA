@@ -197,7 +197,7 @@ html[data-theme="dark"] .chat-container{
       const sandboxUrl = 'secure/algo-sandbox.html?v=20251030c';
       const [h1,h2] = await Promise.all([ sha256Hex(shellUrl), sha256Hex(sandboxUrl) ]);
       if(h1!==EXPECTED.shell || h2!==EXPECTED.sandbox) throw new Error('Integrity check failed');
-  const mod = await import('./secure/secure-shell.mjs?v=20251030d');
+  const mod = await import('./secure/secure-shell.mjs?v=20251030c');
       return mod.default;
     }
     // Экспортируем безопасным способом (read-only)
