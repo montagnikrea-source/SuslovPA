@@ -20,7 +20,7 @@ export default class SecureShell {
   async start({ sampleRate = 60, freeze = false } = {}) {
     this.sampleRate = sampleRate;
     this.freeze = freeze;
-    console.log();
+    console.log(`SecureShell: start (SR=${sampleRate}, freeze=${freeze})`);
 
     const loop = () => {
       try {
@@ -54,4 +54,3 @@ export default class SecureShell {
     this.paused = true;
   }
 }
-
