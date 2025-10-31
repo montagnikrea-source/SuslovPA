@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Ensure minimal DOM helper $ is available early to avoid "$ is not defined" errors -->
+  <title>Frequency Scanner — Neuro Homeostasis J to 0</title>
+
+  <!-- $ helper -->
   <script>
     if (!window.$) {
-      try{ window.$ = function(id){ return document.getElementById(id); }; console.log('$ helper injected'); }catch(e){}
+      try { window.$ = function(id) { return document.getElementById(id); }; } catch(e) {}
     }
   </script>
- 
-  <!-- Mobile Redirect Script -->
+
+  <!-- Mobile Redirect -->
   <script>
     (function() {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('skip') === 'mobile' || sessionStorage.getItem('skip-mobile-redirect')) {
-        return;
-      }
+      if (urlParams.get('skip') === 'mobile' || sessionStorage.getItem('skip-mobile-redirect')) return;
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const screenWidth = window.innerWidth || screen.width;
       const isSmallScreen = screenWidth <= 768;
@@ -30,55 +30,33 @@
       }
     })();
   </script>
+
+  <!-- Cache Control -->
   <meta http-equiv="cache-control" content="no-cache,no-store,must-revalidate">
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
- 
+
+  <!-- Theme -->
   <script>
-(function(){try{const s=localStorage.getItem('theme-preference');const p=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;const h=new Date().getHours();const d=s?(s==='dark'):(p||h>=21||h<6||(h>=18&&h<21));const t=d?'dark':'light';const b=d?'#0d1117':'#f3f5f7';const c=d?'#e6edf3':'#1a1a1a';document.documentElement.style.backgroundColor=b+'!important';document.documentElement.style.color=c+'!important';document.documentElement.setAttribute('data-theme',t);window.__THEME={t,d,h};console.log('Theme',t)}catch(e){console.error(e)}})();
+    (function(){
+      try{
+        const s=localStorage.getItem('theme-preference');
+        const p=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;
+        const h=new Date().getHours();
+        const d=s?(s==='dark'):(p||h>=21||h<6||(h>=18&&h<21));
+        const t=d?'dark':'light';
+        document.documentElement.style.backgroundColor = d?'#0d1117':'#f3f5f7';
+        document.documentElement.style.color = d?'#e6edf3':'#1a1a1a';
+        document.documentElement.setAttribute('data-theme',t);
+        window.__THEME={t,d,h};
+      }catch(e){}
+    })();
   </script>
-  <script>
-  window.addEventListener('message', (e)=>{
-    try{
-      if(!e || !e.data) return;
-      if(e.data.type==='set-theme'){
-        const t = (e.data.theme==='dark')?'dark':'light';
-        localStorage.setItem('theme-preference', t);
-        document.documentElement.setAttribute('data-theme', t);
-      }
-    }catch(_){}
-  });
-  </script>
- 
-  <style>
-/* Базовые цвета */
-html,body{background-color:#f3f5f7!important;color:#1a1a1a!important}
-html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!important;color:#e6edf3!important}
-/* Подложки */
-.wrap,
-.row.controls,
-.chat-container{
-  backdrop-filter: blur(4px);
-  background-color: rgba(255,255,255,0.35);
-}
-html[data-theme="dark"] .wrap,
-html[data-theme="dark"] .row.controls,
-html[data-theme="dark"] .chat-container{
-  background-color: rgba(13,17,23,0.40);
-}
-  </style>
- 
-  <!-- Content Security Policy -->
+
+  <!-- CSP -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;
-    connect-src 'self'
-      https://pavell.vercel.app
-      https://api.telegram.org
-      https://api.countapi.xyz
-      https://api.counterapi.dev
-      https://api.ipify.org
-      https://api.github.com
-      https://jsonplaceholder.typicode.com;
+    connect-src 'self' https://pavell.vercel.app https://api.telegram.org https://api.countapi.xyz https://api.counterapi.dev https://api.ipify.org https://api.github.com https://jsonplaceholder.typicode.com;
     script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:;
     style-src 'self' 'unsafe-inline';
     img-src 'self' data: https:;
@@ -86,139 +64,80 @@ html[data-theme="dark"] .chat-container{
     frame-src 'self' https:;
     worker-src 'self' blob:;
   ">
- 
+
   <!-- Security Headers -->
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
   <meta http-equiv="X-XSS-Protection" content="1; mode=block">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=())">
-  <title>Frequency Scanner — Neuro Homeostasis J to 0 (with AdSense Auto Ads)</title>
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
 
-  <!-- Google AdSense -->
+  <!-- AdSense -->
   <meta name="google-adsense-account" content="ca-pub-1128500581050725">
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1128500581050725"
-          crossorigin="anonymous"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1128500581050725" crossorigin="anonymous"></script>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-  <!-- ВСТРОЕННЫЙ secure-shell.mjs + startSecure -->
-<script type="module">
-  console.log('Secure mode: integrity check DISABLED (dev mode)');
-<script type="module">
-  // Лёгкая обфускация хэшей
-  const parts = {
-    a: ['c54255e9','28fbfec5','c1a0ef08','70756c4c','8578cf51','9272f830','e7575e92','91ffdd52'],
-    b: ['623acbd4','99066d08','a062ac83','220c9190','28c4e95a','f287dad9','cf11f890','fa7a5a40']
-  };
-  const EXPECTED = { shell: parts.a.join(''), sandbox: parts.b.join('') };
-  async function sha256Hex(url){
-    const res = await fetch(url, { cache:'no-store' });
-    if(!res.ok) throw new Error('fetch failed '+url);
-    const buf = await res.arrayBuffer();
-    const hash = await crypto.subtle.digest('SHA-256', buf);
-    const arr = Array.from(new Uint8Array(hash));
-    return arr.map(b=>b.toString(16).padStart(2,'0')).join('');
-  }
-  async function loadSecureShell(){
-    const shellUrl = 'secure/secure-shell.mjs?v=20251030c';
-    const sandboxUrl = 'secure/algo-sandbox.html?v=20251030c';
-    const [h1,h2] = await Promise.all([ sha256Hex(shellUrl), sha256Hex(sandboxUrl) ]);
-    if(h1!==EXPECTED.shell || h2!==EXPECTED.sandbox) throw new Error('Integrity check failed');
-    const mod = await import('./secure/secure-shell.mjs?v=20251030d');
-    return mod.default;
-  }
-  Object.defineProperty(window, '__loadSecureShell', { value: loadSecureShell, writable:false, configurable:false });
-  try{ Object.defineProperty(window, 'SecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
-</script>
-  // === ВСТРОЕННЫЙ secure-shell.mjs ===
-  const secureShellCode = `
-    export default class SecureShell {
-      constructor(options = {}) {
-        this.onTelemetry = options.onTelemetry || (() => {});
-      }
+  <!-- === ВСТРОЕННЫЙ secure-shell.mjs + startSecure === -->
+  <script type="module">
+    console.warn('Secure mode: integrity check DISABLED — using embedded secure-shell.mjs');
 
-      async init() {
-        // Загружаем все классы из глобального scope
-        this.sampler = new window.CpuJitterSampler();
-        this.scanner = new window.FrequencyScanner(this.sampler);
-        this.blender = new window.OutputBlender();
-        this.tuner = new window.NeuroHomeo();
-        return this;
-      }
+    const secureShellCode = `
+      export default class SecureShell {
+        constructor(options = {}) {
+          this.onTelemetry = options.onTelemetry || (() => {});
+          this.sampleRate = 60;
+          this.freeze = false;
+        }
 
-      async start({ sampleRate = 60, freeze = false } = {}) {
-        this.sampleRate = sampleRate;
-        this.freeze = freeze;
+        async init() {
+          this.sampler = new window.CpuJitterSampler();
+          this.scanner = new window.FrequencyScanner(this.sampler);
+          this.blender = new window.OutputBlender();
+          this.tuner = new window.NeuroHomeo();
+          return this;
+        }
 
-        const loop = () => {
-          try {
-            // Сэмплируем 8 раз
-            for (let i = 0; i < 8; i++) this.sampler.sample();
+        async start({ sampleRate = 60, freeze = false } = {}) {
+          this.sampleRate = sampleRate;
+          this.freeze = freeze;
 
-            // Если достаточно данных — обрабатываем
-            const avail = (this.sampler.widx - this.scanner.r) & 16383;
-            if (avail >= this.scanner.needCount()) {
-              this.scanner.processOnce();
-              const out = this.blender.blend({
-                f: this.scanner.out_f,
-                conf: this.scanner.out_conf,
-                inertia: this.scanner.out_inertia,
-                state: this.scanner.out_state
-              });
-              this.onTelemetry({
-                f: out.f,
-                conf: out.conf,
-                inertia: out.inertia,
-                fs: this.sampler.actual_fs
-              });
+          const loop = () => {
+            try {
+              for (let i = 0; i < 8; i++) this.sampler.sample();
+
+              const avail = (this.sampler.widx - this.scanner.r) & 16383;
+              if (avail >= this.scanner.needCount()) {
+                this.scanner.processOnce();
+                const out = this.blender.blend({
+                  f: this.scanner.out_f,
+                  conf: this.scanner.out_conf,
+                  inertia: this.scanner.out_inertia,
+                  state: this.scanner.out_state
+                });
+                this.onTelemetry({
+                  f: out.f,
+                  conf: out.conf,
+                  inertia: out.inertia,
+                  fs: this.sampler.actual_fs
+                });
+              }
+            } catch (e) {
+              console.error('SecureShell loop error:', e);
             }
-          } catch (e) {
-            console.error('SecureShell loop error:', e);
-          }
-          if (!this.paused) requestAnimationFrame(loop);
-        };
+            if (!this.paused) requestAnimationFrame(loop);
+          };
 
-        this.paused = false;
-        requestAnimationFrame(loop);
+          this.paused = false;
+          requestAnimationFrame(loop);
+        }
+
+        pause() { this.paused = true; }
       }
+    `;
 
-      pause() { this.paused = true; }
-    }
-  `;
-
-  // === window.__loadSecureShell ===
-  window.__loadSecureShell = async () => {
-    const blob = new Blob([secureShellCode], { type: 'text/javascript' });
-    const url = URL.createObjectURL(blob);
-    const mod = await import(url);
-    URL.revokeObjectURL(url);
-    return mod.default;
-  };
-
-  // === window.startSecure ===
-  window.startSecure = async function() {
-    const SecureShell = await window.__loadSecureShell();
-    window.shell = new SecureShell({
-      onTelemetry: (data) => {
-        const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-        const setW = (id, p) => { const el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, p)).toFixed(0) + '%'; };
-        setT('freqValue', data.f.toFixed(3));
-        setW('freqBar', data.f);
-        setT('confValue', (data.conf * 100).toFixed(0));
-        setW('confBar', data.conf * 100);
-        setT('inertiaValue', (data.inertia * 100).toFixed(0));
-        setW('inertiaBar', data.inertia * 100);
-      }
-    });
-    await window.shell.init();
-    await window.shell.start({ sampleRate: 60 });
-  };
-</script>
-
-    // === window.__loadSecureShell ===
     window.__loadSecureShell = async () => {
       const blob = new Blob([secureShellCode], { type: 'text/javascript' });
       const url = URL.createObjectURL(blob);
@@ -227,19 +146,18 @@ html[data-theme="dark"] .chat-container{
       return mod.default;
     };
 
-    // === window.startSecure ===
-    window.startSecure = async function() {
+    window.startSecure = async function () {
       const SecureShell = await window.__loadSecureShell();
       window.shell = new SecureShell({
         onTelemetry: (data) => {
-          const setT = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
-          const setW = (id, p) => { const el = document.getElementById(id); if(el) el.style.width = Math.max(0,Math.min(100,p)).toFixed(0)+'%'; };
+          const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+          const setW = (id, p) => { const el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, p)).toFixed(0) + '%'; };
           setT('freqValue', data.f.toFixed(3));
           setW('freqBar', data.f);
-          setT('confValue', (data.conf*100).toFixed(0));
-          setW('confBar', data.conf*100);
-          setT('inertiaValue', (data.inertia*100).toFixed(0));
-          setW('inertiaBar', data.inertia*100);
+          setT('confValue', (data.conf * 100).toFixed(0));
+          setW('confBar', data.conf * 100);
+          setT('inertiaValue', (data.inertia * 100).toFixed(0));
+          setW('inertiaBar', data.inertia * 100);
         }
       });
       await window.shell.init();
@@ -247,242 +165,100 @@ html[data-theme="dark"] .chat-container{
     };
   </script>
 
-  <!-- Все стили из оригинала -->
+  <!-- Стили -->
   <style>
-    /* ===== СВЕТЛАЯ ТЕМА ===== */
-    :root {
-      --bg: #f3f5f7; --bg-secondary: #e8ebef; --panel: #ffffff; --panel-hover: #f8f9fa;
-      --text: #1a1a1a; --text-secondary: #666666; --text-muted: #999999;
-      --border: #e0e0e0; --border-light: #e8ebef;
-      --shadow: rgba(0, 0, 0, 0.07); --shadow-lg: rgba(0, 0, 0, 0.12);
-      --primary: #0a7cff; --primary-light: #69b7ff;
-      --success: #18b56c; --success-light: #9ef0c5;
-      --warning: #ff9800; --warning-light: #ffd699;
-      --info: #007bff; --info-dark: #0056b3;
-      --danger: #dc3545;
-      --chat-user-bg: #007bff; --chat-user-text: #ffffff;
-      --chat-other-bg: #f1f3f5; --chat-other-text: #333333;
-      --chat-system-bg: #e2e3e5; --chat-system-text: #6c757d;
-      --transition: all 0.3s ease;
-    }
-    html[data-theme="dark"] {
-      --bg: #0d1117; --bg-secondary: #161b22; --panel: #1a1f26; --panel-hover: #21262d;
-      --text: #e6edf3; --text-secondary: #a0a8b8; --text-muted: #8b949e;
-      --border: #30363d; --border-light: #21262d;
-      --shadow: rgba(0, 0, 0, 0.3); --shadow-lg: rgba(0, 0, 0, 0.5);
-      --primary: #58a6ff; --primary-light: #79c0ff;
-      --success: #3fb950; --success-light: #56d364;
-      --warning: #ffa657; --warning-light: #ffb563;
-      --info: #58a6ff; --info-dark: #1f6feb;
-      --danger: #f85149;
-      --chat-user-bg: #1f6feb; --chat-user-text: #ffffff;
-      --chat-other-bg: #21262d; --chat-other-text: #e6edf3;
-      --chat-system-bg: #262c36; --chat-system-text: #8b949e;
-    }
-
-    * { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
-    html, body { margin: 0; color: var(--text); font: 14px/1.45 system-ui, Segoe UI, Arial; }
-    body { background: transparent; }
-    html[data-theme="dark"] body { background: transparent !important; }
-
-    .theme-header {
-      background: var(--panel); border-bottom: 1px solid var(--border);
-      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
-      box-shadow: 0 2px 8px var(--shadow); position: sticky; top: 0; z-index: 1000;
-    }
-    .theme-header h2 { margin: 0; font-size: 18px; color: var(--text); }
-    .theme-controls { display: flex; gap: 12px; align-items: center; }
-    .theme-toggle {
-      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-      padding: 6px 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;
-      color: var(--text); font-size: 14px; transition: var(--transition);
-    }
-    .theme-toggle:hover { background: var(--panel-hover); border-color: var(--primary); }
-
-    .main-container { display: flex; gap: 24px; max-width: 1400px; margin: 24px auto; padding: 24px; }
-    .wrap { flex: 1; padding: 24px; background: transparent; border-radius: 16px; box-shadow: 0 2px 22px var(--shadow); border: 1px solid var(--border-light); }
-    .chat-container { width: 350px; background: transparent; border-radius: 16px; box-shadow: 0 2px 22px var(--shadow); padding: 20px; display: flex; flex-direction: column; height: fit-content; position: sticky; top: 80px; border: 1px solid var(--border-light); }
-
-    #loading .bg { height: 18px; border-radius: 8px; background: var(--bg-secondary); overflow: hidden; border: 1px solid var(--border); }
-    #loading .fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary) 60%, var(--primary-light)); transition: width 0.25s ease-out; }
-    #statusText { color: var(--text-secondary); margin-top: 6px; }
-
-    .row { margin-top: 12px; }
-    .lbl { margin: 10px 0 6px; color: var(--text-secondary); display: flex; justify-content: space-between; }
-    .bar { height: 18px; border-radius: 8px; background: var(--bg-secondary); overflow: hidden; border: 1px solid var(--border); }
-    .f, .i, .c { height: 100%; width: 0%; }
-    .f { background: linear-gradient(90deg, var(--primary) 60%, var(--primary-light)); }
-    .i { background: linear-gradient(90deg, var(--success) 60%, var(--success-light)); }
-    .c { background: linear-gradient(90deg, var(--warning) 60%, var(--warning-light)); }
-
-    #info { margin-top: 14px; font-family: ui-monospace, Consolas, Menlo, monospace; white-space: pre-wrap; color: var(--text); background: transparent; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
-    .hint { color: var(--text-secondary); margin-top: 8px; }
-
-    .start-btn { background: linear-gradient(90deg, #7F5AF0, #2CB67D); border: none; color: #fff; font-weight: 700; letter-spacing: 0.2px; box-shadow: 0 10px 24px rgba(127,90,240,0.28), 0 6px 16px rgba(44,182,125,0.18); transition: transform .15s ease, box-shadow .15s ease, filter .15s ease; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
-    .start-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(127,90,240,0.36), 0 8px 18px rgba(44,182,125,0.22); filter: saturate(1.05); }
-    .start-btn:active { transform: translateY(0); box-shadow: 0 6px 14px rgba(127,90,240,0.25), 0 4px 10px rgba(44,182,125,0.18); }
-
-    .neuro-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); display: none; z-index: 2000; pointer-events: none; }
-    .neuro-overlay.visible { display: block; animation: overlayFade 200ms ease-out; }
-    @keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
-    .neuro-scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-    .neuro-svg { width: min(1100px,96vw); height: auto; filter: hue-rotate(0deg); animation: rainbowShift 6s linear infinite; }
-    @keyframes rainbowShift { from { filter: hue-rotate(0); } to { filter: hue-rotate(360deg); } }
-    .neuro-path { stroke: url(#rg); stroke-width: 3; fill: none; stroke-dasharray: 9 14; animation: pathFlow 2.4s linear infinite; }
-    @keyframes pathFlow { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -300; } }
-    .neuro-node { fill: url(#rg); filter: url(#glow); opacity: 0.95; }
-    .buff-wave { position: absolute; left: 50%; top: 50%; width: 40vmax; height: 40vmax; border-radius: 50%; transform: translate(-50%,-50%) scale(0.8); box-shadow: 0 0 0 2px rgba(255,255,255,0.7) inset, 0 0 40px rgba(255,255,255,0.5); opacity: 0; }
-    .neuro-overlay.buff .buff-wave { animation: buffPulse 1600ms ease-out infinite; }
-    @keyframes buffPulse { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.85); } 20% { opacity: 0.8; } 70% { opacity: 0.45; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.25); } }
-    html[data-theme="dark"] .neuro-overlay { background: rgba(4,6,10,0.42); }
+    html,body{background-color:#f3f5f7!important;color:#1a1a1a!important}
+    html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!important;color:#e6edf3!important}
+    .wrap,.row.controls,.chat-container{backdrop-filter:blur(4px);background:rgba(255,255,255,0.35)}
+    html[data-theme="dark"] .wrap,html[data-theme="dark"] .row.controls,html[data-theme="dark"] .chat-container{background:rgba(13,17,23,0.40)}
+    .start-btn{background:linear-gradient(90deg,#7F5AF0,#2CB67D);border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer}
+    .start-btn:hover{filter:saturate(1.1)}
+    .neuro-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);backdrop-filter:blur(4px);display:none;z-index:2000}
+    .neuro-overlay.visible{display:block}
+    .neuro-svg{width:min(1100px,96vw);height:auto;filter:hue-rotate(0deg);animation:rainbowShift 6s linear infinite}
+    @keyframes rainbowShift{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
   </style>
 </head>
 <body>
-<!-- ТОП-БАР -->
-<div class="theme-header">
-  <h2>Чат</h2>
-  <div class="theme-controls">
-    <div class="time-display" id="time-display">...</div>
-    <button class="theme-toggle" id="theme-toggle" title="Переключить тему">
-      <span id="theme-icon">Месяц</span>
-      <span id="theme-name">Темная</span>
-    </button>
-    <div class="theme-indicator"></div>
-  </div>
-</div>
 
-<!-- ЗАЩИТА САЙТА -->
-<script>
-'use strict';
-(function() {
-  window.escapeHtml = function(text) {
-    if (typeof text !== 'string') return text;
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, m => map[m]);
-  };
-  const checkLocalStorage = () => {
-    try {
-      const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.match(/script|eval|function|constructor/gi)) {
-          console.warn('Suspicious localStorage key:', key);
-          localStorage.removeItem(key);
-        }
-      });
-    } catch(e) {}
-  };
-  checkLocalStorage();
-})();
-console.log('%cСИСТЕМА ЗАЩИТЫ АКТИВИРОВАНА', 'color: green; font-size: 18px; font-weight: bold;');
-</script>
-
-<div class="nav-header">
-  <a href="../">Главная</a>
-  <a href="./">Frequency Scanner</a>
-  <a href="../about.html">О нас</a>
-  <a href="../contact.html">Контакты</a>
-  <a href="../privacy-policy.html">Конфиденциальность</a>
-</div>
-
-<!-- Инструкция -->
-<div id="algoChangeLog" style="position:fixed;left:14px;top:72px;z-index:1500;background:linear-gradient(135deg,#222,rgba(255,255,255,0.04));color:#fff;padding:8px 12px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.35);font-size:13px;max-width:320px">
-  <strong>Алгоритм:</strong> Нажмите Старт чтобы инициализировать песочницу.
-</div>
-
-<!-- Панель настроек -->
-<section id="secure-settings" style="max-width:960px;margin:10px auto 0;padding:12px 14px;background:rgba(255,255,255,0.35);border-radius:10px;border:1px solid var(--border-light);">
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-    <strong>Безопасный запуск:</strong>
-    <label>Sample Rate:
-      <input id="startSampleRate" type="number" min="10" max="240" value="60" style="width:90px;margin-left:6px">
-    </label>
-    <label style="display:flex;align-items:center;gap:6px">
-      <input id="startFreeze" type="checkbox"> Freeze при старте
-    </label>
-    <button id="btnStartAlgo" class="btn small start-btn" style="padding:6px 14px">Старт</button>
-    <button id="btnStopAlgo" class="btn small outline" style="padding:6px 10px">Стоп</button>
-    <label style="display:flex;align-items:center;gap:6px;margin-left:8px">
-      <input id="toggleNeuroAnim" type="checkbox" checked>
-      Показать анимацию
-    </label>
-    <span id="startStatus" style="margin-left:8px;color:var(--text-secondary)">Ожидание запуска…</span>
-  </div>
-</section>
-
-<div class="main-container">
-<div class="wrap">
-  <h1>Frequency Scanner — Homeostatic Zero-Target (CPU-only, Neuro J to 0)</h1>
-  <div id="loading">
-    <div class="bg"><div id="loadingBar" class="fill"></div></div>
-    <div id="statusText">Плавное накопление…</div>
-  </div>
-  <div class="row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:center">
-    <div>
-      <div class="lbl" style="display:flex;justify-content:space-between">
-        <span>Частота (Гц)</span>
-        <span id="freqValue">0</span>
-      </div>
-      <div class="bar"><div id="freqBar" class="f"></div></div>
-    </div>
-    <div>
-      <div class="lbl" style="display:flex;justify-content:space-between">
-        <span>Стабильность</span>
-        <span id="inertiaValue">0</span>
-      </div>
-      <div class="bar"><div id="inertiaBar" class="i"></div></div>
-    </div>
-    <div>
-      <div class="lbl" style="display:flex;justify-content:space-between">
-        <span>Уверенность</span>
-        <span id="confValue">0</span>
-      </div>
-      <div class="bar"><div id="confBar" class="c"></div></div>
+  <div class="theme-header">
+    <h2>Чат</h2>
+    <div class="theme-controls">
+      <div class="time-display" id="time-display">...</div>
+      <button class="theme-toggle" id="theme-toggle">Темная</button>
     </div>
   </div>
-  <div id="info"></div>
-  <div class="hint">Цель автоматики — J to 0: |φ|, |Δf|, Var(Δf), |u|, (1−conf), (1−inertia) to 0.</div>
-</div>
-</div>
 
-<!-- Кнопка "Старт" с обработчиком -->
-<script>
-document.getElementById('btnStartAlgo').addEventListener('click', async function () {
-  const status = document.getElementById('startStatus');
-  if (status) status.textContent = 'Запуск...';
-  try {
-    await window.startSecure();
-    if (status) status.textContent = 'Запущено';
-  } catch (e) {
-    console.error('Secure start failed:', e);
-    if (status) status.textContent = 'Псевдорежим';
-    setInterval(() => {
-      const f = 20 + 10 * Math.sin(performance.now() / 1000);
-      const el = document.getElementById('freqValue');
-      if (el) el.textContent = f.toFixed(3);
-    }, 100);
-  }
-});
+  <section id="secure-settings" style="max-width:960px;margin:10px auto;padding:12px 14px;background:rgba(255,255,255,0.35);border-radius:10px;">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <strong>Безопасный запуск:</strong>
+      <label>Sample Rate: <input id="startSampleRate" type="number" min="10" max="240" value="60" style="width:90px"></label>
+      <label><input id="startFreeze" type="checkbox"> Freeze при старте</label>
+      <button id="btnStartAlgo" class="start-btn">Старт</button>
+      <button id="btnStopAlgo" class="btn small outline" style="padding:6px 10px">Стоп</button>
+      <label><input id="toggleNeuroAnim" type="checkbox" checked> Показать анимацию</label>
+      <span id="startStatus" style="margin-left:8px;color:var(--text-secondary)">Ожидание запуска…</span>
+    </div>
+  </section>
 
-document.getElementById('btnStopAlgo').addEventListener('click', function () {
-  if (window.shell && window.shell.pause) window.shell.pause();
-  const status = document.getElementById('startStatus');
-  if (status) status.textContent = 'Остановлено';
-});
-</script>
+  <div class="main-container">
+    <div class="wrap">
+      <h1>Frequency Scanner — Homeostatic Zero-Target</h1>
+      <div id="loading">
+        <div class="bg"><div id="loadingBar" class="fill"></div></div>
+        <div id="statusText">Плавное накопление…</div>
+      </div>
+      <div class="row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div><div class="lbl"><span>Частота (Гц)</span><span id="freqValue">0</span></div><div class="bar"><div id="freqBar" class="f"></div></div></div>
+        <div><div class="lbl"><span>Стабильность</span><span id="inertiaValue">0</span></div><div class="bar"><div id="inertiaBar" class="i"></div></div></div>
+        <div><div class="lbl"><span>Уверенность</span><span id="confValue">0</span></div><div class="bar"><div id="confBar" class="c"></div></div></div>
+      </div>
+      <div id="info"></div>
+    </div>
+  </div>
 
-<!-- Классы алгоритма -->
-<script>
-class CpuJitterSampler { static RB_SIZE=16384; static MASK=16383; constructor(){ this.rb=new Float64Array(16384); this.ts=new Float64Array(16384); this.widx=0; this.target_ms=2.0; this.iters=800; this.alpha=0.008; this.ema=0; this.rms=0; this.dynamic_n=64; this.actual_fs=500; this.sample_count=0; this.last_widx=0; this.last_check=performance.now(); this._medBuf=new Float64Array(9); this._mi=0; this._mlen=0; } _median9(x){const n=this._mlen<9?++this._mlen:9;this._medBuf[this._mi]=x;this._mi=(this._mi+1)%9;const t=Array.from(this._medBuf.slice(0,n)).sort((a,b)=>a-b);return t[(n>>1)];} sample(){const t0=performance.now();for(let i=0;i<this.iters;i++){let x=1.0001;x*=1.00000001;x/=1.000000009;}let dt=performance.now()-t0;dt=this._median9(dt);if(!this.ema)this.ema=dt;this.ema=(1-this.alpha)*this.ema+this.alpha*dt;const jitter=dt-this.ema;const idx=(this.widx++)&16383;this.rb[idx]=jitter;this.ts[idx]=t0;this.sample_count++;this.rms=(1-this.alpha)*this.rms+this.alpha*jitter*jitter;if((this.sample_count&127)===0){const ratio=this.ema/Math.max(0.25,this.target_ms);const k=Math.max(0.65,Math.min(1.5,1/ratio));this.iters=Math.max(120,Math.min(150000,Math.round(this.iters*k)));this.actual_fs=1000/Math.max(0.25,this.ema);this.dynamic_n=Math.max(48,Math.min(512,Math.ceil(0.30*this.actual_fs)));}} }
-class Goertzel{ init(n,fs,f){this.N=n;const k=Math.floor(0.5+n*f/fs);const w=2*Math.PI*k/n;this.cw=Math.cos(w);this.sw=Math.sin(w);this.s1=0;this.s2=0;} push(x){const s=x+2*this.cw*this.s1-this.s2;this.s2=this.s1;this.s1=s;} result(){const re=this.s1-this.s2*this.cw,im=this.s2*this.sw;const mag=Math.hypot(re,im)/(this.N>1?(this.N/2):1);return {mag,ph:Math.atan2(im,re)};}}
-class OutputBlender{ constructor(){this.ready=false;this.ramp=0;this.last={f:0,conf:0,inertia:0,state:'SEARCHING'};} blend(cur,step=0.18){if(!this.ready){this.last={...cur};this.ready=true;this.ramp=Math.min(1,this.ramp+step);return cur;}const a=Math.min(1,this.ramp+step);this.ramp=a;const mix=(p,q)=>p*(1-a)+q*a;return {f:mix(this.last.f,cur.f),conf:mix(this.last.conf,cur.conf),inertia:mix(this.last.inertia,cur.inertia),state:cur.state};} }
-class NeuroHomeo{ constructor(){this.H=4;this.D=9;this.W1=new Float64Array(36);this.b1=new Float64Array(4);this.W2=new Float64Array(4);this.b2=0;this.lr=0.03;this.l2=1e-4;this.mix=0.75;this.aggr=1.0;this.I=0;this.Imax=3.0;this.Kp=0.35;this.Ki=0.10;this.prevJ=null;this.prevAggr=null;this.locked=false;this.lockUntil=0;this.lockMs=3000;this.emaAbsPhi=0;this.emaAbsDf=0;this.emaVarDf=0;this.emaAbsU=0;this.emaOneMinConf=1;this.emaOneMinIner=1;this.a=0.12;} step(state){const J=this.emaAbsPhi+this.emaAbsDf+Math.sqrt(this.emaVarDf)+this.emaAbsU+this.emaOneMinConf+this.emaOneMinIner;const e=-J;this.I=Math.max(-3,Math.min(3,this.I+this.Ki*e));let aggr=this.mix*1.0+(1-this.mix)*(this.aggr+this.Kp*e+this.I);aggr=Math.max(0.5,Math.min(2.0,aggr));this.aggr=aggr;this.prevJ=J;return {J,aggr,kp:this.Kp,kv:0.01,ki:this.Ki,slew:40,H:this.H,quality:1-J};}}
-class FrequencyScanner{ constructor(s){this.s=s;this.vco=0;this.phi=0;this.inertia=0;this.state='SEARCHING';this.r=0;this.N=64;this.hop=16;this.tuner=new NeuroHomeo();this.blender=new OutputBlender();this.out_f=0;this.out_conf=0;this.out_inertia=0;this.out_state='SEARCHING';} needCount(){return this.hop;} processOnce(){this.s.sample();this.out_f=20+10*Math.sin(performance.now()/1000);this.out_conf=0.6+0.3*Math.sin(performance.now()/1200);this.out_inertia=0.4+0.5*Math.cos(performance.now()/1400);this.out_state='TRACKING';} }
-</script>
+  <!-- Кнопка "Старт" -->
+  <script>
+    document.getElementById('btnStartAlgo').addEventListener('click', async () => {
+      const status = $('startStatus');
+      if (status) status.textContent = 'Запуск...';
+      try {
+        await window.startSecure();
+        if (status) status.textContent = 'Запущено';
+      } catch (e) {
+        console.error('Secure start failed:', e);
+        if (status) status.textContent = 'Псевдорежим';
+        setInterval(() => {
+          const f = 20 + 10 * Math.sin(performance.now() / 1000);
+          const el = $('freqValue');
+          if (el) el.textContent = f.toFixed(3);
+        }, 100);
+      }
+    });
 
-<!-- NEURO OVERLAY -->
-<div id="neuroOverlay" class="neuro-overlay" aria-hidden="true">
-  <div class="neuro-scene">
-    <svg class="neuro-svg" viewBox="0 0 800 600" role="img" aria-label="Neural rainbow">
+    document.getElementById('btnStopAlgo').addEventListener('click', () => {
+      if (window.shell?.pause) window.shell.pause();
+      $('startStatus').textContent = 'Остановлено';
+    });
+  </script>
+
+  <!-- Классы алгоритма -->
+  <script>
+    class CpuJitterSampler { static RB_SIZE=16384; static MASK=16383; constructor(){ this.rb=new Float64Array(16384); this.ts=new Float64Array(16384); this.widx=0; this.target_ms=2.0; this.iters=800; this.alpha=0.008; this.ema=0; this.rms=0; this.dynamic_n=64; this.actual_fs=500; this.sample_count=0; this.last_widx=0; this.last_check=performance.now(); this._medBuf=new Float64Array(9); this._mi=0; this._mlen=0; } _median9(x){const n=this._mlen<9?++this._mlen:9;this._medBuf[this._mi]=x;this._mi=(this._mi+1)%9;const t=Array.from(this._medBuf.slice(0,n)).sort((a,b)=>a-b);return t[(n>>1)];} sample(){const t0=performance.now();for(let i=0;i<this.iters;i++){let x=1.0001;x*=1.00000001;x/=1.000000009;}let dt=performance.now()-t0;dt=this._median9(dt);if(!this.ema)this.ema=dt;this.ema=(1-this.alpha)*this.ema+this.alpha*dt;const jitter=dt-this.ema;const idx=(this.widx++)&16383;this.rb[idx]=jitter;this.ts[idx]=t0;this.sample_count++;this.rms=(1-this.alpha)*this.rms+this.alpha*jitter*jitter;if((this.sample_count&127)===0){const ratio=this.ema/Math.max(0.25,this.target_ms);const k=Mathsun(0.65,Math.min(1.5,1/ratio));this.iters=Math.max(120,Math.min(150000,Math.round(this.iters*k)));this.actual_fs=1000/Math.max(0.25,this.ema);this.dynamic_n=Math.max(48,Math.min(512,Math.ceil(0.30*this.actual_fs)));}} }
+    class OutputBlender{ constructor(){this.ready=false;this.ramp=0;this.last={f:0,conf:0,inertia:0,state:'SEARCHING'};} blend(cur,step=0.18){if(!this.ready){this.last={...cur};this.ready=true;this.ramp=Math.min(1,this.ramp+step);return cur;}const a=Math.min(1,this.ramp+step);this.ramp=a;const mix=(p,q)=>p*(1-a)+q*a;return {f:mix(this.last.f,cur.f),conf:mix(this.last.conf,cur.conf),inertia:mix(this.last.inertia,cur.inertia),state:cur.state};} }
+    class NeuroHomeo{ constructor(){this.H=4;this.D=9;this.W1=new Float64Array(36);this.b1=new Float64Array(4);this.W2=new Float64Array(4);this.b2=0;this.lr=0.03;this.l2=1e-4;this.mix=0.75;this.aggr=1.0;this.I=0;this.Imax=3.0;this.Kp=0.35;this.Ki=0.10;this.prevJ=null;this.prevAggr=null;this.locked=false;this.lockUntil=0;this.lockMs=3000;this.emaAbsPhi=0;this.emaAbsDf=0;this.emaVarDf=0;this.emaAbsU=0;this.emaOneMinConf=1;this.emaOneMinIner=1;this.a=0.12;} step(state){const J=this.emaAbsPhi+this.emaAbsDf+Math.sqrt(this.emaVarDf)+this.emaAbsU+this.emaOneMinConf+this.emaOneMinIner;const e=-J;this.I=Math.max(-3,Math.min(3,this.I+this.Ki*e));let aggr=this.mix*1.0+(1-this.mix)*(this.aggr+this.Kp*e+this.I);aggr=Math.max(0.5,Math.min(2.0,aggr));this.aggr=aggr;this.prevJ=J;return {J,aggr,kp:this.Kp,kv:0.01,ki:this.Ki,slew:40,H:this.H,quality:1-J};}}
+    class FrequencyScanner{ constructor(s){this.s=s;this.vco=0;this.phi=0;this.inertia=0;this.state='SEARCHING';this.r=0;this.N=64;this.hop=16;this.tuner=new NeuroHomeo();this.blender=new OutputBlender();this.out_f=0;this.out_conf=0;this.out_inertia=0;this.out_state='SEARCHING';} needCount(){return this.hop;} processOnce(){this.s.sample();this.out_f=20+10*Math.sin(performance.now()/1000);this.out_conf=0.6+0.3*Math.sin(performance.now()/1200);this.out_inertia=0.4+0.5*Math.cos(performance.now()/1400);this.out_state='TRACKING';} }
+
+    // Делаем классы глобальными
+    window.CpuJitterSampler = CpuJitterSampler;
+    window.FrequencyScanner = FrequencyScanner;
+    window.OutputBlender = OutputBlender;
+    window.NeuroHomeo = NeuroHomeo;
+  </script>
+
+  <!-- Анимация -->
+  <div id="neuroOverlay" class="neuro-overlay">
+    <svg class="neuro-svg" viewBox="0 0 800 600">
       <defs>
         <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stop-color="#ff0040"/>
@@ -492,23 +268,10 @@ class FrequencyScanner{ constructor(s){this.s=s;this.vco=0;this.phi=0;this.inert
           <stop offset="80%" stop-color="#007cff"/>
           <stop offset="100%" stop-color="#a100ff"/>
         </linearGradient>
-        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="b"/>
-          <feMerge>
-            <feMergeNode in="b"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
       </defs>
-      <path class="neuro-path" d="M50,500 C180,350 260,420 380,300 C500,180 620,260 760,120"/>
-      <path class="neuro-path" d="M60,120 C240,240 300,180 420,300 C540,420 620,360 740,500"/>
-      <circle class="neuro-node" cx="120" cy="420" r="8"/>
-      <circle class="neuro-node" cx="220" cy="360" r="7"/>
-      <circle class="neuro-node" cx="320" cy="300" r="9"/>
+      <path class="neuro-path" d="M50,500 C180,350 260,420 380,300 C500,180 620,260 760,120" stroke="url(#rg)" stroke-width="3" fill="none"/>
     </svg>
-    <div class="buff-wave"></div>
   </div>
-</div>
 
 </body>
 </html>
