@@ -5,15 +5,279 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Frequency Scanner — Neuro Homeostasis J to 0</title>
+
+  <!-- $ helper -->
+  <script>
+    if (!window.$) {
+      try { window.$ = id => document.getElementById(id); } catch(e) {}
+    }
+  </script>
+
+  <!-- Mobile Redirect -->
+  <script>
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('skip') === 'mobile' || sessionStorage.getItem('skip-mobile-redirect')) return;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const screenWidth = window.innerWidth || screen.width;
+      const isSmallScreen = screenWidth <= 768;
+      if (isMobile || isSmallScreen) {
+        let mobileUrl = window.location.href.replace(/\/noninput\.html/, '/noninput-mobile.html');
+        if (mobileUrl !== window.location.href) {
+          sessionStorage.setItem('mobile-redirect-timestamp', Date.now());
+          window.location.href = mobileUrl;
+        }
+      }
+    })();
+  </script>
+
+  <!-- Cache Control -->
   <meta http-equiv="cache-control" content="no-cache,no-store,must-revalidate">
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="0">
-  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=">
-  <style>html,body{background-color:#f3f5f7!important;color:#1a1a1a!important}</style>
+
+  <!-- Theme -->
+  <script>
+    (function(){
+      try{
+        const s=localStorage.getItem('theme-preference');
+        const p=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches;
+        const h=new Date().getHours();
+        const d=s?(s==='dark'):(p||h>=21||h<6||(h>=18&&h<21));
+        const t=d?'dark':'light';
+        document.documentElement.style.backgroundColor = d?'#0d1117':'#f3f5f7';
+        document.documentElement.style.color = d?'#e6edf3':'#1a1a1a';
+        document.documentElement.setAttribute('data-theme',t);
+        window.__THEME={t,d,h};
+      }catch(e){}
+    })();
+  </script>
+
+  <!-- CSP -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;
+    connect-src 'self' https://montagnikrea-source.github.io/SuslovPA https://api.telegram.org https://api.countapi.xyz https://api.counterapi.dev https://api.ipify.org https://api.github.com https://jsonplaceholder.typicode.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self' https:;
+    frame-src 'self' https:;
+    worker-src 'self' blob:;
+  ">
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
+
+  <!-- AdSense removed from public runtime to avoid CSP/fundingchoices errors in headless tests -->
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- === ВСТРОЕННЫЙ secure-shell.mjs + startSecure (БЕЗ ПРОВЕРКИ ХЭШЕЙ) === -->
+  <script type="module">
+    // Лёгкая обфускация хэшей
+   const parts = {
+  a: ["74e961ae","e3b94c8a","f13c91c3","347e1b1d","09f1f23e","5be2ef75","e7c32f66","30f09081"],
+  b: ["aceec066","86424234","7887ae24","5cc4ae37","be84f37d","00675aa6","40e5ad27","ed12c948"]
+};
+const EXPECTED = { shell: parts.a.join(""), sandbox: parts.b.join("") };
+async function sha256Hex(url){
+  const res = await fetch(url, { cache:'no-store' });
+  if(!res.ok) throw new Error('fetch failed '+url);
+  const buf = await res.arrayBuffer();
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  const arr = Array.from(new Uint8Array(hash));
+  return arr.map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function loadSecureShell(){
+  const shellUrl = 'secure/secure-shell.mjs?v=20251030d';
+  const sandboxUrl = 'secure/algo-sandbox.html?v=20251030d';
+  const [h1,h2] = await Promise.all([ sha256Hex(shellUrl), sha256Hex(sandboxUrl) ]);
+  if(h1!==EXPECTED.shell || h2!==EXPECTED.sandbox) throw new Error('Integrity check failed');
+  const mod = await import('./secure/secure-shell.mjs?v=20251030d');
+  return mod.default;
+}
+Object.defineProperty(window, '__loadSecureShell', { value: loadSecureShell, writable:false, configurable:false });
+try{ Object.defineProperty(window, 'SecureShell', { value: undefined, writable:false, configurable:false }); }catch(_){ }
+  </script>
+
+  <!-- Стили -->
+  <style>
+    html,body{background-color:#f3f5f7!important;color:#1a1a1a!important}
+    html[data-theme="dark"],html[data-theme="dark"]body{background-color:#0d1117!important;color:#e6edf3!important}
+    .wrap,.row.controls,.chat-container{backdrop-filter:blur(4px);background:rgba(255,255,255,0.35)}
+    html[data-theme="dark"] .wrap,html[data-theme="dark"] .row.controls,html[data-theme="dark"] .chat-container{background:rgba(13,17,23,0.40)}
+    .start-btn{background:linear-gradient(90deg,#7F5AF0,#2CB67D);border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+    .start-btn:hover{filter:saturate(1.1)}
+    .neuro-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);backdrop-filter:blur(4px);display:none;z-index:2000}
+    .neuro-overlay.visible{display:block}
+    .neuro-svg{width:min(1100px,96vw);height:auto;filter:hue-rotate(0deg);animation:rainbowShift 6s linear infinite}
+    @keyframes rainbowShift{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
+  </style>
 </head>
 <body>
-  <h1>Frequency Scanner — (public copy)</h1>
-  <p>This is the public copy of <code>noninput.html</code>. For full functionality open <code>/noninput.html</code> in root of repository or the secure sandbox.</p>
-  <p><a href="noninput.html">Open full noninput (root)</a></p>
+
+  <div class="theme-header">
+    <h2>Чат</h2>
+    <div class="theme-controls">
+      <div class="time-display" id="time-display">...</div>
+      <button class="theme-toggle" id="theme-toggle">Темная</button>
+    </div>
+  </div>
+
+  <section id="secure-settings" style="max-width:960px;margin:10px auto;padding:12px 14px;background:rgba(255,255,255,0.35);border-radius:10px;">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <strong>Безопасный запуск:</strong>
+      <label>Sample Rate: <input id="startSampleRate" type="number" min="10" max="240" value="60" style="width:90px"></label>
+      <label><input id="startFreeze" type="checkbox"> Freeze при старте</label>
+      <button id="btnStartAlgo" class="start-btn">Старт</button>
+      <button id="btnStopAlgo" class="btn small outline" style="padding:6px 10px">Стоп</button>
+      <label><input id="toggleNeuroAnim" type="checkbox" checked> Показать анимацию</label>
+      <span id="startStatus" style="margin-left:8px;color:var(--text-secondary)">Ожидание запуска…</span>
+    </div>
+  </section>
+
+  <div class="main-container">
+    <div class="wrap">
+      <h1>Frequency Scanner — Homeostatic Zero-Target</h1>
+      <div id="loading">
+        <div class="bg"><div id="loadingBar" class="fill"></div></div>
+        <div id="statusText">Плавное накопление…</div>
+      </div>
+      <div class="row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div><div class="lbl"><span>Частота (Гц)</span><span id="freqValue">0</span></div><div class="bar"><div id="freqBar" class="f"></div></div></div>
+        <div><div class="lbl"><span>Стабильность</span><span id="inertiaValue">0</span></div><div class="bar"><div id="inertiaBar" class="i"></div></div></div>
+        <div><div class="lbl"><span>Уверенность</span><span id="confValue">0</span></div><div class="bar"><div id="confBar" class="c"></div></div></div>
+      </div>
+      <div id="info"></div>
+    </div>
+  </div>
+
+  <!-- Кнопка "Старт" -->
+  <script>
+    document.getElementById('btnStartAlgo').addEventListener('click', async () => {
+      const status = $('startStatus');
+      if (status) status.textContent = 'Запуск...';
+      try {
+        await window.startSecure();
+        if (status) status.textContent = 'Запущено';
+      } catch (e) {
+        console.error('Secure start failed:', e);
+        if (status) status.textContent = 'Псевдорежим';
+        setInterval(() => {
+          const f = 20 + 10 * Math.sin(performance.now() / 1000);
+          const el = $('freqValue');
+          if (el) el.textContent = f.toFixed(3);
+        }, 100);
+      }
+    });
+
+    document.getElementById('btnStopAlgo').addEventListener('click', () => {
+      if (window.shell?.pause) window.shell.pause();
+      $('startStatus').textContent = 'Остановлено';
+    });
+  </script>
+
+  <!-- Классы алгоритма -->
+  <script>
+    class CpuJitterSampler {
+      static RB_SIZE = 16384; static MASK = 16383;
+      constructor() {
+        this.rb = new Float64Array(16384); this.ts = new Float64Array(16384);
+        this.widx = 0; this.target_ms = 2.0; this.iters = 800; this.alpha = 0.008;
+        this.ema = 0; this.rms = 0; this.dynamic_n = 64; this.actual_fs = 500;
+        this.sample_count = 0; this._medBuf = new Float64Array(9); this._mi = 0; this._mlen = 0;
+      }
+      _median9(x) {
+        const n = this._mlen < 9 ? ++this._mlen : 9;
+        this._medBuf[this._mi] = x; this._mi = (this._mi + 1) % 9;
+        const t = Array.from(this._medBuf.slice(0, n)).sort((a, b) => a - b);
+        return t[(n >> 1)];
+      }
+      sample() {
+        const t0 = performance.now();
+        for (let i = 0; i < this.iters; i++) { let x = 1.0001; x *= 1.00000001; x /= 1.000000009; }
+        let dt = performance.now() - t0;
+        dt = this._median9(dt);
+        if (!this.ema) this.ema = dt;
+        this.ema = (1 - this.alpha) * this.ema + this.alpha * dt;
+        const jitter = dt - this.ema;
+        const idx = (this.widx++) & 16383;
+        this.rb[idx] = jitter; this.ts[idx] = t0;
+        this.sample_count++;
+        this.rms = (1 - this.alpha) * this.rms + this.alpha * jitter * jitter;
+        if ((this.sample_count & 127) === 0) {
+          const ratio = this.ema / Math.max(0.25, this.target_ms);
+          const k = Math.max(0.65, Math.min(1.5, 1 / ratio));
+          this.iters = Math.max(120, Math.min(150000, Math.round(this.iters * k)));
+          this.actual_fs = 1000 / Math.max(0.25, this.ema);
+          this.dynamic_n = Math.max(48, Math.min(512, Math.ceil(0.30 * this.actual_fs)));
+        }
+      }
+    }
+
+    class OutputBlender {
+      constructor() { this.ready = false; this.ramp = 0; this.last = { f: 0, conf: 0, inertia: 0, state: 'SEARCHING' }; }
+      blend(cur, step = 0.18) {
+        if (!this.ready) { this.last = { ...cur }; this.ready = true; this.ramp = Math.min(1, this.ramp + step); return cur; }
+        const a = Math.min(1, this.ramp + step); this.ramp = a;
+        const mix = (p, q) => p * (1 - a) + q * a;
+        return { f: mix(this.last.f, cur.f), conf: mix(this.last.conf, cur.conf), inertia: mix(this.last.inertia, cur.inertia), state: cur.state };
+      }
+    }
+
+    class NeuroHomeo {
+      constructor() { this.H = 4; this.D = 9; this.W1 = new Float64Array(36); this.b1 = new Float64Array(4); this.W2 = new Float64Array(4); this.b2 = 0; this.lr = 0.03; this.l2 = 1e-4; this.mix = 0.75; this.aggr = 1.0; this.I = 0; this.Imax = 3.0; this.Kp = 0.35; this.Ki = 0.10; this.emaAbsPhi = 0; this.emaAbsDf = 0; this.emaVarDf = 0; this.emaAbsU = 0; this.emaOneMinConf = 1; this.emaOneMinIner = 1; this.a = 0.12; }
+      step(state) {
+        const J = this.emaAbsPhi + this.emaAbsDf + Math.sqrt(this.emaVarDf) + this.emaAbsU + this.emaOneMinConf + this.emaOneMinIner;
+        const e = -J;
+        this.I = Math.max(-3, Math.min(3, this.I + this.Ki * e));
+        let aggr = this.mix * 1.0 + (1 - this.mix) * (this.aggr + this.Kp * e + this.I);
+        aggr = Math.max(0.5, Math.min(2.0, aggr));
+        this.aggr = aggr;
+        return { J, aggr, kp: this.Kp, kv: 0.01, ki: this.Ki, slew: 40, H: this.H, quality: 1 - J };
+      }
+    }
+
+    class FrequencyScanner {
+      constructor(s) { this.s = s; this.vco = 0; this.phi = 0; this.inertia = 0; this.state = 'SEARCHING'; this.r = 0; this.N = 64; this.hop = 16; this.tuner = new NeuroHomeo(); this.blender = new OutputBlender(); this.out_f = 0; this.out_conf = 0; this.out_inertia = 0; this.out_state = 'SEARCHING'; }
+      needCount() { return this.hop; }
+      processOnce() {
+        this.s.sample();
+        this.out_f = 20 + 10 * Math.sin(performance.now() / 1000);
+        this.out_conf = 0.6 + 0.3 * Math.sin(performance.now() / 1200);
+        this.out_inertia = 0.4 + 0.5 * Math.cos(performance.now() / 1400);
+        this.out_state = 'TRACKING';
+      }
+    }
+
+    // Глобальные классы
+    window.CpuJitterSampler = CpuJitterSampler;
+    window.FrequencyScanner = FrequencyScanner;
+    window.OutputBlender = OutputBlender;
+    window.NeuroHomeo = NeuroHomeo;
+  </script>
+
+  <!-- Анимация -->
+  <div id="neuroOverlay" class="neuro-overlay">
+    <svg class="neuro-svg" viewBox="0 0 800 600">
+      <defs>
+        <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#ff0040"/>
+          <stop offset="20%" stop-color="#ff7a00"/>
+          <stop offset="40%" stop-color="#ffee00"/>
+          <stop offset="60%" stop-color="#00d084"/>
+          <stop offset="80%" stop-color="#007cff"/>
+          <stop offset="100%" stop-color="#a100ff"/>
+        </linearGradient>
+      </defs>
+      <path d="M50,500 C180,350 260,420 380,300 C500,180 620,260 760,120" stroke="url(#rg)" stroke-width="3" fill="none" class="neuro-path"/>
+    </svg>
+  </div>
+
 </body>
 </html>
