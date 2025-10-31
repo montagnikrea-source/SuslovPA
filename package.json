@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "suslovpa-cors-proxy",
   "version": "1.0.0",
   "description": "Безопасный CORS прокси для Frequency Scanner приложения",
