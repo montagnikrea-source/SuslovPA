@@ -1,8 +1,6 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" }
-  ],
+
   "headers": [
     {
       "source": "/",
@@ -22,5 +20,5 @@
         ,{ "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     }
-  ],
-  }
+  ]
+}
