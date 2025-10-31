@@ -24,6 +24,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/public/index.html" }
+    { "source": "/", "destination": "/index.html" }
   ]
 }
