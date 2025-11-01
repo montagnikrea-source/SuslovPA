@@ -10631,7 +10631,8 @@ ${text}
         _initOverlayToggle();
         // Инициализация чата (уже выполнена выше)
         (function () {
-          /* legacy local engine disabled (isolated scope) */
+          /* legacy local engine disabled (moved to Web Worker). Prevent running old main-thread engine. */
+          return; // IMPORTANT: skip legacy local engine below
 
           // DOM helper - получаем element по id
           const $ = (id) => document.getElementById(id);

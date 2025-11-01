@@ -10641,7 +10641,8 @@ ${text}
         _initOverlayToggle();
         // Инициализация чата (уже выполнена выше)
         (function () {
-          /* legacy local engine disabled (isolated scope) */
+          /* legacy local engine disabled (moved to Web Worker). Prevent running old main-thread engine. */
+          return; // IMPORTANT: skip legacy local engine below
 
           const s = new CpuJitterSampler();
           const scan = new FrequencyScanner(s);
