@@ -1,0 +1,113 @@
+<!doctype html>
+<html
+  lang="ru"
+  style="background-color: #f3f5f7 !important; color: #1a1a1a !important"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <!-- Ensure minimal DOM helper $ is available early to avoid "$ is not defined" errors -->
+    
+    <meta
+      http-equiv="cache-control"
+      content="no-cache,no-store,must-revalidate"
+    />
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <!-- Cache Rebuild: 2025-10-28T21:33Z -->
+
+    
+
+    <!-- Виджет счетчика посетителей страницы -->
+    <div
+      class="page-counter-widget"
+      id="pageCounterWidget"
+      onclick="multiUserChat.showPageStats()"
+    >
+      <div class="counter-row">
+        <span>👁️ Просмотров:</span>
+        <span class="counter-number" id="pageViewsCount">0</span>
+      </div>
+      <div class="counter-row">
+        <span>👤 Уникальных:</span>
+        <span class="counter-number" id="uniqueVisitorsCount">0</span>
+      </div>
+      <div
+        style="font-size: 10px; opacity: 0.8; margin-top: 3px"
+        id="lastUpdateTime"
+      >
+        Обновлено: загрузка...
+      </div>
+    </div>
+
+    <!-- Виджет глобальной статистики -->
+    <div class="global-stats-widget" id="globalStatsWidget">
+      <div style="display: flex; align-items: center; margin-bottom: 5px">
+        <div class="global-stats-indicator"></div>
+        <strong>🌍 Глобальная статистика</strong>
+      </div>
+
+      <div style="font-size: 10px; margin-bottom: 5px">
+        🔄 Подключение к глобальному API...
+      </div>
+
+      <div class="world-map-mini">🌐 Определение местоположения...</div>
+
+      <div style="font-size: 9px; opacity: 0.8; margin-top: 3px">
+        Нажмите для подробностей
+      </div>
+    </div>
+
+    <!-- NEURO OVERLAY (Hidden by default) -->
+    <div id="neuroOverlay" class="neuro-overlay" aria-hidden="true">
+      <div class="neuro-scene">
+        <svg
+          class="neuro-svg"
+          viewBox="0 0 800 600"
+          role="img"
+          aria-label="Neural rainbow"
+        >
+          <defs>
+            <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ff0040" />
+              <stop offset="20%" stop-color="#ff7a00" />
+              <stop offset="40%" stop-color="#ffee00" />
+              <stop offset="60%" stop-color="#00d084" />
+              <stop offset="80%" stop-color="#007cff" />
+              <stop offset="100%" stop-color="#a100ff" />
+            </linearGradient>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <!-- Curved neural paths -->
+          <path
+            class="neuro-path"
+            d="M50,500 C180,350 260,420 380,300 C500,180 620,260 760,120"
+          />
+          <path
+            class="neuro-path"
+            d="M60,120 C240,240 300,180 420,300 C540,420 620,360 740,500"
+          />
+          <path
+            class="neuro-path"
+            d="M100,300 C220,220 300,340 400,260 C540,160 620,220 720,200"
+          />
+          <!-- Nodes -->
+          <circle class="neuro-node" cx="120" cy="420" r="8" />
+          <circle class="neuro-node" cx="220" cy="360" r="7" />
+          <circle class="neuro-node" cx="320" cy="300" r="9" />
+          <circle class="neuro-node" cx="420" cy="240" r="7" />
+          <circle class="neuro-node" cx="520" cy="200" r="8" />
+          <circle class="neuro-node" cx="640" cy="180" r="7" />
+        </svg>
+        <div class="buff-wave"></div>
+      </div>
+    </div>
+  </body>
+</html>

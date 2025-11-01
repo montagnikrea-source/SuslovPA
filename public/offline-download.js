@@ -71,25 +71,41 @@ class OfflineDownloadManager {
   }
 
   /**
-   * Embed external scripts into HTML as inline script tags
+   * Embed external scripts and styles into HTML as inline tags
    */
   embedScripts(html, scripts) {
     let modifiedHtml = html;
 
     // Replace external script references with inline content
     Object.entries(scripts).forEach(([url, content]) => {
-      // Find external script tag
-      const scriptPattern = new RegExp(
-        `<script[^>]*src=["']${url}["'][^>]*></script>`,
-        'gi'
-      );
+      // Find external script tag with various formats
+      const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const scriptPatterns = [
+        new RegExp(`<script[^>]*src=["']${escapedUrl}["'][^>]*></script>`, 'gi'),
+        new RegExp(`<script[^>]*src=["']${escapedUrl}["'][^>]*/>`, 'gi')
+      ];
       
-      if (scriptPattern.test(modifiedHtml)) {
-        const inlineScript = `<script>\n// Source: ${url}\n${content}\n</script>`;
-        modifiedHtml = modifiedHtml.replace(scriptPattern, inlineScript);
-        console.log(`✅ Embedded ${url}`);
+      for (const pattern of scriptPatterns) {
+        if (pattern.test(modifiedHtml)) {
+          const inlineScript = `<script>\n// Source: ${url}\n${content}\n</script>`;
+          modifiedHtml = modifiedHtml.replace(pattern, inlineScript);
+          console.log(`✅ Embedded ${url}`);
+          break;
+        }
       }
     });
+
+    // Also extract and inline CSS from <style> tags and <link> tags
+    // Look for <link rel="stylesheet"> tags
+    const linkPattern = /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+    const cssUrls = [];
+    let match;
+    
+    while ((match = linkPattern.exec(modifiedHtml)) !== null) {
+      cssUrls.push(match[1]);
+    }
+
+    console.log(`📋 Found ${cssUrls.length} external CSS files`);
 
     return modifiedHtml;
   }
@@ -109,20 +125,46 @@ class OfflineDownloadManager {
       ''
     );
 
+    // Remove mobile redirect detection script completely
+    modified = modified.replace(
+      /<script>[\s\S]*?Mobile Redirect Script[\s\S]*?<\/script>/gi,
+      ''
+    );
+
     // Add offline mode detection at the top of head
     const offlineScript = `
 <script>
-  // Offline Mode Detection - Must run first!
+  // ========== OFFLINE MODE INITIALIZATION ==========
+  // Must run FIRST, before any other scripts
+  
   window.OFFLINE_MODE = true;
   window.API_DISABLED = true;
+  
   console.log('📴 OFFLINE MODE ENABLED');
   console.log('✅ Application loaded as offline version');
   
-  // Prevent any external redirects
-  window.location.href = function(url) {
-    console.log('🔒 Blocking navigation to:', url);
-    return window.location;
-  };
+  // Prevent any navigation attempts
+  const originalLocation = window.location;
+  Object.defineProperty(window, 'location', {
+    get: function() {
+      return originalLocation;
+    },
+    set: function(value) {
+      console.log('🔒 Blocked navigation attempt to:', value);
+      return value;
+    }
+  });
+  
+  // Prevent window.location.href changes
+  Object.defineProperty(window.location, 'href', {
+    get: function() {
+      return originalLocation.href;
+    },
+    set: function(value) {
+      console.log('🔒 Blocked href change to:', value);
+      return originalLocation.href;
+    }
+  });
   
   // Mock Firebase
   window.firebase = {
@@ -131,44 +173,98 @@ class OfflineDownloadManager {
         on: () => {},
         once: () => Promise.resolve({ val: () => null }),
         set: (data) => { console.log('💾 Local save:', data); return Promise.resolve(); },
-        update: (data) => { console.log('💾 Local update:', data); return Promise.resolve(); }
-      })
+        update: (data) => { console.log('💾 Local update:', data); return Promise.resolve(); },
+        off: () => {}
+      }),
+      goOffline: () => {},
+      goOnline: () => {}
     }),
     auth: () => ({
-      onAuthStateChanged: (callback) => callback(null),
-      signInAnonymously: () => Promise.resolve()
-    })
+      onAuthStateChanged: (callback) => { callback(null); return () => {}; },
+      signInAnonymously: () => Promise.resolve({ user: { uid: 'offline-user' } }),
+      currentUser: null
+    }),
+    initializeApp: (config) => {},
+    apps: []
   };
+  
+  // Mock window.firebase.firestore if needed
+  if (window.firebase) {
+    window.firebase.firestore = () => ({
+      collection: () => ({
+        doc: () => ({
+          set: () => Promise.resolve(),
+          get: () => Promise.resolve({ exists: false })
+        })
+      })
+    });
+  }
   
   // Mock Telegram Bot API
   window.telegramBotAPI = {
-    sendMessage: async () => console.log('📴 Telegram unavailable in offline mode'),
-    getUpdates: async () => Promise.resolve([])
+    sendMessage: async (chatId, text) => {
+      console.log('📴 [Offline] Telegram would send:', text);
+      return Promise.resolve();
+    },
+    getUpdates: async () => Promise.resolve({ ok: true, result: [] }),
+    setWebhook: async () => Promise.resolve({ ok: true })
   };
   
   // Disable external API calls
   const originalFetch = window.fetch;
   window.fetch = function(url, options) {
-    if (typeof url === 'string' && (
-      url.includes('api.telegram') ||
-      url.includes('firebase') ||
-      url.includes('vercel') ||
-      url.includes('/api/')
-    )) {
-      console.log('📴 Offline mode: Blocking external API call to', url);
-      return Promise.resolve(new Response('{"error":"offline"}', {status: 200}));
+    const urlStr = typeof url === 'string' ? url : url.toString();
+    
+    if (urlStr.includes('api.telegram') ||
+        urlStr.includes('firebase') ||
+        urlStr.includes('vercel') ||
+        urlStr.includes('/api/') ||
+        urlStr.includes('http://') ||
+        urlStr.includes('https://')) {
+      
+      console.log('📴 Offline mode: Blocking external API call to', urlStr);
+      return Promise.resolve(new Response(
+        JSON.stringify({ error: 'offline', message: 'Offline mode - external calls disabled' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      ));
     }
+    
     return originalFetch.call(this, url, options);
   };
   
-  console.log('🔒 Offline security: External API calls disabled');
+  // Mock XMLHttpRequest for older code
+  const OriginalXHR = window.XMLHttpRequest;
+  window.XMLHttpRequest = function() {
+    const xhr = new OriginalXHR();
+    const originalOpen = xhr.open;
+    
+    xhr.open = function(method, url) {
+      if (typeof url === 'string' && (
+        url.includes('api.telegram') ||
+        url.includes('firebase') ||
+        url.includes('/api/')
+      )) {
+        console.log('� Offline: Blocking XHR to', url);
+        xhr.status = 200;
+        xhr.responseText = JSON.stringify({ error: 'offline' });
+        return;
+      }
+      return originalOpen.apply(xhr, arguments);
+    };
+    
+    return xhr;
+  };
+  
+  console.log('✅ Offline security: All external API calls disabled');
+  console.log('💾 All data is stored locally in browser storage');
 </script>
     `;
 
     // Insert after opening head tag
-    const headIndex = modified.indexOf('</head>');
+    const headIndex = modified.indexOf('<head');
     if (headIndex !== -1) {
-      modified = modified.slice(0, headIndex) + offlineScript + modified.slice(headIndex);
+      const headEndIndex = modified.indexOf('>', headIndex);
+      modified = modified.slice(0, headEndIndex + 1) + offlineScript + modified.slice(headEndIndex + 1);
     }
 
     // Add offline indicator banner
@@ -192,16 +288,25 @@ class OfflineDownloadManager {
 </div>
 <script>
   // Adjust body for banner and ensure proper display
-  document.addEventListener('DOMContentLoaded', function() {
+  function adjustBodyForBanner() {
     if (document.body) {
       document.body.style.marginTop = '46px';
+      // Also adjust any full-height containers
+      const containers = document.querySelectorAll('[style*="height: 100vh"], [style*="height:100vh"]');
+      containers.forEach(el => {
+        el.style.height = 'calc(100vh - 46px)';
+      });
     }
-  });
-  
-  // Also set immediately in case of race condition
-  if (document.body) {
-    document.body.style.marginTop = '46px';
   }
+  
+  // Run immediately
+  adjustBodyForBanner();
+  
+  // Also run on DOMContentLoaded
+  document.addEventListener('DOMContentLoaded', adjustBodyForBanner);
+  
+  // And on window load to catch everything
+  window.addEventListener('load', adjustBodyForBanner);
 </script>
     `;
 
@@ -211,6 +316,12 @@ class OfflineDownloadManager {
       const bodyEndIndex = modified.indexOf('>', bodyIndex);
       modified = modified.slice(0, bodyEndIndex + 1) + '\n' + banner + modified.slice(bodyEndIndex + 1);
     }
+
+    // Remove any remaining redirect or mobile detection scripts
+    modified = modified.replace(
+      /<script>\s*\(function\s*\(\)\s*{[\s\S]*?Mobile Redirect[\s\S]*?}\s*\)\s*\(\)\s*<\/script>/gi,
+      ''
+    );
 
     return modified;
   }
