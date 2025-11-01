@@ -10829,6 +10829,19 @@ ${text}
           const changelog = document.getElementById("algoChangeLog");
           if (changelog) changelog.textContent = "Запуск: инициализация...";
           safeSetStartStatus("Инициализация…");
+          
+          // === ИНИЦИАЛИЗИРУЕМ БАРЫ НА СТАРТОВЫЕ ЗНАЧЕНИЯ ===
+          // Устанавливаем начальные значения для баров перед фазой накопления
+          if (typeof window.__setT === 'function' && typeof window.__setW === 'function') {
+            window.__setT("freqValue", "0.000");
+            window.__setW("freqBar", 0);
+            window.__setT("inertiaValue", "0");
+            window.__setW("inertiaBar", 0);
+            window.__setT("confValue", "0");
+            window.__setW("confBar", 0);
+            window.__setT("resourceValue", "0%");
+            window.__setW("resourceBar", 0);
+          }
           if (typeof window.__loadSecureShell === "function") {
             try {
               const SecureShell = await window.__loadSecureShell();
