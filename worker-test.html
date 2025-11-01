@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web Worker Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .test-box { background: white; padding: 20px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+        .pass { border-left-color: #28a745; }
+        .fail { border-left-color: #dc3545; }
+        .pending { border-left-color: #ffc107; }
+        h1 { color: #333; }
+        .result { margin: 5px 0; padding: 5px; }
+        .pass .result { color: #28a745; }
+        .fail .result { color: #dc3545; }
+        .pending .result { color: #ff9800; }
+        pre { background: #f0f0f0; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧵 Web Worker Initialization Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const results = [];
+        
+        function log(msg, type = 'info') {
+            console.log(msg);
+            results.push({ msg, type });
+            updateUI();
+        }
+
+        function updateUI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = results.map((r, i) => {
+                let className = 'pending';
+                if (r.msg.includes('✅')) className = 'pass';
+                if (r.msg.includes('❌')) className = 'fail';
+                return `<div class="test-box ${className}"><div class="result">${r.msg}</div></div>`;
+            }).join('');
+        }
+
+        log("Starting Web Worker Test...");
+        
+        // Test 1: Check if worker manager exists
+        log("\n1️⃣ Checking Algorithm Worker Manager:");
+        if (window.__algorithmWorker) {
+            log("   ✅ window.__algorithmWorker exists");
+            log("   - initialized: " + window.__algorithmWorker.initialized);
+            log("   - running: " + window.__algorithmWorker.running);
+            log("   - worker: " + (!!window.__algorithmWorker.worker ? 'exists' : 'NOT found'));
+        } else {
+            log("   ❌ window.__algorithmWorker NOT found - Worker not initialized");
+        }
+
+        // Test 2: Check functions
+        log("\n2️⃣ Checking Functions:");
+        log("   initializeAlgorithmWorker: " + typeof initializeAlgorithmWorker);
+        log("   startAlgorithm: " + typeof startAlgorithm);
+        log("   stopAlgorithm: " + typeof stopAlgorithm);
+
+        if (typeof initializeAlgorithmWorker === 'function') {
+            log("   ✅ All functions defined");
+        } else {
+            log("   ❌ Functions not defined - algorithm-manager.js not loaded");
+        }
+
+        // Test 3: Check UI helpers
+        log("\n3️⃣ Checking UI Helpers:");
+        log("   window.__setT: " + typeof window.__setT);
+        log("   window.__setW: " + typeof window.__setW);
+
+        // Test 4: Check HTML elements
+        log("\n4️⃣ Checking DOM Elements:");
+        const elements = ['btnStartAlgo', 'btnStopAlgo', 'statusText', 'freqValue'];
+        elements.forEach(id => {
+            const el = document.getElementById(id);
+            log("   #" + id + ": " + (el ? "✅ found" : "❌ NOT found"));
+        });
+
+        // Test 5: Try to start algorithm
+        log("\n5️⃣ Attempting to Start Algorithm:");
+        try {
+            if (typeof startAlgorithm === 'function') {
+                log("   ✅ startAlgorithm is callable");
+                log("   Calling startAlgorithm()...");
+                startAlgorithm({ sampleRate: 60, freeze: false });
+                log("   ✅ startAlgorithm() executed without error");
+            } else {
+                log("   ❌ startAlgorithm not a function");
+            }
+        } catch (e) {
+            log("   ❌ Error: " + e.message);
+        }
+
+        // Test 6: Check after 1 second
+        setTimeout(() => {
+            log("\n6️⃣ After 1 Second:");
+            if (window.__algorithmWorker) {
+                const running = window.__algorithmWorker.running;
+                log("   running: " + running + (running ? " ✅" : " ❌"));
+                
+                const stats = window.__algorithmWorker.getStats?.();
+                if (stats) {
+                    log("   messages received: " + stats.messagesReceived);
+                    if (stats.messagesReceived > 0) {
+                        log("   ✅ Worker is communicating!");
+                    } else {
+                        log("   ⚠️ No messages yet - check if worker started");
+                    }
+                }
+
+                const measurement = window.__algorithmWorker.getLastMeasurement?.();
+                if (measurement) {
+                    log("   ✅ Measurement received:");
+                    log("      freq: " + (measurement.freq ? measurement.freq.toFixed(3) + " Hz" : "N/A"));
+                    log("      conf: " + (measurement.conf ? (measurement.conf * 100).toFixed(0) + "%" : "N/A"));
+                } else {
+                    log("   ⏳ No measurements yet");
+                }
+            } else {
+                log("   ❌ Worker manager not available");
+            }
+
+            log("\n" + "=".repeat(50));
+            log("TEST COMPLETE");
+            log("=".repeat(50));
+        }, 1000);
+    </script>
+</body>
+</html>
