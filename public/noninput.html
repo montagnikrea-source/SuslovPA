@@ -11305,6 +11305,15 @@ setInterval(step,12);`;
               }
             },
           };
+          
+          // === АВТОМАТИЧЕСКИЙ ЗАПУСК loop() ПРИ ЗАГРУЗКЕ СТРАНИЦЫ ===
+          // Запускаем telemetry loop автоматически, чтобы обновлялись ползунки и значения
+          console.log("[INIT] Starting telemetry loop at DOMContentLoaded");
+          try {
+            loop();
+          } catch (e) {
+            console.error("[INIT] Failed to start loop:", e);
+          }
         })();
       });
 
