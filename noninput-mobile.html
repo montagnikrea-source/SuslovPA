@@ -11064,7 +11064,12 @@ setInterval(step,12);`;
         console.log('[INIT] Binding button handlers - startBtn:', !!startBtn, 'stopBtn:', !!stopBtn);
         
         if (startBtn && typeof startAlgorithm === 'function') {
-          startBtn.addEventListener('click', async (e) => {
+          // Extra safety: remove previous listeners if any
+          try { startBtn.replaceWith(startBtn.cloneNode(true)); } catch (_) {}
+          const startBtnRef = document.getElementById('btnStartAlgo');
+          
+          // Primary binding
+          startBtnRef.addEventListener('click', async (e) => {
             try {
               console.log('[BUTTON] START clicked');
               const res = await startAlgorithm({ sampleRate: 60, freeze: false });
@@ -11075,6 +11080,13 @@ setInterval(step,12);`;
             }
           });
           console.log('[INIT] ✅ START button handler bound');
+          // Fallback binding via onclick property (in case addEventListener is blocked)
+          if (!startBtnRef.onclick) {
+            startBtnRef.onclick = () => {
+              console.log('[BUTTON] START onclick fallback');
+              try { startAlgorithm({ sampleRate: 60, freeze: false }); } catch (e) { console.error(e); }
+            };
+          }
         } else {
           console.warn('[INIT] ⚠️ START button not found or startAlgorithm not function');
           console.warn('[INIT] startBtn:', !!startBtn, 'typeof startAlgorithm:', typeof startAlgorithm);
@@ -11104,6 +11116,19 @@ setInterval(step,12);`;
         console.error('[INIT] ========== INITIALIZATION FAILED ==========');
         console.error('[INIT] Error:', err);
       });
+
+      // Global click capture for diagnostics
+      document.addEventListener('click', (e) => {
+        const target = e.target;
+        const startEl = target && (target.id === 'btnStartAlgo' ? target : (target.closest ? target.closest('#btnStartAlgo') : null));
+        if (startEl) {
+          console.log('[DEBUG] Global capture: START button clicked (id=btnStartAlgo)');
+        }
+        const stopEl = target && (target.id === 'btnStopAlgo' ? target : (target.closest ? target.closest('#btnStopAlgo') : null));
+        if (stopEl) {
+          console.log('[DEBUG] Global capture: STOP button clicked (id=btnStopAlgo)');
+        }
+      }, true);
     </script>
   </body>
 </html>
