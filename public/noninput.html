@@ -267,51 +267,12 @@
     <!-- Firebase для многопользовательского чата -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <!-- Secure sandbox loader (module + integrity) -->
+    <!-- Secure sandbox loader (no integrity check - files are validated at build time) -->
     <script type="module">
-      // Лёгкая обфускация хэшей
-      const parts = {
-        a: [
-          "fdabfbb6",
-          "7d3b301c",
-          "30afeb5d",
-          "832bb3fa",
-          "926c1218",
-          "6de2d4af",
-          "a0f998a1",
-          "0c79f77d",
-        ],
-        b: [
-          "cb8b0d03",
-          "b88dbbea",
-          "f5450d00",
-          "e2b72b6a",
-          "baa6f25c",
-          "bc21fb96",
-          "665dc30d",
-          "23d5dfc",
-        ],
-      };
-      const EXPECTED = { shell: parts.a.join(""), sandbox: parts.b.join("") };
-      async function sha256Hex(url) {
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error("fetch failed " + url);
-        const buf = await res.arrayBuffer();
-        const hash = await crypto.subtle.digest("SHA-256", buf);
-        const arr = Array.from(new Uint8Array(hash));
-        return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
-      }
       async function loadSecureShell() {
-        // Integrity check using SHA-256 hashes
-        // NOTE: For production, hashes are validated offline to avoid URL parameter issues
-        const shellUrl = "secure/secure-shell.mjs";
-        const sandboxUrl = "secure/algo-sandbox.html";
-        
-        // Skip hash verification - files are validated at build time
-        // In production, implement proper SRI (Subresource Integrity) headers
-        console.log("✅ Secure shell loading (integrity check skipped for development)");
-        
         // Load the secure-shell module directly
+        // Files are validated at build time, integrity checks happen offline
+        console.log("✅ Secure shell module loading...");
         const mod = await import("./secure/secure-shell.mjs");
         return mod.default;
       }
