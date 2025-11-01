@@ -11143,19 +11143,22 @@ setInterval(step,12);`;
               window.__lastValidOutput = { ...out };
             }
             
-            // === ГАРАНТИРУЕМ ДОСТАТОЧНО БОЛЬШОЙ fmax ===
-            // Причина: если actual_fs низкая, то fmax может быть слишком маленькой (20-30 Hz)
-            // и progress bar застревает. Используем динамический max на основе текущей частоты
-            let fmax = Math.max(1, scan.fmax);
-            // Если текущая частота близка к fmax, увеличиваем fmax для полного диапазона
-            if (out.f > fmax * 0.8) {
-              fmax = Math.max(fmax, out.f * 1.2);
+            // === ОТСЛЕЖИВАЕМ ПИКОВУЮ ЧАСТОТУ ДЛЯ ПРАВИЛЬНОЙ ШКАЛЫ ===
+            // Инициализируем пиковое значение, если его еще нет
+            if (typeof window.__peakFrequency === 'undefined') {
+              window.__peakFrequency = out.f || 50;
             }
-            // Но не больше 200 Hz (разумный лимит)
+            // Обновляем пиковое значение если текущая частота выше
+            if (out.f > window.__peakFrequency) {
+              window.__peakFrequency = out.f;
+            }
+            // Используем пиковое значение как шкалу, но с небольшим запасом (+10%)
+            let fmax = Math.max(50, window.__peakFrequency * 1.1);
+            // Ограничиваем максимум разумным значением
             fmax = Math.min(200, fmax);
             
             window.__setT("freqValue", out.f.toFixed(3) + ` (fmax=${fmax.toFixed(0)})`);
-            window.__setW("freqBar", (100 * out.f) / fmax);
+            window.__setW("freqBar", Math.min(100, (100 * out.f) / fmax));
             window.__setT("inertiaValue", (out.inertia * 100).toFixed(0));
             window.__setW("inertiaBar", out.inertia * 100);
             window.__setT("confValue", (out.conf * 100).toFixed(0));
