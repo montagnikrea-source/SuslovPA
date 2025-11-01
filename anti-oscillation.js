@@ -146,10 +146,7 @@ class OscillationDamper {
    * @returns {number} - Clipped integral
    */
   limitIntegralWindup(integral) {
-    const absInt = Math.abs(integral);
-    if (absInt > this.integralSaturationThresh * this.integralClipValue) {
-      console.warn(`⚠️ Integral saturation detected: ${absInt.toFixed(4)}`);
-    }
+    // Fast path: no logging, just clipping for performance
     return Math.max(-this.integralClipValue, Math.min(this.integralClipValue, integral));
   }
 
@@ -211,7 +208,7 @@ class OscillationDamper {
 
     // Simple oscillation detection: count sign changes in cost deltas
     let signChanges = 0;
-    for (let i = 1; i < this.oscBuffer.length; i++) {
+    for (let i = 1; i < this.oscBuffer.length - 1; i++) {
       const prevDelta = this.oscBuffer[i] - this.oscBuffer[i - 1];
       const currDelta = this.oscBuffer[i + 1] - this.oscBuffer[i];
       if (prevDelta * currDelta < 0) {
@@ -316,20 +313,37 @@ class OscillationDamper {
    * @param {Float64Array} weights - Weight array
    * @param {Float64Array} gradients - Gradient array
    * @param {number} lr - Learning rate
+   * @param {string|number} weightKey - Unique identifier for weight array
    * @returns {Float64Array} - Updated weights with damping applied
    */
   protectWeightUpdate(weights, gradients, lr, weightKey = 'W') {
     const effectiveLR = lr * this.lrScale;
+    const n = gradients.length;
+    
+    // Cache momentum object reference if needed
+    const momentumObj = this.momentum;
 
-    for (let i = 0; i < gradients.length; i++) {
+    for (let i = 0; i < n; i++) {
       let delta = -effectiveLR * gradients[i];
       
-      // Apply momentum dampening
-      const key = `${weightKey}[${i}]`;
-      delta = this.applyMomentum(key, delta);
+      // Apply momentum dampening with numeric key (much faster than string keys)
+      const numKey = typeof weightKey === 'string' ? weightKey.charCodeAt(0) * 65536 + i : weightKey * 65536 + i;
+      if (!momentumObj[numKey]) {
+        momentumObj[numKey] = 0;
+      }
       
-      // Clip weight delta
-      delta = this.clipWeightDelta(delta);
+      // Exponential decay of momentum
+      momentumObj[numKey] = this.momentumDecay * momentumObj[numKey] + (1 - this.momentumDecay) * delta;
+      
+      // Combine current update with momentum
+      delta = 0.7 * delta + 0.3 * momentumObj[numKey];
+      
+      // Clip weight delta (inlined for speed)
+      if (delta > this.weightDeltaClip) {
+        delta = this.weightDeltaClip;
+      } else if (delta < -this.weightDeltaClip) {
+        delta = -this.weightDeltaClip;
+      }
       
       weights[i] += delta;
     }
