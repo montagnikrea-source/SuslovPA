@@ -1764,15 +1764,20 @@
             "
           >
             <label for="lrSlider">Learning rate (lr)</label>
-            <input
-              id="lrSlider"
-              type="range"
-              min="0.001"
-              max="0.2"
-              step="0.001"
-              value="0.030"
-              aria-label="Learning rate"
-            />
+            <div style="display: grid; grid-template-rows: auto auto; gap: 4px;">
+              <input
+                id="lrSlider"
+                type="range"
+                min="0.001"
+                max="0.2"
+                step="0.001"
+                value="0.030"
+                aria-label="Learning rate"
+              />
+              <div style="height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                <div id="lrBar" style="height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff9f3d); width: 10%; transition: width 0.1s;"></div>
+              </div>
+            </div>
             <div><span id="lrVal">0.030</span></div>
             <label
               style="
@@ -1785,15 +1790,20 @@
             >
 
             <label for="l2Slider">L2-регуляризация (l2)</label>
-            <input
-              id="l2Slider"
-              type="range"
-              min="0.0"
-              max="0.01"
-              step="0.0001"
-              value="0.0001"
-              aria-label="L2-регуляризация"
-            />
+            <div style="display: grid; grid-template-rows: auto auto; gap: 4px;">
+              <input
+                id="l2Slider"
+                type="range"
+                min="0.0"
+                max="0.01"
+                step="0.0001"
+                value="0.0001"
+                aria-label="L2-регуляризация"
+              />
+              <div style="height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                <div id="l2Bar" style="height: 100%; background: linear-gradient(90deg, #4ecdc4, #44b3aa); width: 1%; transition: width 0.1s;"></div>
+              </div>
+            </div>
             <div><span id="l2Val">0.0001</span></div>
             <label
               style="
@@ -1806,15 +1816,20 @@
             >
 
             <label for="mixSlider">Смешивание NN/PI (mix)</label>
-            <input
-              id="mixSlider"
-              type="range"
-              min="0.0"
-              max="1.0"
-              step="0.01"
-              value="0.75"
-              aria-label="Смешивание NN/PI"
-            />
+            <div style="display: grid; grid-template-rows: auto auto; gap: 4px;">
+              <input
+                id="mixSlider"
+                type="range"
+                min="0.0"
+                max="1.0"
+                step="0.01"
+                value="0.75"
+                aria-label="Смешивание NN/PI"
+              />
+              <div style="height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden;">
+                <div id="mixBar" style="height: 100%; background: linear-gradient(90deg, #a8e6cf, #56ab2f); width: 75%; transition: width 0.1s;"></div>
+              </div>
+            </div>
             <div><span id="mixVal">0.75</span></div>
             <label
               style="
@@ -11139,6 +11154,35 @@ setInterval(step,12);`;
             setT("lrAdaptValue", scan.tuner.lr.toFixed(4));
             setT("mixAdaptValue", (scan.tuner.mix * 100).toFixed(0) + "%");
             setT("KpAdaptValue", scan.tuner.Kp.toFixed(4));
+
+            // === РЕАЛЬНОЕ ОБНОВЛЕНИЕ ПОЛЗУНКОВ И PROGRESS BARS ===
+            // Обновляем ползунки значениями из алгоритма
+            if (lrSlider && !lrAuto.checked) {
+              lrSlider.value = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || scan.tuner.lr)).toFixed(3);
+              setW("lrBar", ((lrSlider.value - 0.001) / (0.2 - 0.001)) * 100);
+            }
+            if (l2Slider && !l2Auto.checked) {
+              l2Slider.value = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001)).toFixed(4);
+              setW("l2Bar", (l2Slider.value / 0.01) * 100);
+            }
+            if (mixSlider && !mixAuto.checked) {
+              mixSlider.value = Math.max(0, Math.min(1, scan.tuner.mix || 0.75)).toFixed(2);
+              setW("mixBar", (mixSlider.value * 100));
+            }
+
+            // Progress bars для автоматических значений
+            if (lrAuto && lrAuto.checked) {
+              const lrAutoVal = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || 0.030));
+              setW("lrBar", ((lrAutoVal - 0.001) / (0.2 - 0.001)) * 100);
+            }
+            if (l2Auto && l2Auto.checked) {
+              const l2AutoVal = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001));
+              setW("l2Bar", (l2AutoVal / 0.01) * 100);
+            }
+            if (mixAuto && mixAuto.checked) {
+              const mixAutoVal = Math.max(0, Math.min(1, scan.tuner.mix || 0.75));
+              setW("mixBar", (mixAutoVal * 100));
+            }
 
             // НОВОЕ: Метрики масштабирования архитектуры (с NaN-защитой)
             const hVal = isFinite(scan.out_H) ? scan.out_H : scan.tuner.H || 4;
