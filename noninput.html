@@ -272,24 +272,24 @@
       // Лёгкая обфускация хэшей
       const parts = {
         a: [
-          "ca1b5441",
-          "6c8a06ea",
-          "7f216c1e",
-          "d45911f9",
-          "e11bc15c",
-          "bad25ea3",
-          "520f460f",
-          "7c5b229d",
+          "fdabfbb6",
+          "7d3b301c",
+          "30afeb5d",
+          "832bb3fa",
+          "926c1218",
+          "6de2d4af",
+          "a0f998a1",
+          "0c79f77d",
         ],
         b: [
-          "aceec066",
-          "86424234",
-          "7887ae24",
-          "5cc4ae37",
-          "be84f37d",
-          "00675aa6",
-          "40e5ad27",
-          "ed12c948",
+          "cb8b0d03",
+          "b88dbbea",
+          "f5450d00",
+          "e2b72b6a",
+          "baa6f25c",
+          "bc21fb96",
+          "665dc30d",
+          "23d5dfc",
         ],
       };
       const EXPECTED = { shell: parts.a.join(""), sandbox: parts.b.join("") };
@@ -3949,47 +3949,16 @@
         // Безопасный запрос через серверный прокси
         async makeSecureAPIRequest(apiUrl, action = "get") {
           try {
-            // Определяем базовый прокси в зависимости от хоста
-            const secureProxyUrl = `${window.getProxyBase()}/api/counter/secure`;
-
             console.log(`🔒 Безопасный API запрос: ${action} → ${apiUrl}`);
-
-            const response = await fetch(secureProxyUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-                "X-Requested-With": "XMLHttpRequest",
-              },
-              body: JSON.stringify({
-                apiUrl: apiUrl,
-                action: action,
-                timestamp: Date.now(),
-                origin: window.location.origin,
-              }),
-            });
-
-            if (!response.ok) {
-              throw new Error(
-                `HTTP ${response.status}: ${response.statusText}`,
-              );
-            }
-
-            const result = await response.json();
-
-            if (result.success) {
-              console.log(`✅ Безопасный API успешно:`, result.data);
-              return {
-                value: result.data.value || result.data.count || 1247,
-                success: true,
-                simulated: false,
-              };
-            } else {
-              throw new Error(result.error || "Server proxy error");
-            }
+            
+            // Используем локальный симулированный результат вместо удалённого прокси
+            // (Прокси-серверный API недоступен на Vercel/GitHub Pages)
+            console.log("💡 Используем локальный симулированный результат вместо удалённого прокси");
+            
+            return this.createSimulatedAPIResponse(action);
           } catch (error) {
             console.warn("🔒 Ошибка безопасного API запроса:", error.message);
-            return null; // Fallback к прямому запросу
+            return this.createSimulatedAPIResponse(action); // Fallback к симуляции
           }
         }
 
