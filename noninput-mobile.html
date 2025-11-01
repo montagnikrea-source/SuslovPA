@@ -11055,27 +11055,37 @@ setInterval(step,12);`;
     </div>
     <!-- Initialize Worker AFTER algorithm-manager.js loads -->
     <script>
+      console.log('[INIT] ========== INITIALIZATION SCRIPT STARTING ==========');
+      console.log('[INIT] typeof initializeAlgorithmWorker:', typeof initializeAlgorithmWorker);
+      console.log('[INIT] typeof startAlgorithm:', typeof startAlgorithm);
+      console.log('[INIT] typeof stopAlgorithm:', typeof stopAlgorithm);
+      
       // Now algorithm-manager.js is loaded and functions are defined
       // Define and immediately initialize
       async function initWorkerWhenReady() {
         // No need to wait - script is at end of document
         if (typeof initializeAlgorithmWorker === 'function') {
           try {
+            console.log('[INIT] ✅ initializeAlgorithmWorker IS a function - calling it');
             console.log('[INIT] Initializing Web Worker...');
-            await initializeAlgorithmWorker();
-            console.log('[INIT] ✅ Web Worker initialized successfully');
+            const result = await initializeAlgorithmWorker();
+            console.log('[INIT] ✅ Web Worker initialized successfully, result:', result);
             
             // NOW bind button handlers - after worker is ready
-            bindWorkerButtonHandlers();
+            await bindWorkerButtonHandlers();
+            console.log('[INIT] ✅ Button handlers bound');
           } catch (e) {
             console.error('[INIT] ❌ Web Worker initialization failed:', e);
+            console.error('[INIT] Stack:', e.stack);
           }
         } else {
-          console.warn('[INIT] initializeAlgorithmWorker not available yet');
+          console.error('[INIT] ❌ initializeAlgorithmWorker is NOT a function!');
+          console.error('[INIT] typeof initializeAlgorithmWorker:', typeof initializeAlgorithmWorker);
+          console.error('[INIT] window keys:', Object.keys(window).filter(k => k.includes('algorithm')));
         }
       }
       
-      function bindWorkerButtonHandlers() {
+      async function bindWorkerButtonHandlers() {
         // Find and bind the START and STOP buttons
         const startBtn = document.getElementById("btnStartAlgo");
         const stopBtn = document.getElementById("btnStopAlgo");
@@ -11086,13 +11096,17 @@ setInterval(step,12);`;
           startBtn.addEventListener('click', async (e) => {
             try {
               console.log('[BUTTON] START clicked');
-              await startAlgorithm({ sampleRate: 60, freeze: false });
-              console.log('[BUTTON] ✅ Algorithm started');
+              const res = await startAlgorithm({ sampleRate: 60, freeze: false });
+              console.log('[BUTTON] ✅ Algorithm started, result:', res);
             } catch (er) {
               console.error('[BUTTON] ❌ Error starting algorithm:', er);
+              console.error('[BUTTON] Error details:', er.message);
             }
           });
           console.log('[INIT] ✅ START button handler bound');
+        } else {
+          console.warn('[INIT] ⚠️ START button not found or startAlgorithm not function');
+          console.warn('[INIT] startBtn:', !!startBtn, 'typeof startAlgorithm:', typeof startAlgorithm);
         }
         
         if (stopBtn && typeof stopAlgorithm === 'function') {
@@ -11106,11 +11120,19 @@ setInterval(step,12);`;
             }
           });
           console.log('[INIT] ✅ STOP button handler bound');
+        } else {
+          console.warn('[INIT] ⚠️ STOP button not found or stopAlgorithm not function');
         }
       }
       
-      // Execute immediately - no timeout needed
-      initWorkerWhenReady();
+      // Execute immediately - no timeout needed, but MUST await it
+      console.log('[INIT] Starting initWorkerWhenReady...');
+      initWorkerWhenReady().then(() => {
+        console.log('[INIT] ========== INITIALIZATION COMPLETE ==========');
+      }).catch((err) => {
+        console.error('[INIT] ========== INITIALIZATION FAILED ==========');
+        console.error('[INIT] Error:', err);
+      });
     </script>
   </body>
 </html>
