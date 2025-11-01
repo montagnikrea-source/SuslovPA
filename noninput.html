@@ -1332,11 +1332,48 @@
             console.log('[INIT] Initializing Web Worker...');
             await initializeAlgorithmWorker();
             console.log('[INIT] ✅ Web Worker initialized successfully');
+            
+            // NOW bind button handlers - after worker is ready
+            bindWorkerButtonHandlers();
           } catch (e) {
             console.error('[INIT] ❌ Web Worker initialization failed:', e);
           }
         } else {
           console.warn('[INIT] initializeAlgorithmWorker not available yet');
+        }
+      }
+      
+      function bindWorkerButtonHandlers() {
+        // Find and bind the START and STOP buttons
+        const startBtn = document.getElementById("btnStartAlgo");
+        const stopBtn = document.getElementById("btnStopAlgo");
+        
+        console.log('[INIT] Binding button handlers - startBtn:', !!startBtn, 'stopBtn:', !!stopBtn);
+        
+        if (startBtn && typeof startAlgorithm === 'function') {
+          startBtn.addEventListener('click', async (e) => {
+            try {
+              console.log('[BUTTON] START clicked');
+              await startAlgorithm({ sampleRate: 60, freeze: false });
+              console.log('[BUTTON] ✅ Algorithm started');
+            } catch (er) {
+              console.error('[BUTTON] ❌ Error starting algorithm:', er);
+            }
+          });
+          console.log('[INIT] ✅ START button handler bound');
+        }
+        
+        if (stopBtn && typeof stopAlgorithm === 'function') {
+          stopBtn.addEventListener('click', (e) => {
+            try {
+              console.log('[BUTTON] STOP clicked');
+              stopAlgorithm();
+              console.log('[BUTTON] ✅ Algorithm stopped');
+            } catch (er) {
+              console.error('[BUTTON] ❌ Error stopping algorithm:', er);
+            }
+          });
+          console.log('[INIT] ✅ STOP button handler bound');
         }
       }
     </script>
@@ -10595,79 +10632,6 @@ ${text}
           }
         }
 
-        // Bind Start/Stop handlers with Worker integration
-        try {
-          const startBtn = document.getElementById("btnStartAlgo");
-          const stopBtn = document.getElementById("btnStopAlgo");
-          console.log(
-            "[INIT] binding Start/Stop handlers for Worker, startBtn=",
-            startBtn,
-            "stopBtn=",
-            stopBtn,
-          );
-          if (startBtn) {
-            // Worker-based START handler
-            startBtn.addEventListener("click", async (e) => {
-              try {
-                console.log("[HANDLER] startBtn clicked - starting algorithm worker");
-                startBtn.disabled = true;
-                await startAlgorithm({ sampleRate: 60, freeze: false });
-                console.log("[HANDLER] Algorithm started via worker");
-              } catch (er) {
-                console.error("[HANDLER] start error", er);
-                setT("statusText", `Ошибка запуска: ${er.message}`);
-              } finally {
-                startBtn.disabled = false;
-              }
-            });
-            console.log("[INIT] Worker-based start handler bound");
-          } else {
-            document.addEventListener("click", (e) => {
-              const el = e.target;
-              if (
-                el &&
-                (el.id === "btnStartAlgo" ||
-                  (el.closest && el.closest("#btnStartAlgo")))
-              ) {
-                if (window.startAlgorithm) {
-                  window.startAlgorithm({ sampleRate: 60, freeze: false });
-                }
-              }
-            });
-            console.warn(
-              "[INIT] start button not found, using delegated click with worker",
-            );
-          }
-          if (stopBtn) {
-            // Worker-based STOP handler
-            stopBtn.addEventListener("click", (e) => {
-              try {
-                console.log("[HANDLER] stopBtn clicked - stopping algorithm worker");
-                stopAlgorithm();
-                console.log("[HANDLER] Algorithm stopped via worker");
-              } catch (er) {
-                console.error("[HANDLER] stop error", er);
-              }
-            });
-            console.log("[INIT] Worker-based stop handler bound");
-          } else {
-            document.addEventListener("click", (e) => {
-              const el = e.target;
-              if (
-                el &&
-                (el.id === "btnStopAlgo" ||
-                  (el.closest && el.closest("#btnStopAlgo")))
-              ) {
-                if (window.stopAlgorithm) {
-                  window.stopAlgorithm();
-                }
-              }
-            });
-            console.warn("[INIT] stop button not found, using delegated click with worker");
-          }
-        } catch (bindErr) {
-          console.error("Error binding Start/Stop handlers", bindErr);
-        }
         // Тумблер: показать/скрыть анимацию
         const _initOverlayToggle = () => {
           const enabled = isOverlayEnabled();
