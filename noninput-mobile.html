@@ -11068,19 +11068,37 @@ setInterval(step,12);`;
           // Extra safety: remove previous listeners if any
           try { startBtn.replaceWith(startBtn.cloneNode(true)); } catch (_) {}
           const startBtnRef = document.getElementById('btnStartAlgo');
-          
-          // Primary binding
+
+          // Primary binding (capture phase to bypass bubbling blockers)
           startBtnRef.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             try {
               console.log('[BUTTON] START clicked');
-              const res = await startAlgorithm({ sampleRate: 60, freeze: false });
-              console.log('[BUTTON] ✅ Algorithm started, result:', res);
+              console.log('[BUTTON] typeof startAlgorithm at click:', typeof startAlgorithm);
+              if (typeof startAlgorithm === 'function') {
+                const res = await startAlgorithm({ sampleRate: 60, freeze: false });
+                console.log('[BUTTON] ✅ Algorithm started, result:', res);
+              } else {
+                console.warn('[BUTTON] startAlgorithm not ready at click, retrying in 200ms');
+                setTimeout(() => {
+                  try {
+                    console.log('[BUTTON] Retry start… typeof startAlgorithm:', typeof startAlgorithm);
+                    if (typeof startAlgorithm === 'function') {
+                      startAlgorithm({ sampleRate: 60, freeze: false });
+                      console.log('[BUTTON] ✅ Algorithm started on retry');
+                    } else {
+                      console.error('[BUTTON] ❌ startAlgorithm still not a function');
+                    }
+                  } catch (e2) { console.error('[BUTTON] ❌ Retry error:', e2); }
+                }, 200);
+              }
             } catch (er) {
               console.error('[BUTTON] ❌ Error starting algorithm:', er);
-              console.error('[BUTTON] Error details:', er.message);
+              console.error('[BUTTON] Error details:', er && er.message);
             }
-          });
-          console.log('[INIT] ✅ START button handler bound');
+          }, { capture: true });
+          console.log('[INIT] ✅ START button handler bound (capture phase)');
           // Fallback binding via onclick property (in case addEventListener is blocked)
           if (!startBtnRef.onclick) {
             startBtnRef.onclick = () => {
@@ -11109,6 +11127,12 @@ setInterval(step,12);`;
         }
       }
       
+      // Expose debug API
+      window.__debugStart = () => {
+        console.log('[DEBUG] __debugStart called');
+        try { startAlgorithm({ sampleRate: 60, freeze: false }); } catch (e) { console.error(e); }
+      };
+
       // Execute immediately - no timeout needed, but MUST await it
       console.log('[INIT] Starting initWorkerWhenReady...');
       initWorkerWhenReady().then(() => {
