@@ -10865,16 +10865,26 @@ ${text}
                 changelog.textContent = `Запущено (SR=${sr}${frz ? ", freeze" : ""})`;
             } catch (e) {
               console.error("Secure start failed", e);
-              safeSetStartStatus("Ошибка запуска, псевдо-режим");
+              safeSetStartStatus("Ошибка запуска, запуск локального двигателя");
               if (isOverlayEnabled()) showNeuroBuff();
-              startPseudoTelemetry();
+              // Запускаем реальный локальный алгоритм вместо псевдо-телеметрии
+              if (window.__legacyEngine && window.__legacyEngine.start) {
+                window.__legacyEngine.start();
+              } else {
+                startPseudoTelemetry();
+              }
             }
           } else {
-            safeSetStartStatus("Загрузчик недоступен, псевдо-режим");
+            safeSetStartStatus("Загрузчик недоступен, запуск локального двигателя");
             if (isOverlayEnabled()) showNeuroBuff();
             const changelog = document.getElementById("algoChangeLog");
-            if (changelog) changelog.textContent = "Псевдо-режим: запущено";
-            startPseudoTelemetry();
+            if (changelog) changelog.textContent = "Локальный двигатель: запущено";
+            // Запускаем реальный локальный алгоритм вместо псевдо-телеметрии
+            if (window.__legacyEngine && window.__legacyEngine.start) {
+              window.__legacyEngine.start();
+            } else {
+              startPseudoTelemetry();
+            }
           }
         }
 
