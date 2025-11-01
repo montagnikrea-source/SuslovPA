@@ -10420,6 +10420,54 @@ ${text}
 
         // ===== Управление нейро-анимацией (оверлей) =====
         const OVERLAY_KEY = "neuroOverlayEnabled";
+        // Глобальное состояние анимации (обновляется телеметрией)
+        let __animState = { f: 0, conf: 0, inertia: 0, fs: 60 };
+        // Контекст частиц
+        let __dustCtx = null;
+
+        function initMagicDustCanvas() {
+          const canvas = document.getElementById("magicDust");
+          if (!canvas) return null;
+          const ctx = canvas.getContext("2d", { alpha: true });
+          const dpr = Math.max(1, window.devicePixelRatio || 1);
+          const resize = () => {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+            canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+          };
+          resize();
+          window.addEventListener("resize", resize);
+          return { canvas, ctx, dpr, resize, particles: [], raf: 0, emitterRunning: false, emissionRate: 0, speedScale: 1, hueBase: 200, lastTs: 0, emitAcc: 0 };
+        }
+
+        function magicDustBurst() {
+          try {
+            const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            if (reduceMotion) return;
+            if (!__dustCtx) __dustCtx = initMagicDustCanvas();
+            const d = __dustCtx; if (!d) return;
+            const { canvas, ctx, dpr } = d; const cx = canvas.width / 2, cy = canvas.height / 2;
+            const f = Number(__animState.f || 0); const conf = Math.max(0, Math.min(1, Number(__animState.conf || 0))); const inertia = Math.max(0, Math.min(1, Number(__animState.inertia || 0)));
+            const baseCount = 90; const count = Math.floor(baseCount + 140 * conf); const speedK = 0.6 + 1.2 * (1 - inertia); const hueBase = (f % 60) / 60 * 360;
+            d.particles = [];
+            for (let i = 0; i < count; i++) {
+              const angle = Math.random() * Math.PI * 2; const speed = (0.6 + Math.random() * 1.6) * speedK * dpr; const life = 600 + Math.random() * 700; const size = 1 + Math.random() * 2.5 * dpr; const hueJitter = (Math.random() * 40 - 20); const sat = 70 + Math.floor(conf * 30); const light = 55 - Math.floor(inertia * 25);
+              d.particles.push({ x: cx, y: cy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life, maxLife: life, size, color: `hsl(${Math.round(hueBase + hueJitter)}, ${sat}%, ${light}%)` });
+            }
+            if (d.raf) cancelAnimationFrame(d.raf); d.raf = 0;
+            const start = performance.now(); function tick(t) { const dt = 16; ctx.clearRect(0, 0, canvas.width, canvas.height); for (let i = d.particles.length - 1; i >= 0; i--) { const p = d.particles[i]; p.life -= dt; if (p.life <= 0) { d.particles.splice(i, 1); continue; } const drag = 0.98 - 0.15 * (1 - inertia); p.vx *= drag; p.vy *= drag; p.x += p.vx; p.y += p.vy; const alpha = Math.max(0, p.life / p.maxLife); ctx.globalAlpha = alpha; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); } if (t - start < 1600 && d.particles.length > 0) { d.raf = requestAnimationFrame(tick); } else { d.raf = 0; ctx.clearRect(0, 0, canvas.width, canvas.height); } }
+            d.raf = requestAnimationFrame(tick);
+          } catch (_) {}
+        }
+
+        function startMagicDustEmitter() {
+          try {
+            const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; if (reduceMotion) return; if (!__dustCtx) __dustCtx = initMagicDustCanvas(); const d = __dustCtx; if (!d) return; if (d.emitterRunning) return; d.emitterRunning = true; d.lastTs = performance.now(); const loop = (ts) => { if (!d.emitterRunning) return; const { canvas, ctx } = d; const dt = Math.min(50, ts - d.lastTs); d.lastTs = ts; d.emitAcc += (d.emissionRate / 1000) * dt; let toEmit = Math.floor(d.emitAcc); d.emitAcc -= toEmit; const cx = canvas.width / 2; const cy = canvas.height / 2; while (toEmit-- > 0) { const angle = Math.random() * Math.PI * 2; const speed = (0.5 + Math.random() * 1.2) * d.speedScale * d.dpr; const life = 750 + Math.random() * 900; const size = 0.7 + Math.random() * 2.0 * d.dpr; const hueJitter = Math.random() * 36 - 18; const sat = 65 + Math.floor((__animState.conf || 0) * 35); const light = 60 - Math.floor((__animState.inertia || 0) * 30); d.particles.push({ x: cx + (Math.random() - 0.5) * 8 * d.dpr, y: cy + (Math.random() - 0.5) * 8 * d.dpr, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life, maxLife: life, size, color: `hsl(${Math.round(d.hueBase + hueJitter)}, ${sat}%, ${light}%)` }); }
+            ctx.clearRect(0, 0, canvas.width, canvas.height); for (let i = d.particles.length - 1; i >= 0; i--) { const p = d.particles[i]; p.life -= dt; if (p.life <= 0) { d.particles.splice(i, 1); continue; } const drag = 0.985 - 0.12 * (1 - Math.max(0, Math.min(1, __animState.inertia || 0))); p.vx *= drag; p.vy *= drag; p.x += p.vx; p.y += p.vy; const alpha = Math.max(0, p.life / p.maxLife); ctx.globalAlpha = alpha; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); }
+            d.raf = requestAnimationFrame(loop); } catch (_) {}
+        }
+
+        function stopMagicDustEmitter() { try { if (!__dustCtx) return; const d = __dustCtx; d.emitterRunning = false; if (d.raf) cancelAnimationFrame(d.raf); d.raf = 0; d.emitAcc = 0; d.particles = []; d.ctx && d.ctx.clearRect(0, 0, d.canvas.width, d.canvas.height); } catch (_) {} }
         function isOverlayEnabled() {
           const v = localStorage.getItem(OVERLAY_KEY);
           return v === null ? true : v === "1";
@@ -10472,6 +10520,12 @@ ${text}
                   `Sandbox • f=${f.toFixed(2)} Hz | conf=${(conf * 100).toFixed(0)}% | inertia=${(inertia * 100).toFixed(0)}% | fs=${m.fs}`,
                 );
               }
+
+              // Обновляем состояние для анимации и применяем параметры
+              try {
+                __animState = { f, conf, inertia, fs: m.fs };
+                if (typeof updateNeuroAnimFromTelemetry === 'function') updateNeuroAnimFromTelemetry(__animState);
+              } catch (_) {}
             },
           });
         }
@@ -11004,6 +11058,7 @@ setInterval(step,12);`;
 
     <!-- NEURO OVERLAY (Hidden by default) -->
     <div id="neuroOverlay" class="neuro-overlay" aria-hidden="true">
+      <canvas id="magicDust" class="magic-dust-canvas" aria-hidden="true"></canvas>
       <div class="neuro-scene">
         <svg
           class="neuro-svg"
