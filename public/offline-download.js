@@ -22,7 +22,7 @@ class OfflineDownloadManager {
     try {
       console.log('🔄 Creating offline version...');
       
-      // Fetch the main HTML
+      // Fetch the main noninput.html (the actual application UI)
       const htmlResponse = await fetch('/noninput.html');
       let html = await htmlResponse.text();
 
@@ -46,6 +46,11 @@ class OfflineDownloadManager {
       // Create modified HTML with inline scripts
       html = this.embedScripts(html, scripts);
       html = this.makeOfflineCompatible(html);
+      
+      // Ensure we have proper HTML structure
+      if (!html.includes('<!DOCTYPE html>')) {
+        html = '<!DOCTYPE html>\n' + html;
+      }
 
       // Create blob and download
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
@@ -98,41 +103,73 @@ class OfflineDownloadManager {
   makeOfflineCompatible(html) {
     let modified = html;
 
-    // Add offline mode detection at the top
+    // Remove any redirect scripts (index.html redirects)
+    modified = modified.replace(
+      /<script>[\s\S]*?window\.location\.href[\s\S]*?<\/script>/gi,
+      ''
+    );
+
+    // Add offline mode detection at the top of head
     const offlineScript = `
 <script>
-  // Offline Mode Detection
+  // Offline Mode Detection - Must run first!
   window.OFFLINE_MODE = true;
   window.API_DISABLED = true;
-  
   console.log('📴 OFFLINE MODE ENABLED');
-  console.log('🔒 External API calls are disabled');
+  console.log('✅ Application loaded as offline version');
   
-  // Mock Firebase if needed
-  if (!window.firebase) {
-    window.firebase = {
-      database: () => ({
-        ref: () => ({
-          on: () => {},
-          once: () => Promise.resolve({ val: () => null }),
-          set: () => Promise.resolve(),
-          update: () => Promise.resolve()
-        })
+  // Prevent any external redirects
+  window.location.href = function(url) {
+    console.log('🔒 Blocking navigation to:', url);
+    return window.location;
+  };
+  
+  // Mock Firebase
+  window.firebase = {
+    database: () => ({
+      ref: (path) => ({
+        on: () => {},
+        once: () => Promise.resolve({ val: () => null }),
+        set: (data) => { console.log('💾 Local save:', data); return Promise.resolve(); },
+        update: (data) => { console.log('💾 Local update:', data); return Promise.resolve(); }
       })
-    };
-  }
+    }),
+    auth: () => ({
+      onAuthStateChanged: (callback) => callback(null),
+      signInAnonymously: () => Promise.resolve()
+    })
+  };
   
-  // Mock Telegram if needed
-  if (!window.telegram) {
-    window.telegram = {
-      sendMessage: async () => console.log('📴 Telegram unavailable in offline mode')
-    };
-  }
+  // Mock Telegram Bot API
+  window.telegramBotAPI = {
+    sendMessage: async () => console.log('📴 Telegram unavailable in offline mode'),
+    getUpdates: async () => Promise.resolve([])
+  };
+  
+  // Disable external API calls
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (typeof url === 'string' && (
+      url.includes('api.telegram') ||
+      url.includes('firebase') ||
+      url.includes('vercel') ||
+      url.includes('/api/')
+    )) {
+      console.log('📴 Offline mode: Blocking external API call to', url);
+      return Promise.resolve(new Response('{"error":"offline"}', {status: 200}));
+    }
+    return originalFetch.call(this, url, options);
+  };
+  
+  console.log('🔒 Offline security: External API calls disabled');
 </script>
     `;
 
-    // Insert after opening body tag
-    modified = modified.replace('</head>', offlineScript + '\n</head>');
+    // Insert after opening head tag
+    const headIndex = modified.indexOf('</head>');
+    if (headIndex !== -1) {
+      modified = modified.slice(0, headIndex) + offlineScript + modified.slice(headIndex);
+    }
 
     // Add offline indicator banner
     const banner = `
@@ -141,26 +178,39 @@ class OfflineDownloadManager {
   top: 0;
   left: 0;
   right: 0;
-  background: #ffa500;
+  background: linear-gradient(90deg, #ff9800, #ffa500);
   color: #000;
-  padding: 8px 16px;
+  padding: 10px 16px;
   text-align: center;
   font-weight: bold;
   z-index: 10000;
   font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 ">
-  📴 OFFLINE MODE • Все функции ограничены • Синхронизация отключена
+  📴 OFFLINE MODE • Все функции работают • Синхронизация отключена
 </div>
 <script>
-  // Adjust body padding for banner
+  // Adjust body for banner and ensure proper display
   document.addEventListener('DOMContentLoaded', function() {
-    document.body.style.marginTop = '36px';
+    if (document.body) {
+      document.body.style.marginTop = '46px';
+    }
   });
+  
+  // Also set immediately in case of race condition
+  if (document.body) {
+    document.body.style.marginTop = '46px';
+  }
 </script>
     `;
 
     // Insert after opening body tag
-    modified = modified.replace('<body', '<body>\n' + banner);
+    const bodyIndex = modified.indexOf('<body');
+    if (bodyIndex !== -1) {
+      const bodyEndIndex = modified.indexOf('>', bodyIndex);
+      modified = modified.slice(0, bodyEndIndex + 1) + '\n' + banner + modified.slice(bodyEndIndex + 1);
+    }
 
     return modified;
   }
