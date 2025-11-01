@@ -10853,10 +10853,12 @@ ${text}
               attachTelemetryHandler(SecureShell);
               await shellInstance.init();
               await shellInstance.start({ sampleRate: sr, freeze: frz });
-              // Запускаем локальный цикл визуализации и воркер
-              window.__algoRunning = true;
-              if (typeof startCpuWorker === "function") startCpuWorker();
-              try { loop(); } catch (e) { console.error("loop start failed", e); }
+              // Запускаем локальный цикл визуализации и воркер (через экспортируемый мост)
+              if (typeof window.__startAlgoLoop === "function") {
+                window.__startAlgoLoop();
+              } else {
+                console.warn("__startAlgoLoop not available");
+              }
               // Красиво показать запуск — радужная нейросеть и баф-волна (если включено)
               if (isOverlayEnabled()) {
                 showNeuroBuff();
@@ -10905,14 +10907,11 @@ ${text}
           try {
             shellInstance && shellInstance.pause && shellInstance.pause();
           } catch (_) {}
-          // Останавливаем локальный цикл и фонового воркера
+          // Останавливаем локальный цикл и фонового воркера через экспортируемый мост
           try {
-            window.__algoRunning = false;
-            if (window.__loopTimer) {
-              clearTimeout(window.__loopTimer);
-              window.__loopTimer = null;
+            if (typeof window.__stopAlgoLoop === "function") {
+              window.__stopAlgoLoop();
             }
-            if (typeof stopCpuWorker === "function") stopCpuWorker();
           } catch (_) {}
           $("#startStatus").textContent = "Остановлено";
           const changelog = document.getElementById("algoChangeLog");
@@ -11472,6 +11471,31 @@ setInterval(step,12);`;
               }
             },
           };
+
+          // Экспорт мостов управления для внешних обработчиков START/STOP
+          try {
+            window.__startAlgoLoop = function () {
+              try {
+                window.__algoRunning = true;
+                startCpuWorker();
+                loop();
+              } catch (e) {
+                console.error("__startAlgoLoop error", e);
+              }
+            };
+            window.__stopAlgoLoop = function () {
+              try {
+                window.__algoRunning = false;
+                if (window.__loopTimer) {
+                  clearTimeout(window.__loopTimer);
+                  window.__loopTimer = null;
+                }
+                stopCpuWorker();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+          } catch (_) {}
           
         })();
       });
