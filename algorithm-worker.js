@@ -9,6 +9,8 @@
 // ============================================================================
 
 class CpuJitterSampler {
+  // Provide MASK used by legacy logic to compute available samples
+  static MASK = (1 << 16) - 1; // 65535
   constructor(bufferSize = 65536) {
     this.MASK = bufferSize - 1;
     this.ticks = [];
