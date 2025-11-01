@@ -1,25 +1,131 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SuslovPA</title>
-    <script>
-        // Redirect to noninput.html
-        // Определяем текущий хост и редиректим правильно
-        if (window.location.hostname.includes('vercel')) {
-            // На Vercel используем простой путь
-            window.location.href = '/noninput.html';
-        } else if (window.location.hostname.includes('github.io')) {
-            // На GitHub Pages используем путь с префиксом /SuslovPA/
-            window.location.href = '/SuslovPA/noninput.html';
-        } else {
-            // Для локальных запусков
-            window.location.href = '/noninput.html';
-        }
-    </script>
-</head>
-<body>
-    <p>Redirecting to application...</p>
-</body>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>SuslovPA — Нейрогомеостаз и анти‑осцилляция</title>
+        <meta
+            name="description"
+            content="Стабилизация таймингов, снижение джиттера и повышение энергоэффективности с помощью нейросетевого гомеостаза и анти‑осцилляции."
+        />
+        <style>
+            :root {
+                --bg: #0b1020;
+                --card: rgba(255, 255, 255, 0.35);
+                --text: #e8ecf1;
+                --shadow: rgba(0, 0, 0, 0.18);
+                --accent: #4dc8ff;
+            }
+            html, body {
+                margin: 0;
+                padding: 0;
+                background: var(--bg);
+                color: var(--text);
+                font: 14px/1.55 system-ui, Segoe UI, Arial;
+            }
+            .wrap {
+                max-width: 960px;
+                margin: 28px auto 48px;
+                padding: 0 16px;
+            }
+            .card {
+                background: var(--card);
+                border-radius: 16px;
+                box-shadow: 0 2px 22px var(--shadow);
+                padding: 18px 20px;
+                margin: 20px 0;
+            }
+            .title {
+                font-size: 18px;
+                margin: 0 0 12px;
+            }
+            .cta {
+                display: inline-block;
+                margin-top: 10px;
+                background: var(--accent);
+                color: #011018;
+                text-decoration: none;
+                padding: 10px 16px;
+                border-radius: 10px;
+                font-weight: 600;
+            }
+            ul { margin: 6px 0 0 18px; }
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <section class="card">
+                <h1 class="title" style="margin-top: 0">SuslovPA</h1>
+                <p style="margin: 0 0 8px 0">
+                    Нейросетевой гомеостаз для стабилизации процессов: стараемся ускориться
+                    до предела, при этом подавляя колебания и снижая шум и ресурсоёмкость.
+                </p>
+                <a class="cta" href="/noninput.html">Открыть приложение</a>
+            </section>
+
+            <section class="card" aria-labelledby="use-cases-title" id="use-cases">
+                <h2 id="use-cases-title" class="title">Где можно применить</h2>
+                <p style="margin: 6px 0 10px 0">
+                    Ниже — практические сценарии, где нейрогомеостаз и анти‑осцилляция
+                    напрямую повышают стабильность, скорость и энергоэффективность.
+                </p>
+                <p style="margin: 10px 0 6px 0"><b>Сферы применения</b></p>
+                <ul style="margin: 6px 0 10px 18px">
+                    <li>
+                        Реальное время и автоматизация: ПИД‑контуры, планировщики задач,
+                        HIL/CIL стенды — снижение дрожания таймеров и устойчивое удержание
+                        периода.
+                    </li>
+                    <li>
+                        IoT/встраиваемые устройства: диагностика и автоподстройка нагрузки,
+                        продление времени работы от батареи.
+                    </li>
+                    <li>
+                        Мультимедиа/аудио/видео: сглаживание лагов, синхронизация кадров и
+                        буферов, стабильный тикрейт и латентность.
+                    </li>
+                    <li>
+                        Игровые движки и UI: равномерный рендер, меньше микрофризов,
+                        адаптация под частоту дисплея/ввода.
+                    </li>
+                    <li>
+                        Сети/WebRTC/WebSocket: сглаживание вариаций интервалов, устойчивость
+                        под нагрузкой.
+                    </li>
+                    <li>
+                        Электроника/ФАПЧ/ШИМ: онлайн‑подстройка коэффициентов, подавление
+                        паразитных колебаний.
+                    </li>
+                    <li>
+                        Питание/тепловой режим: выравнивание мгновенных пиков, меньше нагрева
+                        и троттлинга.
+                    </li>
+                    <li>
+                        ML/инференс на краю: устойчивое расписание микробатчей/воркеров,
+                        предсказуемая латентность.
+                    </li>
+                    <li>
+                        Edge/браузерные SPA: детерминированные тайминги рендера/анимаций,
+                        меньше ненужных перерисовок.
+                    </li>
+                    <li>
+                        Тестирование производительности/регрессии: чувствительные метрики
+                        джиттера/шума и воспроизводимые эксперименты.
+                    </li>
+                </ul>
+                <p style="margin: 12px 0 6px 0"><b>Что это даёт</b></p>
+                <ul style="margin: 6px 0 0 18px">
+                    <li>Стабильность: ↓ джиттер, предсказуемые интервалы и фаза.</li>
+                    <li>
+                        Скорость: адаптивная агрессивность → максимум пропускной способности
+                        без «свиста и звона».
+                    </li>
+                    <li>Качество UX: меньше лагов, ровные анимации, стабильный FPS.</li>
+                    <li>Экономия ресурсов: ниже тепловая нагрузка и энергопотребление.</li>
+                    <li>Автономность: самонастройка под устройство и текущую среду.</li>
+                    <li>Диагностика: телеметрия и показатели оптимизатора для анализа.</li>
+                </ul>
+            </section>
+        </div>
+    </body>
 </html>
