@@ -10723,19 +10723,31 @@ ${text}
         function attachTelemetryHandler(SecureShell) {
           shellInstance = new SecureShell({
             onTelemetry: (m) => {
+              // === ОТКЛЮЧЕНО: Старая система обновления UI ===
+              // Причина: loop() и render() уже обновляют эти элементы
+              // Две системы вместе вызывали дергание (glitch)
+              // Оставляем ТОЛЬКО отладочную информацию в console
+              
               const f = Number(m.f || 0);
               const conf = Math.max(0, Math.min(1, Number(m.conf || 0)));
               const inertia = Math.max(0, Math.min(1, Number(m.inertia || 0)));
-              setT("freqValue", f.toFixed(3));
-              setW("freqBar", Math.max(0, Math.min(100, f)));
-              setT("inertiaValue", (inertia * 100).toFixed(0));
-              setW("inertiaBar", inertia * 100);
-              setT("confValue", (conf * 100).toFixed(0));
-              setW("confBar", conf * 100);
-              setT(
-                "info",
-                `Sandbox mode • f=${f.toFixed(2)} Hz | conf=${(conf * 100).toFixed(0)}% | inertia=${(inertia * 100).toFixed(0)}% | fs=${m.fs}`,
-              );
+              
+              // Только логирование для отладки, БЕЗ обновления UI
+              if (typeof window.__sandboxTelemetryCount === 'undefined') {
+                window.__sandboxTelemetryCount = 0;
+              }
+              window.__sandboxTelemetryCount++;
+              if (window.__sandboxTelemetryCount <= 10) {
+                console.log(`[SANDBOX-TELEMETRY] f=${f.toFixed(3)} conf=${(conf*100).toFixed(0)}% inertia=${(inertia*100).toFixed(0)}%`);
+              }
+              
+              // ОСТАЙся: Отладочная информация в info элемент (не мешает основной телеметрии)
+              if (Math.random() < 0.1) { // Только раз в 10 вызовов чтобы не дергать
+                setT(
+                  "info",
+                  `Sandbox • f=${f.toFixed(2)} Hz | conf=${(conf * 100).toFixed(0)}% | inertia=${(inertia * 100).toFixed(0)}% | fs=${m.fs}`,
+                );
+              }
             },
           });
         }
