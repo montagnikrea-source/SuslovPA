@@ -21,8 +21,19 @@ class AlgorithmWorkerManager {
   async init() {
     return new Promise((resolve, reject) => {
       try {
-        // Create worker from file
-        this.worker = new Worker('algorithm-worker.js');
+        // Try to create worker - support relative and absolute paths
+        let workerPath = 'algorithm-worker.js';
+        
+        // Detect current location for relative path
+        if (typeof window !== 'undefined' && window.location) {
+          const baseDir = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+          if (baseDir && baseDir !== '/') {
+            workerPath = window.location.origin + baseDir + 'algorithm-worker.js';
+          }
+        }
+        
+        console.log('[MAIN] Creating worker from:', workerPath);
+        this.worker = new Worker(workerPath);
         
         // Set up message handler
         this.worker.onmessage = (event) => this.handleMessage(event);
@@ -131,6 +142,12 @@ class AlgorithmWorkerManager {
    */
   updateUI(data) {
     if (!data) return;
+    
+    // Ensure UI helpers are available
+    if (!window.__setT || !window.__setW) {
+      console.warn('[MAIN] UI helpers not ready, skipping update');
+      return;
+    }
 
     // Track peak frequency
     if (typeof window.__peakFrequency === 'undefined') {
@@ -304,10 +321,15 @@ async function initializeAlgorithmWorker() {
  * Start the algorithm
  */
 function startAlgorithm(config = {}) {
+  console.log('[APP] startAlgorithm called with config:', config);
+  
   if (!window.__algorithmWorker) {
-    console.error('Algorithm worker not initialized');
+    console.error('[APP] ❌ Algorithm worker not initialized! Cannot start.');
+    console.error('[APP] window.__algorithmWorker =', window.__algorithmWorker);
     return;
   }
+  
+  console.log('[APP] ✅ Starting algorithm via worker');
   window.__algorithmWorker.start(config);
 }
 

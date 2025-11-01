@@ -1310,7 +1310,7 @@
       }
     </style>
     <!-- Algorithm Worker Manager -->
-    <script src="algorithm-manager.js"></script>
+    <script src="algorithm-manager.js" defer></script>
   </head>
   <body>
     <!-- Consent Banner -->
@@ -10346,10 +10346,31 @@ ${text}
       /* ============================ UI ============================ */
       document.addEventListener("DOMContentLoaded", async () => {
         // === Initialize Algorithm Worker ===
+        let workerReady = false;
         try {
           console.log("[INIT] Initializing Algorithm Worker...");
-          await initializeAlgorithmWorker();
-          console.log("[INIT] ✅ Algorithm Worker ready");
+          
+          // Check if algorithm-manager.js is loaded
+          if (typeof initializeAlgorithmWorker !== 'undefined') {
+            console.log("[INIT] algorithm-manager.js loaded");
+            await initializeAlgorithmWorker();
+            workerReady = true;
+            console.log("[INIT] ✅ Algorithm Worker ready");
+          } else {
+            console.warn("[INIT] ⚠️ algorithm-manager.js not loaded yet, will retry");
+            // Retry after short delay
+            setTimeout(async () => {
+              if (typeof initializeAlgorithmWorker !== 'undefined' && !workerReady) {
+                try {
+                  await initializeAlgorithmWorker();
+                  workerReady = true;
+                  console.log("[INIT] ✅ Algorithm Worker ready (delayed)");
+                } catch (err) {
+                  console.error("[INIT] Delayed worker init failed:", err);
+                }
+              }
+            }, 500);
+          }
         } catch (error) {
           console.error("[INIT] ❌ Failed to initialize worker:", error);
         }
