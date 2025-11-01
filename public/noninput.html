@@ -9817,21 +9817,90 @@ ${text}
           this.qualityHistory = []; // История качества для анализа тренда
           this.frozenWeights = false; // Заморозка весов при высокой нагрузке
           this.useFloat32 = false; // Используем float32 если ресурсы критичны
+
+          // ===== НОВОЕ: МНОГОМЕРНОЕ ПРЕДСТАВЛЕНИЕ ВХОДОВ (АВТО-ВЫБОР ЧИСЛА ИЗМЕРЕНИЙ) =====
+          this.maxDimsK = 4;   // максимум осей тензора (1..4)
+          this.dimsK = 1;      // текущее число измерений
+          this.dims = [this.D]; // начальная форма (плоская)
+          this.Dpad = this.D;  // эффективная длина (c учётом паддинга под тензор)
+          this._x_pad = new Float64Array(this.Dpad);
         }
 
         // НОВОЕ: Переинициализация весов при изменении H
         reinitializeWeights() {
-          this.W1 = new Float64Array(this.H * this.D);
+          const Deff = this.getDeff();
+          this.W1 = new Float64Array(this.H * Deff);
           this.b1 = new Float64Array(this.H);
           this.W2 = new Float64Array(this.H);
           this.b2 = 0;
-          const r1 = Math.sqrt(2 / this.D);
-          for (let i = 0; i < this.H * this.D; i++)
+          const r1 = Math.sqrt(2 / Math.max(1, Deff));
+          for (let i = 0; i < this.H * Deff; i++)
             this.W1[i] = (Math.random() * 2 - 1) * r1;
           for (let i = 0; i < this.H; i++) this.b1[i] = 0;
           const r2 = Math.sqrt(2 / this.H);
           for (let i = 0; i < this.H; i++)
             this.W2[i] = (Math.random() * 2 - 1) * r2;
+          // Перевыделим паддинговый буфер под новый Deff
+          this._x_pad = new Float64Array(Deff);
+        }
+
+        // Эффективная размерность входа (с учётом тензорного паддинга)
+        getDeff() {
+          return this.Dpad || this.D;
+        }
+
+        // Пересчитать форму тензора под k измерений так, чтобы произведение >= D
+        // Основано на равномерном делении с округлением и поправкой последней оси
+        _computeDimsForK(k) {
+          k = Math.max(1, Math.min(this.maxDimsK, Math.floor(k)));
+          if (k === 1) return { dims: [this.D], Dpad: this.D };
+          const dims = new Array(k).fill(0);
+          const base = Math.max(1, Math.floor(Math.pow(this.D, 1 / k)));
+          let prod = 1;
+          for (let i = 0; i < k - 1; i++) {
+            dims[i] = base;
+            prod *= dims[i];
+          }
+          dims[k - 1] = Math.ceil(this.D / Math.max(1, prod));
+          let Dpad = dims.reduce((a, b) => a * b, 1);
+          // Безопасность
+          if (!isFinite(Dpad) || Dpad < this.D) {
+            dims[k - 1] = Math.max(dims[k - 1], Math.ceil(this.D / Math.max(1, prod)));
+            Dpad = dims.reduce((a, b) => a * b, 1);
+          }
+          return { dims, Dpad };
+        }
+
+        // Публичный переключатель числа осей тензора
+        setDimsK(k) {
+          const { dims, Dpad } = this._computeDimsForK(k);
+          this.dimsK = Math.max(1, Math.min(this.maxDimsK, Math.floor(k)));
+          this.dims = dims;
+          this.Dpad = Dpad;
+          // Переинициализируем веса под новую эффективную длину
+          this.reinitializeWeights();
+        }
+
+        // Автовыбор числа измерений по качеству/ресурсам
+        autoAdjustDimensions(quality, resourceUsage) {
+          // Больше измерений -> более выразительная параметризация (дороже по ресурсам)
+          if (quality < 0.45 && resourceUsage < 0.5 && this.dimsK < this.maxDimsK) {
+            this.setDimsK(this.dimsK + 1);
+          } else if ((quality > 0.8 && resourceUsage > 0.6) || resourceUsage > 0.85) {
+            // При высокой нагрузке или избыточном качестве — упрощаем (экономим)
+            if (this.dimsK > 1) this.setDimsK(this.dimsK - 1);
+          }
+        }
+
+        // Подготовить паддинговый вектор под Deff
+        _ensurePaddedX(x) {
+          const Deff = this.getDeff();
+          if (!this._x_pad || this._x_pad.length !== Deff) this._x_pad = new Float64Array(Deff);
+          // Копируем реальные признаки и нули для паддинга
+          const n = Math.min(x.length, Deff);
+          for (let i = 0; i < n; i++) this._x_pad[i] = x[i];
+          for (let i = n; i < Deff; i++) this._x_pad[i] = 0;
+          return this._x_pad;
         }
 
         // Самоограничение динамических максимумов по качеству/ресурсам/тренду
@@ -10182,7 +10251,7 @@ ${text}
         }
         _forward(x) {
           const H = this.H,
-            D = this.D;
+            D = this.getDeff();
           const h = this._h,
             hl = this._h_lin;
           for (let i = 0; i < H; i++) {
@@ -10197,7 +10266,7 @@ ${text}
           const aggr = 0.5 + 1.5 * (1 / (1 + Math.exp(-y)));
           return { y, aggr };
         }
-        _backward(dJdy) {
+        _backward(dJdy, xPad) {
           // ===== OSCILLATION PROTECTION: CLIP GRADIENT (NEW) =====
           dJdy = this.damper.clipGradient(dJdy);
 
@@ -10205,8 +10274,8 @@ ${text}
           if (this.frozenWeights) return; // Не обновляем веса если заморозены  // Не обновляем веса если заморозены
 
           const H = this.H,
-            D = this.D,
-            x = this._x,
+            D = this.getDeff(),
+            x = xPad || this._x_pad,
             h = this._h,
             hl = this._h_lin;
           const dJdb2 = dJdy;
@@ -10263,7 +10332,8 @@ ${text}
         step(state) {
           const { phi, df, u, conf, inertia, fs, peak } = state;
           const x = this._features({ phi, df, u, conf, inertia, fs, peak });
-          const { y, aggr: aggr_nn } = this._forward(x);
+          const xPad = this._ensurePaddedX(x);
+          const { y, aggr: aggr_nn } = this._forward(xPad);
 
           const J = this.cost();
           // ===== OSCILLATION PROTECTION (NEW) =====
@@ -10330,11 +10400,14 @@ ${text}
             const daggr_dy = 1.5 * sig * (1 - sig) + 1e-6;
             let dJdy = dJdaggr * daggr_dy;
             dJdy = Math.max(-5, Math.min(5, dJdy));
-            this._backward(dJdy);
+            this._backward(dJdy, xPad);
           }
 
           if (!this.locked) this.snapshot();
           this.recoverLr();
+
+          // Автовыбор числа измерений тензора по состоянию
+          this.autoAdjustDimensions(quality, resourceUsage);
 
           this.prevJ = J;
           this.prevAggr = aggr;
