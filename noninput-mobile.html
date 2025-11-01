@@ -1299,6 +1299,23 @@
         display: block;
         animation: overlayFade 200ms ease-out;
       }
+      /* Minimized mode: compact mobile overlay in top-right */
+      .neuro-overlay.minimized {
+        top: 12px;
+        right: 12px;
+        bottom: auto;
+        left: auto;
+        width: min(48vw, 260px);
+        height: min(28vh, 160px);
+        background: transparent;
+        backdrop-filter: none;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+        overflow: hidden;
+      }
+      .neuro-overlay.minimized .neuro-scene { inset: 0; }
+      .neuro-overlay.minimized .neuro-svg { width: 100%; height: 100%; }
+      .neuro-overlay.minimized .buff-wave { width: 140%; height: 140%; opacity: 0.35; }
       @keyframes overlayFade {
         from {
           opacity: 0;
@@ -10407,19 +10424,22 @@ ${text}
           const v = localStorage.getItem(OVERLAY_KEY);
           return v === null ? true : v === "1";
         }
+        // Checkbox now toggles expanded/minimized, not visibility
         function setOverlayEnabled(on) {
           localStorage.setItem(OVERLAY_KEY, on ? "1" : "0");
           const cb = $("toggleNeuroAnim");
           if (cb) cb.checked = !!on;
-          setNeuroOverlayVisible(!!on);
+          setNeuroOverlayVisible(true);
         }
         function setNeuroOverlayVisible(show) {
           const overlay = $("neuroOverlay");
           if (!overlay) return;
-          if (show) {
+          const expanded = isOverlayEnabled();
+          if (show && window.__algoRunning) {
             overlay.classList.add("visible", "buff");
+            overlay.classList.toggle("minimized", !expanded);
           } else {
-            overlay.classList.remove("buff", "visible");
+            overlay.classList.remove("buff", "visible", "minimized");
           }
         }
 
@@ -10498,12 +10518,11 @@ ${text}
               await shellInstance.init();
               await shellInstance.start({ sampleRate: sr, freeze: frz });
               // Красиво показать запуск — радужная нейросеть и баф-волна (если включено)
-              if (isOverlayEnabled()) {
-                showNeuroBuff();
-                // попытка убедиться, что браузер не приостановил анимации
-                setTimeout(ensureNeuroAnimation, 120);
-                setTimeout(ensureNeuroAnimation, 450);
-              }
+              // Показываем оверлей всегда (expanded/minimized по тумблеру)
+              showNeuroBuff();
+              // попытка убедиться, что браузер не приостановил анимации
+              setTimeout(ensureNeuroAnimation, 120);
+              setTimeout(ensureNeuroAnimation, 450);
               try {
                 Object.defineProperty(window, "__loadSecureShell", {
                   value: undefined,
@@ -10517,7 +10536,7 @@ ${text}
             } catch (e) {
               console.error("Secure start failed", e);
               safeSetStartStatus("Ошибка запуска, запуск локального двигателя");
-              if (isOverlayEnabled()) showNeuroBuff();
+              showNeuroBuff();
               // Запускаем ТОЛЬКО реальный локальный алгоритм
               if (window.__legacyEngine && window.__legacyEngine.start) {
                 window.__legacyEngine.start();
@@ -10528,7 +10547,7 @@ ${text}
             }
           } else {
             safeSetStartStatus("Загрузчик недоступен, запуск локального двигателя");
-            if (isOverlayEnabled()) showNeuroBuff();
+            showNeuroBuff();
             const changelog = document.getElementById("algoChangeLog");
             if (changelog) changelog.textContent = "Локальный двигатель: запущено";
             // Запускаем ТОЛЬКО реальный локальный алгоритм
@@ -10565,7 +10584,6 @@ ${text}
               setOverlayEnabled(!!e.target.checked),
             );
           }
-          if (!enabled) setNeuroOverlayVisible(false);
         };
 
         // Показывает радужную нейросеть и «баф»-волну на 1.6–2.4s
@@ -10586,6 +10604,7 @@ ${text}
 
           // Try to start animations — add classes, then ensure animation-play-state running
           overlay.classList.add("visible", "buff");
+          overlay.classList.toggle("minimized", !isOverlayEnabled());
           overlay.setAttribute("aria-hidden", "false");
           // Force restart of CSS animations in case browser suppressed them
           requestAnimationFrame(() => {
