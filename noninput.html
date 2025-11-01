@@ -11065,21 +11065,32 @@ setInterval(step,12);`;
             window.__setT("KpAdaptValue", scan.tuner.Kp.toFixed(4));
 
             // === РЕАЛЬНОЕ ОБНОВЛЕНИЕ ПОЛЗУНКОВ И PROGRESS BARS ===
+            // Получаем ползунки (может быть они еще не инициализированы)
+            const lrSliderEl = lrSlider || document.getElementById("lrSlider");
+            const l2SliderEl = l2Slider || document.getElementById("l2Slider");
+            const mixSliderEl = mixSlider || document.getElementById("mixSlider");
+            const lrAutoEl = lrAuto || document.getElementById("lrAuto");
+            const l2AutoEl = l2Auto || document.getElementById("l2Auto");
+            const mixAutoEl = mixAuto || document.getElementById("mixAuto");
+            
             // Обновляем ползунки значениями из алгоритма
-            if (lrSlider && !lrAuto.checked) {
-              lrSlider.value = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || scan.tuner.lr)).toFixed(3);
-              window.__setW("lrBar", ((lrSlider.value - 0.001) / (0.2 - 0.001)) * 100);
-              window.__setT("lrVal", lrSlider.value);
+            if (lrSliderEl && !lrAutoEl?.checked) {
+              const lrValue = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || scan.tuner.lr)).toFixed(3);
+              lrSliderEl.value = lrValue;
+              window.__setW("lrBar", ((lrValue - 0.001) / (0.2 - 0.001)) * 100);
+              window.__setT("lrVal", lrValue);
             }
-            if (l2Slider && !l2Auto.checked) {
-              l2Slider.value = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001)).toFixed(4);
-              window.__setW("l2Bar", (l2Slider.value / 0.01) * 100);
-              window.__setT("l2Val", l2Slider.value);
+            if (l2SliderEl && !l2AutoEl?.checked) {
+              const l2Value = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001)).toFixed(4);
+              l2SliderEl.value = l2Value;
+              window.__setW("l2Bar", (l2Value / 0.01) * 100);
+              window.__setT("l2Val", l2Value);
             }
-            if (mixSlider && !mixAuto.checked) {
-              mixSlider.value = Math.max(0, Math.min(1, scan.tuner.mix || 0.75)).toFixed(2);
-              window.__setW("mixBar", (mixSlider.value * 100));
-              window.__setT("mixVal", mixSlider.value);
+            if (mixSliderEl && !mixAutoEl?.checked) {
+              const mixValue = Math.max(0, Math.min(1, scan.tuner.mix || 0.75)).toFixed(2);
+              mixSliderEl.value = mixValue;
+              window.__setW("mixBar", (mixValue * 100));
+              window.__setT("mixVal", mixValue);
             }
 
             // Progress bars для автоматических значений
@@ -11210,11 +11221,15 @@ setInterval(step,12);`;
                   Math.max(AUTO.lrMin, lrAutoVal),
                 );
                 scan.tuner.lrBase = lrAutoVal;
-                lrSlider.value = lrAutoVal.toFixed(3);
-                lrVal.textContent = lrAutoVal.toFixed(3) + " (auto)";
+                const lrSliderAuto = document.getElementById("lrSlider");
+                const lrValAuto = document.getElementById("lrVal");
+                if (lrSliderAuto) lrSliderAuto.value = lrAutoVal.toFixed(3);
+                if (lrValAuto) lrValAuto.textContent = lrAutoVal.toFixed(3) + " (auto)";
               } else {
-                scan.tuner.lrBase = parseFloat(lrSlider.value);
-                lrVal.textContent = parseFloat(lrSlider.value).toFixed(3);
+                const lrSliderManual = document.getElementById("lrSlider");
+                const lrValManual = document.getElementById("lrVal");
+                if (lrSliderManual) scan.tuner.lrBase = parseFloat(lrSliderManual.value);
+                if (lrValManual) lrValManual.textContent = parseFloat(lrSliderManual?.value || 0).toFixed(3);
               }
 
               // l2
