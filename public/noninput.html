@@ -10941,6 +10941,10 @@ ${text}
               attachTelemetryHandler(SecureShell);
               await shellInstance.init();
               await shellInstance.start({ sampleRate: sr, freeze: frz });
+              // Запускаем локальный цикл визуализации и воркер
+              window.__algoRunning = true;
+              if (typeof startCpuWorker === "function") startCpuWorker();
+              try { loop(); } catch (e) { console.error("loop start failed", e); }
               // Красиво показать запуск — радужная нейросеть и баф-волна (если включено)
               if (isOverlayEnabled()) {
                 showNeuroBuff();
@@ -10988,6 +10992,15 @@ ${text}
         function stopSecure() {
           try {
             shellInstance && shellInstance.pause && shellInstance.pause();
+          } catch (_) {}
+          // Останавливаем локальный цикл и фонового воркера
+          try {
+            window.__algoRunning = false;
+            if (window.__loopTimer) {
+              clearTimeout(window.__loopTimer);
+              window.__loopTimer = null;
+            }
+            if (typeof stopCpuWorker === "function") stopCpuWorker();
           } catch (_) {}
           $("#startStatus").textContent = "Остановлено";
           const changelog = document.getElementById("algoChangeLog");
@@ -11168,20 +11181,33 @@ ${text}
           const scan = new FrequencyScanner(s);
           const blender = new OutputBlender();
 
-          // Мягкая фоновая активность (CPU worker)
+          // Мягкая фоновая активность (CPU worker) — запускаем ТОЛЬКО после Старт
           let worker = null;
-          try {
-            const code = `let it=900,tick=12;
+          function startCpuWorker() {
+            if (worker) return; // уже запущен
+            try {
+              const code = `let it=900,tick=12;
 onmessage=e=>{it=e.data.it||it;tick=e.data.dt||tick;};
 function step(){let x=1.0001;for(let i=0;i<it;i++){x*=1.00000001;x/=1.000000009;} setTimeout(()=>postMessage(1),tick);}
 setInterval(step,12);`;
-            worker = new Worker(
-              URL.createObjectURL(
-                new Blob([code], { type: "application/javascript" }),
-              ),
-            );
-            worker.onmessage = () => {};
-          } catch (_) {}
+              worker = new Worker(
+                URL.createObjectURL(
+                  new Blob([code], { type: "application/javascript" }),
+                ),
+              );
+              worker.onmessage = () => {};
+            } catch (_) {
+              worker = null;
+            }
+          }
+          function stopCpuWorker() {
+            try {
+              if (worker && typeof worker.terminate === "function") {
+                worker.terminate();
+              }
+            } catch (_) {}
+            worker = null;
+          }
 
           // ИСПОЛЬЗУЕМ setT И setW ИЗ ВНЕШНЕГО SCOPE (из DOMContentLoaded)
           const $ = (id) => document.getElementById(id);
@@ -11382,8 +11408,14 @@ setInterval(step,12);`;
             }
           }
 
+          // Флаги управления жизненным циклом алгоритма
+          window.__algoRunning = false;
+          window.__loopTimer = null;
+
           function loop() {
             try {
+              // Если остановлено — выходим без повторного планирования
+              if (!window.__algoRunning) return;
               if (typeof window.__loopDebug === 'undefined') window.__loopDebug = 0;
               window.__loopDebug++;
               if (window.__loopDebug <= 3) {
@@ -11404,7 +11436,8 @@ setInterval(step,12);`;
                 setW("loadingBar", fill);
                 setT("statusText", `Плавное накопление… (${fill.toFixed(0)}%)`);
                 render(blender.hold());
-                return setTimeout(loop, 80);
+                window.__loopTimer = setTimeout(loop, 80);
+                return;
               }
 
               // === AUTO/Manual применение параметров перед шагом ===
@@ -11519,14 +11552,14 @@ setInterval(step,12);`;
                   state: scan.out_state,
                 }),
               );
-              setTimeout(loop, 160);
+              window.__loopTimer = setTimeout(loop, 160);
             } catch (e) {
               setT(
                 "info",
                 `Критическая ошибка: ${e.message}. Обновите страницу.`,
               );
               console.error(e);
-              setTimeout(loop, 700);
+              window.__loopTimer = setTimeout(loop, 700);
             }
           }
           // Отключаем автозапуск локального двигателя: он мешал ожиданию нажатия кнопки «Старт».
@@ -11534,21 +11567,15 @@ setInterval(step,12);`;
           window.__legacyEngine = {
             start() {
               try {
+                window.__algoRunning = true;
+                startCpuWorker();
                 loop();
               } catch (e) {
                 console.error(e);
               }
             },
           };
-          
-          // === АВТОМАТИЧЕСКИЙ ЗАПУСК loop() ПРИ ЗАГРУЗКЕ СТРАНИЦЫ ===
-          // Запускаем telemetry loop автоматически, чтобы обновлялись ползунки и значения
-          console.log("[INIT] Starting telemetry loop at DOMContentLoaded");
-          try {
-            loop();
-          } catch (e) {
-            console.error("[INIT] Failed to start loop:", e);
-          }
+
         })();
       });
 
