@@ -1224,6 +1224,16 @@
         display: block;
         animation: overlayFade 200ms ease-out;
       }
+      /* Magic dust canvas sits on top of SVG */
+      .magic-dust-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        /* slightly above SVG */
+        z-index: 1;
+      }
       @keyframes overlayFade {
         from {
           opacity: 0;
@@ -10678,6 +10688,160 @@ ${text}
 
         // ===== Управление нейро-анимацией (оверлей) =====
         const OVERLAY_KEY = "neuroOverlayEnabled";
+        // Глобальное состояние анимации (обновляется телеметрией)
+        let __animState = { f: 0, conf: 0, inertia: 0, fs: 60 };
+        // Контекст частиц "волшебной пыли"
+        let __dustCtx = null;
+
+        function initMagicDustCanvas() {
+          const canvas = document.getElementById("magicDust");
+          if (!canvas) return null;
+          const ctx = canvas.getContext("2d", { alpha: true });
+          const dpr = Math.max(1, window.devicePixelRatio || 1);
+          const resize = () => {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+            canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+          };
+          resize();
+          window.addEventListener("resize", () => {
+            resize();
+          });
+          return {
+            canvas,
+            ctx,
+            dpr,
+            resize,
+            particles: [],
+            raf: 0,
+            running: false,
+          };
+        }
+
+        function magicDustBurst() {
+          try {
+            // Учитываем предпочтения пользователя
+            const reduceMotion =
+              window.matchMedia &&
+              window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            if (reduceMotion) return;
+
+            if (!__dustCtx) __dustCtx = initMagicDustCanvas();
+            const d = __dustCtx;
+            if (!d) return;
+
+            const { canvas, ctx, dpr } = d;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Параметры из телеметрии
+            const f = Number(__animState.f || 0);
+            const conf = Math.max(0, Math.min(1, Number(__animState.conf || 0)));
+            const inertia = Math.max(0, Math.min(1, Number(__animState.inertia || 0)));
+
+            // Количество и скорость частиц зависят от телеметрии
+            const baseCount = 90;
+            const count = Math.floor(baseCount + 140 * conf); // больше уверенность — больше частиц
+            const speedK = 0.6 + 1.2 * (1 - inertia); // чем ниже инерция, тем быстрее разлёт
+            const hueBase = (f % 60) / 60 * 360; // частота → оттенок
+
+            // Сгенерировать частицы
+            d.particles = [];
+            for (let i = 0; i < count; i++) {
+              const angle = Math.random() * Math.PI * 2;
+              const speed = (0.6 + Math.random() * 1.6) * speedK * dpr;
+              const life = 600 + Math.random() * 700; // ms
+              const size = 1 + Math.random() * 2.5 * dpr;
+              const hueJitter = (Math.random() * 40 - 20);
+              const sat = 70 + Math.floor(conf * 30); // 70-100%
+              const light = 55 - Math.floor(inertia * 25); // 55-30%
+              d.particles.push({
+                x: cx,
+                y: cy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life,
+                maxLife: life,
+                size,
+                color: `hsl(${Math.round(hueBase + hueJitter)}, ${sat}%, ${light}%)`,
+              });
+            }
+
+            // Запустить луп отрисовки на короткое время
+            if (d.running) cancelAnimationFrame(d.raf);
+            d.running = true;
+
+            const start = performance.now();
+            function tick(t) {
+              const dt = 16; // приблизительно, чтобы не зависеть от реального fps
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+              for (let i = d.particles.length - 1; i >= 0; i--) {
+                const p = d.particles[i];
+                p.life -= dt;
+                if (p.life <= 0) {
+                  d.particles.splice(i, 1);
+                  continue;
+                }
+                // Лёгкое замедление в зависимости от инерции
+                const drag = 0.98 - 0.15 * (1 - inertia);
+                p.vx *= drag;
+                p.vy *= drag;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                const alpha = Math.max(0, p.life / p.maxLife);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+              }
+
+              // Останавливаем через ~1.6s
+              if (t - start < 1600 && d.particles.length > 0) {
+                d.raf = requestAnimationFrame(tick);
+              } else {
+                d.running = false;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+              }
+            }
+            d.raf = requestAnimationFrame(tick);
+          } catch (e) {
+            // fail-safe: не ломаем основной поток
+          }
+        }
+
+        function updateNeuroAnimFromTelemetry(m) {
+          try {
+            const overlay = document.getElementById("neuroOverlay");
+            if (!overlay || overlay.getAttribute("aria-hidden") === "true") return;
+
+            const svg = overlay.querySelector(".neuro-svg");
+            const paths = overlay.querySelectorAll(".neuro-path");
+            const nodes = overlay.querySelectorAll(".neuro-node");
+            const buff = overlay.querySelector(".buff-wave");
+
+            const f = Number(m.f || 0);
+            const conf = Math.max(0, Math.min(1, Number(m.conf || 0)));
+            const inertia = Math.max(0, Math.min(1, Number(m.inertia || 0)));
+
+            // Скорость "течения" по путям зависит от частоты
+            const norm = Math.min(1.5, f / 60); // нормализация ~до 90 Гц
+            const pathDur = Math.max(0.8, Math.min(5.0, 2.4 + (1.0 - norm) * 1.6));
+            paths.forEach((p) => (p.style.animationDuration = pathDur.toFixed(2) + "s"));
+
+            // Скорость радужного сдвига — выше уверенность → спокойнее (дольше)
+            if (svg) svg.style.animationDuration = (3 + (1 - conf) * 6).toFixed(2) + "s";
+
+            // Яркость/прозрачность узлов — по уверенности
+            nodes.forEach((n) => (n.style.opacity = (0.55 + conf * 0.4).toFixed(2)));
+
+            // Пульсация бафа — выше инерция → медленнее
+            if (buff) buff.style.animationDuration = (0.9 + inertia * 1.6).toFixed(2) + "s";
+          } catch (_) {}
+        }
+
         function isOverlayEnabled() {
           const v = localStorage.getItem(OVERLAY_KEY);
           return v === null ? true : v === "1";
@@ -10727,6 +10891,10 @@ ${text}
                   `Sandbox • f=${f.toFixed(2)} Hz | conf=${(conf * 100).toFixed(0)}% | inertia=${(inertia * 100).toFixed(0)}% | fs=${m.fs}`,
                 );
               }
+
+              // Обновляем состояние для анимации и применяем параметры
+              __animState = { f, conf, inertia, fs: m.fs };
+              updateNeuroAnimFromTelemetry(__animState);
             },
           });
         }
@@ -10927,6 +11095,10 @@ ${text}
           // Try to start animations — add classes, then ensure animation-play-state running
           overlay.classList.add("visible", "buff");
           overlay.setAttribute("aria-hidden", "false");
+          // Однократный всплеск магической пыли при старте
+          magicDustBurst();
+          // Применить текущие параметры телеметрии сразу
+          updateNeuroAnimFromTelemetry(__animState);
           // Force restart of CSS animations in case browser suppressed them
           requestAnimationFrame(() => {
             try {
@@ -11473,6 +11645,7 @@ setInterval(step,12);`;
     <!-- NEURO OVERLAY (Hidden by default) -->
     <div id="neuroOverlay" class="neuro-overlay" aria-hidden="true">
       <div class="neuro-scene">
+        <canvas id="magicDust" class="magic-dust-canvas" aria-hidden="true"></canvas>
         <svg
           class="neuro-svg"
           viewBox="0 0 800 600"
