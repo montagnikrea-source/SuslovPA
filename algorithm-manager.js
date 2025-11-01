@@ -13,6 +13,9 @@ class AlgorithmWorkerManager {
       errorsReceived: 0,
       measurementTime: 0
     };
+    // Debug counters
+    this.__dbg_measLogged = 0;
+    this.__dbg_accumLogged = 0;
   }
 
   /**
@@ -90,6 +93,10 @@ class AlgorithmWorkerManager {
 
       case 'accumulation':
         // During accumulation phase
+        if (this.__dbg_accumLogged < 3) {
+          console.log('[MAIN][ACC]', Math.round(event.data.fill) + '%');
+          this.__dbg_accumLogged++;
+        }
         window.__setT('statusText', `Плавное накопление… (${event.data.fill.toFixed(0)}%)`);
         window.__setW('loadingBar', event.data.fill);
         break;
@@ -97,6 +104,14 @@ class AlgorithmWorkerManager {
       case 'measurement':
         this.lastMeasurement = data;
         this.stats.measurementTime = performance.now();
+        if (this.__dbg_measLogged < 5) {
+          console.log('[MAIN][MEAS]', {
+            f: data && data.freq,
+            conf: data && data.conf,
+            inertia: data && data.inertia
+          });
+          this.__dbg_measLogged++;
+        }
         this.updateUI(data);
         
         // Call any registered callbacks
