@@ -11043,6 +11043,17 @@ setInterval(step,12);`;
             console.log('[INIT] Initializing Web Worker...');
             const result = await initializeAlgorithmWorker();
             console.log('[INIT] ✅ Web Worker initialized successfully, result:', result);
+
+            // Temporary: log first few measurements to verify data flow
+            if (window.__algorithmWorker && typeof window.__algorithmWorker.onMeasurement === 'function') {
+              window.__measCount = 0;
+              window.__algorithmWorker.onMeasurement((d) => {
+                if (window.__measCount < 5) {
+                  console.log('[MEAS][DEBUG]', d);
+                }
+                window.__measCount++;
+              });
+            }
             
             // NOW bind button handlers - after worker is ready
             await bindWorkerButtonHandlers();
