@@ -16,17 +16,24 @@ class CpuJitterSampler {
     this.ticks = [];
     this.widx = 0;
     this.actual_fs = 60;
+    // Work amount per sample() call (resource knob)
+    this.workIters = 300;
   }
 
   sample() {
     const t0 = performance.now();
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < this.workIters; i++) {
       Math.sqrt(Math.random() * 1e6);
     }
     const dt = performance.now() - t0;
     this.ticks.push(dt);
     if (this.ticks.length > 2000) this.ticks.shift();
     this.widx++;
+  }
+
+  setWorkIters(n) {
+    const v = Math.max(20, Math.min(2000, Math.floor(n)));
+    this.workIters = v;
   }
 
   getStats() {
@@ -117,6 +124,84 @@ class Kalman {
 // FREQUENCY SCANNER (Simplified for worker - core algorithm only)
 // ============================================================================
 
+// Objective tuner: maximizes speed (freq), minimizes noise and resource usage
+class ObjectiveTuner {
+  constructor() {
+    // Weights for objective: score = a*speed - b*noise - c*cpu
+    this.weights = { a: 1.0, b: 40.0, c: 8.0 };
+    // Bounds and steps
+    this.bounds = {
+      workIters: { min: 40, max: 2000, step: 20 },
+      batch: { min: 60, max: 2000, step: 10 },
+      interval: { min: 40, max: 420, step: 10 },
+    };
+    this.state = {
+      workIters: 300,
+      batch: 180,
+      interval: 160,
+      lastScore: null,
+      streakGood: 0,
+      streakBad: 0,
+    };
+  }
+
+  // Compute scalar objective
+  score({ speed, noise, cpu }) {
+    const { a, b, c } = this.weights;
+    return a * speed - b * noise - c * cpu;
+  }
+
+  // Update internal knobs based on latest stats and outputs
+  update(scanner, procMs) {
+    const stats = scanner.lastStats || { mean: 0, std: 0 };
+    const speed = scanner.out_f || 0; // higher is better
+    const noise = Math.max(0, Math.min(1.5, (stats.std || 0) / Math.max(1e-6, stats.mean || 1))); // ~0..1
+    const cpu = Math.max(0, procMs / 10); // normalize ~ms/10
+
+    const curScore = this.score({ speed, noise, cpu });
+    const conf = scanner.out_conf || 0;
+    const inertia = scanner.out_inertia || 0;
+
+    if (this.state.lastScore !== null) {
+      if (curScore >= this.state.lastScore) this.state.streakGood++;
+      else this.state.streakBad++;
+      // decay streaks
+      if (this.state.streakGood > 12) this.state.streakGood = 12;
+      if (this.state.streakBad > 12) this.state.streakBad = 12;
+    }
+    this.state.lastScore = curScore;
+
+    // Policy 1: if system is confident and stable, save resources
+    if (conf > 0.8 && inertia > 0.75 && noise < 0.2) {
+      this.state.workIters = Math.max(this.bounds.workIters.min, this.state.workIters - this.bounds.workIters.step);
+      this.state.batch = Math.max(this.bounds.batch.min, this.state.batch - this.bounds.batch.step);
+      this.state.interval = Math.min(this.bounds.interval.max, this.state.interval + this.bounds.interval.step);
+    }
+
+    // Policy 2: if confidence low or noise high, invest resources
+    if (conf < 0.5 || noise > 0.35) {
+      this.state.workIters = Math.min(this.bounds.workIters.max, this.state.workIters + this.bounds.workIters.step);
+      this.state.batch = Math.min(this.bounds.batch.max, this.state.batch + this.bounds.batch.step);
+      this.state.interval = Math.max(this.bounds.interval.min, this.state.interval - this.bounds.interval.step);
+    }
+
+    // Policy 3: if speed trending down and we are not at max, nudge up
+    if (this.state.streakBad >= 3 && conf < 0.8) {
+      this.state.workIters = Math.min(this.bounds.workIters.max, this.state.workIters + this.bounds.workIters.step);
+      this.state.batch = Math.min(this.bounds.batch.max, this.state.batch + this.bounds.batch.step);
+      this.state.interval = Math.max(this.bounds.interval.min, this.state.interval - this.bounds.interval.step);
+      this.state.streakBad = 0; // reset
+    }
+
+    return {
+      workIters: this.state.workIters,
+      batch: this.state.batch,
+      interval: this.state.interval,
+      debug: { speed, noise, cpu, curScore },
+    };
+  }
+}
+
 class FrequencyScanner {
   constructor(sampler) {
     this.s = sampler;
@@ -136,6 +221,9 @@ class FrequencyScanner {
     this.confHistory = [];
     this.inerHistory = [];
     this.peakF = 0;
+    // Resource knobs
+    this.batchSamples = 180; // number of sampler.sample() per processOnce
+    this.lastStats = null;   // store last stats for tuner
   }
 
   needCount() {
@@ -144,12 +232,13 @@ class FrequencyScanner {
 
   processOnce() {
     // Collect samples
-    for (let i = 0; i < 180; i++) {
+    for (let i = 0; i < this.batchSamples; i++) {
       this.s.sample();
     }
 
     // Analyze CPU jitter to detect frequency
     const stats = this.s.getStats();
+    this.lastStats = stats;
     
     // Frequency detection from timing statistics (stabilized, non-saturating)
     const tickMean = stats.mean; // Average sample time in ms
@@ -193,6 +282,11 @@ class FrequencyScanner {
     this.updateResourceUsage();
   }
 
+  setBatchSamples(n) {
+    const v = Math.max(30, Math.min(2000, Math.floor(n)));
+    this.batchSamples = v;
+  }
+
   updateResourceUsage() {
     // Estimate based on memory and processing
     const tickCount = this.s.ticks.length;
@@ -222,6 +316,8 @@ let scanner = null;
 let blender = null;
 let running = false;
 let loopTimeout = null;
+let loopIntervalMs = 160;
+let tuner = null;
 let config = {
   sampleRate: 60,
   freeze: false
@@ -235,6 +331,7 @@ function initializeWorker() {
   sampler = new CpuJitterSampler();
   scanner = new FrequencyScanner(sampler);
   blender = new OutputBlender();
+  tuner = new ObjectiveTuner();
   console.log('[WORKER] Algorithm initialized');
 }
 
@@ -255,7 +352,7 @@ function measurementLoop() {
 
     if (need) {
       // Accumulation phase
-      for (let i = 0; i < 180; i++) {
+      for (let i = 0; i < scanner.batchSamples; i++) {
         sampler.sample();
       }
       
@@ -267,13 +364,26 @@ function measurementLoop() {
         timestamp: performance.now()
       });
       
-      // Reschedule quickly during accumulation
-      loopTimeout = setTimeout(measurementLoop, 80);
+      // Reschedule quickly during accumulation (never slower than main interval)
+      const accInterval = Math.min(loopIntervalMs, 80);
+      loopTimeout = setTimeout(measurementLoop, accInterval);
       return;
     }
 
     // Main processing step
+    const t0 = performance.now();
     scanner.processOnce();
+    const procMs = performance.now() - t0;
+
+    // Update objective tuner and apply new knobs
+    if (tuner) {
+      const upd = tuner.update(scanner, procMs);
+      if (upd) {
+        if (sampler.setWorkIters) sampler.setWorkIters(upd.workIters);
+        if (scanner.setBatchSamples) scanner.setBatchSamples(upd.batch);
+        loopIntervalMs = upd.interval;
+      }
+    }
     
     // Blend output for smooth transitions
     const blendedOutput = blender.blend({
@@ -293,7 +403,13 @@ function measurementLoop() {
         state: blendedOutput.state,
         peak: scanner.out_peak,
         resourceUsage: scanner.out_resourceUsage,
-        timestamp: performance.now()
+        timestamp: performance.now(),
+        optimization: tuner ? {
+          workIters: tuner.state.workIters,
+          batch: tuner.state.batch,
+          interval: loopIntervalMs,
+          score: tuner.state.lastScore
+        } : undefined
       }
     });
 
@@ -306,8 +422,8 @@ function measurementLoop() {
     });
   }
 
-  // Reschedule for next cycle (160ms - exactly consistent timing)
-  loopTimeout = setTimeout(measurementLoop, 160);
+  // Reschedule for next cycle using adaptive interval
+  loopTimeout = setTimeout(measurementLoop, loopIntervalMs);
 }
 
 // ============================================================================
