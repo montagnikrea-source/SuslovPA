@@ -9904,25 +9904,43 @@ ${text}
           return this.Dpad || this.D;
         }
 
-        // Пересчитать форму тензора под k измерений так, чтобы произведение >= D
-        // Основано на равномерном делении с округлением и поправкой последней оси
+        // Интеллектуальный выбор формы тензора: факторизация D и балансировка по осям
         _computeDimsForK(k) {
           k = Math.max(1, Math.min(this.maxDimsK, Math.floor(k)));
-          if (k === 1) return { dims: [this.D], Dpad: this.D };
-          const dims = new Array(k).fill(0);
-          const base = Math.max(1, Math.floor(Math.pow(this.D, 1 / k)));
-          let prod = 1;
-          for (let i = 0; i < k - 1; i++) {
-            dims[i] = base;
-            prod *= dims[i];
+          const D = Math.max(1, Math.floor(this.D));
+          if (k === 1) return { dims: [D], Dpad: D };
+
+          const primes = this._primeFactors(D).filter((p) => p >= 1);
+          const dims = new Array(k).fill(1);
+          primes.sort((a, b) => b - a);
+          for (const p of primes) {
+            let idx = 0;
+            let minProd = dims[0];
+            for (let i = 1; i < k; i++) {
+              if (dims[i] < minProd) { minProd = dims[i]; idx = i; }
+            }
+            dims[idx] *= p;
           }
-          dims[k - 1] = Math.ceil(this.D / Math.max(1, prod));
           let Dpad = dims.reduce((a, b) => a * b, 1);
-          if (!isFinite(Dpad) || Dpad < this.D) {
-            dims[k - 1] = Math.max(dims[k - 1], Math.ceil(this.D / Math.max(1, prod)));
+          if (Dpad < D) {
+            const prodOthers = Math.max(1, Math.floor(Dpad / dims[k - 1]));
+            dims[k - 1] = Math.ceil(D / prodOthers);
             Dpad = dims.reduce((a, b) => a * b, 1);
           }
           return { dims, Dpad };
+        }
+
+        _primeFactors(n) {
+          const out = [];
+          let x = Math.max(1, Math.floor(n));
+          let d = 2;
+          while (d * d <= x) {
+            while (x % d === 0) { out.push(d); x = Math.floor(x / d); }
+            d++;
+          }
+          if (x > 1) out.push(x);
+          if (out.length === 0) out.push(1);
+          return out;
         }
 
         setDimsK(k) {
