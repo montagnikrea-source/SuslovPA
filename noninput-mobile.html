@@ -1384,8 +1384,7 @@
         background: rgba(4, 6, 10, 0.42);
       }
     </style>
-    <!-- Algorithm Worker Manager -->
-    <script src="algorithm-manager.js" defer></script>
+    <!-- Algorithm Worker Manager (moved to end of body to ensure execution order) -->
   </head>
   <body>
     <!-- Consent Banner -->
@@ -11024,7 +11023,9 @@ setInterval(step,12);`;
         <div class="buff-wave"></div>
       </div>
     </div>
-    <!-- Initialize Worker AFTER algorithm-manager.js loads -->
+  <!-- Load Algorithm Worker Manager BEFORE init (no defer to guarantee order) -->
+  <script src="algorithm-manager.js"></script>
+  <!-- Initialize Worker AFTER algorithm-manager.js loads -->
     <script>
       console.log('[INIT] ========== INITIALIZATION SCRIPT STARTING ==========');
       console.log('[INIT] typeof initializeAlgorithmWorker:', typeof initializeAlgorithmWorker);
