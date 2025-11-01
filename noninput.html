@@ -11100,7 +11100,7 @@ setInterval(step,12);`;
             // Но не больше 200 Hz (разумный лимит)
             fmax = Math.min(200, fmax);
             
-            window.__setT("freqValue", out.f.toFixed(3));
+            window.__setT("freqValue", out.f.toFixed(3) + ` (fmax=${fmax.toFixed(0)})`);
             window.__setW("freqBar", (100 * out.f) / fmax);
             window.__setT("inertiaValue", (out.inertia * 100).toFixed(0));
             window.__setW("inertiaBar", out.inertia * 100);
