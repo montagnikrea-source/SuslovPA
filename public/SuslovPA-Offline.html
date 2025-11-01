@@ -8,13 +8,221 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <!-- Ensure minimal DOM helper $ is available early to avoid "$ is not defined" errors -->
+    <script>
+      if (!window.$) {
+        try {
+          window.$ = function (id) {
+            return document.getElementById(id);
+          };
+          console.log("🔧 $ helper injected");
+        } catch (e) {}
+      }
+    </script>
+
+    <!-- Mobile Redirect Script -->
+    <script>
+      (function () {
+        // Check if user explicitly skipped mobile redirect
+        const urlParams = new URLSearchParams(window.location.search);
+        if (
+          urlParams.get("skip") === "mobile" ||
+          sessionStorage.getItem("skip-mobile-redirect")
+        ) {
+          return; // Don't redirect
+        }
+
+        // Detect if device is mobile
+        const isMobile =
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent,
+          );
+        const screenWidth = window.innerWidth || screen.width;
+        const isSmallScreen = screenWidth <= 768;
+
+        if (isMobile || isSmallScreen) {
+          // Get current URL and replace with mobile version
+          const currentUrl = window.location.href;
+          let mobileUrl = currentUrl.replace(
+            /\/noninput\.html/,
+            "/noninput-mobile.html",
+          );
+
+          // Fallback for different URL patterns
+          if (
+            currentUrl.includes("noninput.html") &&
+            !mobileUrl.includes("noninput-mobile.html")
+          ) {
+            mobileUrl = currentUrl.replace(
+              "noninput.html",
+              "noninput-mobile.html",
+            );
+          }
+
+          // Only redirect if the mobile URL is different
+          if (mobileUrl !== currentUrl) {
+            // Mark that redirect is happening to prevent loops
+            sessionStorage.setItem("mobile-redirect-timestamp", Date.now());
+            window.location.href = mobileUrl;
+          }
+        }
+      })();
+    </script>
+    <meta
+      http-equiv="cache-control"
+      content="no-cache,no-store,must-revalidate"
+    />
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <!-- Cache Rebuild: 2025-10-28T21:33Z -->
+
+    <script>
+      (function () {
+        try {
+          const s = localStorage.getItem("theme-preference");
+          const p =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme:dark)").matches;
+          const h = new Date().getHours();
+          const d = s
+            ? s === "dark"
+            : p || h >= 21 || h < 6 || (h >= 18 && h < 21);
+          const t = d ? "dark" : "light";
+          const b = d ? "#0d1117" : "#f3f5f7";
+          const c = d ? "#e6edf3" : "#1a1a1a";
+          document.documentElement.style.backgroundColor = b + "!important";
+          document.documentElement.style.color = c + "!important";
+          document.documentElement.setAttribute("data-theme", t);
+          window.__THEME = { t, d, h };
+          console.log("🎨[THEME]", t);
+        } catch (e) {
+          console.error(e);
+        }
+      })();
+    </script>
+    <script>
+      // Поддержка синхронизации темы с мобильной оберткой
+      window.addEventListener("message", (e) => {
+        try {
+          if (!e || !e.data) return;
+          if (e.data.type === "set-theme") {
+            const t = e.data.theme === "dark" ? "dark" : "light";
+            localStorage.setItem("theme-preference", t);
+            document.documentElement.setAttribute("data-theme", t);
+          }
+        } catch (_) {}
+      });
+    </script>
+
+    <style>
+      /* Базовые цвета */
+      html,
+      body {
+        background-color: #f3f5f7 !important;
+        color: #1a1a1a !important;
+      }
+      html[data-theme="dark"],
+      html[data-theme="dark"]body {
+        background-color: #0d1117 !important;
+        color: #e6edf3 !important;
+      }
+
+      /* Фон задаётся глобально через styles.css для единообразия по сайту */
+
+      /* Подложки панелей: полупрозрачные, чтобы был виден фоновый рисунок сайта */
+      .wrap,
+      .row.controls,
+      .chat-container {
+        backdrop-filter: blur(4px);
+        background-color: rgba(255, 255, 255, 0.35);
+      }
+      html[data-theme="dark"] .wrap,
+      html[data-theme="dark"] .row.controls,
+      html[data-theme="dark"] .chat-container {
+        background-color: rgba(13, 17, 23, 0.4);
+      }
+    </style>
+
+    <!-- Content Security Policy -->
     
+
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta
+      http-equiv="Referrer-Policy"
+      content="strict-origin-when-cross-origin"
+    />
+    <meta
+      http-equiv="Permissions-Policy"
+      content="geolocation=(), microphone=(), camera=()"
+    />
+    <title>
+      Frequency Scanner — Neuro Homeostasis J→0 (with AdSense Auto Ads)
+    </title>
+
+    <!-- Immediate theme application to prevent flash - INLINE CRITICAL STYLES -->
+    <script>
+      (function () {
+        const saved = localStorage.getItem("theme-preference");
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const hour = new Date().getHours();
+        const isNightHour = hour >= 21 || hour < 6;
+        const isEveningHour = hour >= 18 && hour < 21;
+
+        let theme = "light";
+
+        if (saved) {
+          theme = saved;
+        } else if (prefersDark) {
+          theme = "dark";
+        } else if (isNightHour || isEveningHour) {
+          theme = "dark";
+        }
+
+        document.documentElement.setAttribute("data-theme", theme);
+
+        // Critical inline styles for immediate visibility
+        if (theme === "dark") {
+          document.documentElement.style.backgroundColor = "#0d1117";
+          document.documentElement.style.color = "#e6edf3";
+        } else {
+          document.documentElement.style.backgroundColor = "#f3f5f7";
+          document.documentElement.style.color = "#1a1a1a";
+        }
+
+        console.log("🎨 Theme applied immediately (inline):", theme);
+        // Простая утилита для определения базового прокси/бекенда
+        // - в локальной разработке используем http://localhost:3000
+        // - при размещении на GitHub Pages используем главный Vercel хост
+        // - иначе используем тот же origin, где запущена страница
+        window.getProxyBase = function () {
+          try {
+            const host = window.location.hostname || "";
+            if (host === "localhost" || host === "127.0.0.1")
+              return "http://localhost:3000";
+            // NOTE: For github.io pages we intentionally prefer same-origin
+            // (window.location.origin) to avoid cross-origin preflight/CORS errors
+            // when the production API (pavell.vercel.app) is not reachable or not
+            // configured with proper CORS. This reduces cross-origin security
+            // but prevents the browser from blocking requests with CORS errors.
+            if (host.includes("github.io") || host.includes("pages.github"))
+              return window.location.origin || "https://pavell.vercel.app";
+            return window.location.origin || "https://pavell.vercel.app";
+          } catch (e) {
+            return "https://pavell.vercel.app";
+          }
+        };
+      })();
+    </script>
 
     <!-- Favicon (убран — файл favicon.ico отсутствует) -->
     <!-- <link rel="icon" href="favicon.ico"> -->
 
     <!-- (Необязательно, но рекомендуется) Укажи аккаунт AdSense для мета-сканеров -->
-    <meta name="google-adsense-account" content="ca-pub-1128500581050725" />
+    
 
     <!-- ✅ Google AdSense Auto Ads (автоматическая реклама) -->
     
@@ -23,6 +231,8 @@
     
     
     <!-- Offline Download Manager -->
+    
+    <!-- JSZip for ZIP archive creation (optional) -->
     
     <!-- Secure sandbox loader (no integrity check - files are validated at build time) -->
     <script type="module">
@@ -1040,56 +1250,149 @@
         background: rgba(4, 6, 10, 0.42);
       }
     </style>
-  <script>
-window.OFFLINE_MODE = true;
-window.API_DISABLED = true;
-console.log('%c📴 OFFLINE MODE ENABLED', 'color: #ff9800; font-size: 14px; font-weight: bold;');
-
-// Firebase mock
-window.firebase = {
-  database: () => ({
-    ref: () => ({
-      on: () => {}, once: () => Promise.resolve({ val: () => null }),
-      set: (d) => Promise.resolve(), update: (d) => Promise.resolve(), off: () => {}
-    }),
-    goOffline: () => {}, goOnline: () => {}
-  }),
-  auth: () => ({
-    onAuthStateChanged: (cb) => {  cb(null); return () => {}; },
-    signInAnonymously: () => Promise.resolve(),
-    currentUser: null
-  }),
-  apps: []
-};
-
-window.telegramBotAPI = {
-  sendMessage: async () => { console.log('📴 Telegram unavailable'); return {}; },
-  getUpdates: async () => ({ ok: true, result: [] })
-};
-
-// Intercept fetch
-const origFetch = window.fetch;
-window.fetch = function(url) {
-  const s = String(url);
-  if (s.includes('http') || s.includes('api') || s.includes('firebase') || s.includes('telegram')) {
-    console.log('📴 Blocked:', s);
-    return Promise.resolve(new Response('{"error":"offline"}', {status: 200}));
-  }
-  return origFetch(...arguments);
-};
-
-console.log('%c✅ Offline mode ready', 'color: green; font-size: 12px;');
-</script></head>
+  
+    <script>
+      // ===== ОФФЛАЙН РЕЖИМ ИНИЦИАЛИЗАЦИЯ =====
+      window.OFFLINE_MODE = true;
+      window.IS_OFFLINE = true;
+      console.log('%c✅ OFFLINE MODE ACTIVE', 'color: #ff9800; font-size: 14px; font-weight: bold;');
+      
+      // Mock Firebase полностью
+      window.firebase = window.firebase || {
+        initializeApp: () => window.firebase,
+        database: () => ({
+          ref: () => ({
+            on: () => {},
+            once: () => Promise.resolve({ val: () => null }),
+            set: () => Promise.resolve(),
+            push: () => ({ set: () => Promise.resolve() }),
+            remove: () => Promise.resolve(),
+            update: () => Promise.resolve()
+          }),
+          goOffline: () => {},
+          goOnline: () => {}
+        }),
+        auth: () => ({
+          onAuthStateChanged: (cb) => cb(null),
+          signOut: () => Promise.resolve(),
+          signInAnonymously: () => Promise.resolve()
+        }),
+        storage: () => ({
+          ref: () => ({
+            put: () => Promise.resolve(),
+            getDownloadURL: () => Promise.resolve('offline')
+          })
+        })
+      };
+      
+      // Mock Telegram
+      window.TelegramWebApp = {
+        ready: () => {},
+        sendData: () => {},
+        close: () => {},
+        initData: '',
+        user: null,
+        onEvent: () => {},
+        offEvent: () => {},
+        showAlert: (msg) => alert(msg),
+        showConfirm: (msg, cb) => cb(confirm(msg))
+      };
+      
+      window.tg = window.TelegramWebApp;
+      
+      // Перехват fetch
+      const originalFetch = window.fetch;
+      window.fetch = function(url, options) {
+        if (typeof url === 'string' && url.startsWith('http')) {
+          console.log('%c📵 Offline: blocking external fetch', 'color: #666; font-size: 10px;', url);
+          return Promise.resolve(new Response(JSON.stringify({offline: true}), {
+            status: 200,
+            headers: {'content-type': 'application/json'}
+          }));
+        }
+        try {
+          return originalFetch(url, options);
+        } catch (e) {
+          return Promise.resolve(new Response(JSON.stringify({offline: true}), {
+            status: 200,
+            headers: {'content-type': 'application/json'}
+          }));
+        }
+      };
+      
+      // Перехват XHR
+      const XHR = window.XMLHttpRequest;
+      window.XMLHttpRequest = function() {
+        const xhr = new XHR();
+        const open = xhr.open;
+        xhr.open = function(method, url) {
+          if (url && url.startsWith('http')) {
+            console.log('%c📵 Offline: blocking external XHR', 'color: #666; font-size: 10px;', url);
+            xhr._offline = true;
+          }
+          return open.apply(this, arguments);
+        };
+        const send = xhr.send;
+        xhr.send = function(data) {
+          if (xhr._offline) {
+            xhr.status = 200;
+            xhr.responseText = JSON.stringify({offline: true});
+            setTimeout(() => {
+              xhr.onload && xhr.onload();
+              xhr.onreadystatechange && xhr.onreadystatechange();
+            }, 10);
+            return;
+          }
+          return send.apply(this, arguments);
+        };
+        return xhr;
+      };
+      
+      // Сохраняем данные в localStorage вместо Firebase
+      window.saveToLocalStorage = (key, value) => {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+          console.warn('Cannot save to localStorage:', e);
+        }
+      };
+      
+      window.loadFromLocalStorage = (key) => {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : null;
+        } catch (e) {
+          return null;
+        }
+      };
+      
+      console.log('%c✅ Offline initialization complete', 'color: #18b56c; font-weight: bold;');
+    </script>
+  </head>
   <body>
-<div id="offline-indicator" style="position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#ff9800,#ffa500);color:#000;padding:12px 16px;text-align:center;font-weight:bold;z-index:10000;font-size:14px;box-shadow:0 3px 10px rgba(0,0,0,0.3)">📴 OFFLINE MODE • Все функции работают • Синхронизация отключена</div>
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    if (document.body) document.body.style.marginTop = '56px';
-  });
-  window.addEventListener('load', () => {
-    if (document.body) document.body.style.marginTop = '56px';
-  });
-</script>
+    <div id="offline-banner" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(90deg, #ff9800 0%, #ffa726 100%);
+      color: white;
+      padding: 12px 20px;
+      text-align: center;
+      font-weight: bold;
+      z-index: 999999;
+      box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      font-size: 14px;
+      letter-spacing: 0.3px;
+    ">
+      🟠 OFFLINE MODE - Приложение работает полностью без интернета | Данные сохраняются локально
+    </div>
+    <style>
+      html, body { margin: 0 !important; padding: 0 !important; }
+      body > * { margin-top: 50px; }
+    </style>
+  
     <!-- ===== ТОП-БАР С ПЕРЕКЛЮЧАТЕЛЕМ ТЕМ ===== -->
     <div class="theme-header">
       <h2>💬 Чат</h2>
