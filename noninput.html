@@ -1311,6 +1311,35 @@
     </style>
     <!-- Algorithm Worker Manager -->
     <script src="algorithm-manager.js" defer></script>
+    
+    <!-- Initialize Worker as soon as possible -->
+    <script>
+      // Initialize worker immediately when algorithm-manager.js loads
+      if (document.readyState === 'loading') {
+        // DOM still loading, wait for DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', initWorkerWhenReady);
+      } else {
+        // DOM already loaded (e.g., script loaded late)
+        initWorkerWhenReady();
+      }
+      
+      async function initWorkerWhenReady() {
+        // Wait a tiny bit for algorithm-manager.js to define functions
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        if (typeof initializeAlgorithmWorker === 'function') {
+          try {
+            console.log('[INIT] Initializing Web Worker...');
+            await initializeAlgorithmWorker();
+            console.log('[INIT] ✅ Web Worker initialized successfully');
+          } catch (e) {
+            console.error('[INIT] ❌ Web Worker initialization failed:', e);
+          }
+        } else {
+          console.warn('[INIT] initializeAlgorithmWorker not available yet');
+        }
+      }
+    </script>
   </head>
   <body>
     <!-- Consent Banner -->
@@ -10343,8 +10372,7 @@ ${text}
       /* ====================== Частотный сканер ====================== */
 
       /* ============================ UI ============================ */
-      document.addEventListener("DOMContentLoaded", async () => {
-        // === Initialize Algorithm Worker ===
+      // === Initialize Algorithm Worker ===
         let workerReady = false;
         try {
           console.log("[INIT] Initializing Algorithm Worker...");
@@ -10979,7 +11007,6 @@ setInterval(step,12);`;
             console.error("[INIT] Failed to start loop:", e);
           }
         })();
-      });
 
       // Lazy initialization of heavy runtime parts (chat, counters, global services)
       window.__appInitialized = false;

@@ -10373,8 +10373,7 @@ ${text}
       /* ====================== Частотный сканер ====================== */
 
       /* ============================ UI ============================ */
-      document.addEventListener("DOMContentLoaded", async () => {
-        // === Initialize Algorithm Worker ===
+      // === Initialize Algorithm Worker ===
         let workerReady = false;
         try {
           console.log("[INIT] Initializing Algorithm Worker...");
@@ -10986,7 +10985,6 @@ setInterval(step,12);`;
             console.error("[INIT] Failed to start loop:", e);
           }
         })();
-      });
 
       // Lazy initialization of heavy runtime parts (chat, counters, global services)
       window.__appInitialized = false;
