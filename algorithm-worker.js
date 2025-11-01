@@ -151,16 +151,21 @@ class FrequencyScanner {
     // Analyze CPU jitter to detect frequency
     const stats = this.s.getStats();
     
-    // Frequency detection from timing statistics
+    // Frequency detection from timing statistics (stabilized, non-saturating)
     const tickMean = stats.mean; // Average sample time in ms
     if (tickMean > 0) {
-      this.out_f = Math.min(200, Math.max(0, 1000 / (tickMean * 2)));
+      const fs = 1000 / tickMean; // effective sampling-like rate
+      // Save for optional diagnostics/resource mapping
+      this.s.actual_fs = fs;
+      // Map fs to a pleasant 0..120 Hz range using log compression to avoid 200 Hz saturation
+      const fCompressed = Math.log10(fs + 1) * 40; // ~0..120 for fs up to ~1e4
+      this.out_f = Math.max(0, Math.min(120, fCompressed));
     }
 
-    // Confidence based on consistency
-    const variance = stats.std;
-    const confidenceRaw = Math.max(0, 1 - variance / (stats.mean * 2));
-    this.out_conf = Math.min(1, Math.max(0, confidenceRaw));
+    // Confidence based on relative jitter (0..1, higher = more stable)
+    const relStd = stats.std / Math.max(1e-6, stats.mean);
+    const confidenceRaw = 1 - relStd; // if std ~ mean => low confidence
+    this.out_conf = Math.max(0, Math.min(1, confidenceRaw));
 
     // Inertia (stability) based on history
     this.confHistory.push(this.out_conf);
