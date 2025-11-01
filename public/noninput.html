@@ -11128,6 +11128,12 @@ setInterval(step,12);`;
 
           function loop() {
             try {
+              if (typeof window.__loopDebug === 'undefined') window.__loopDebug = 0;
+              window.__loopDebug++;
+              if (window.__loopDebug <= 3) {
+                console.log(`[LOOP ${window.__loopDebug}] Starting, scan=`, typeof scan, ', setT=', typeof window.__setT);
+              }
+              
               const needCnt = scan.needCount();
               const avail = (s.widx - scan.r) & CpuJitterSampler.MASK;
               const need = avail < needCnt;

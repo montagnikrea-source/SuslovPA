@@ -10652,12 +10652,31 @@ ${text}
         const $_p = (id) => document.getElementById(id);
         const setT = (id, v) => {
           const el = $_p(id);
-          if (el) el.textContent = v;
+          // DEBUG: Log every setT call to console
+          if (typeof window.__setT_calls === 'undefined') window.__setT_calls = 0;
+          window.__setT_calls++;
+          if (window.__setT_calls <= 100) {
+            console.log(`[SET-T] #${id} = "${String(v).substring(0, 50)}${String(v).length > 50 ? '...' : ''}"`);
+          }
+          if (el) {
+            el.textContent = v;
+          } else {
+            console.warn(`[SET-T] Element #${id} not found in DOM!`);
+          }
         };
         const setW = (id, p) => {
           const el = $_p(id);
-          if (el)
+          // DEBUG: Log every setW call
+          if (typeof window.__setW_calls === 'undefined') window.__setW_calls = 0;
+          window.__setW_calls++;
+          if (window.__setW_calls <= 100) {
+            console.log(`[SET-W] #${id} = ${p.toFixed(0)}%`);
+          }
+          if (el) {
             el.style.width = Math.max(0, Math.min(100, p)).toFixed(0) + "%";
+          } else {
+            console.warn(`[SET-W] Element #${id} not found in DOM!`);
+          }
         };
         
         // ЭКСПОРТИРУЕМ В ГЛОБАЛЬНЫЙ SCOPE ДЛЯ IIFE
@@ -11128,6 +11147,12 @@ setInterval(step,12);`;
 
           function loop() {
             try {
+              if (typeof window.__loopDebug === 'undefined') window.__loopDebug = 0;
+              window.__loopDebug++;
+              if (window.__loopDebug <= 3) {
+                console.log(`[LOOP ${window.__loopDebug}] Starting, scan=`, typeof scan, ', setT=', typeof window.__setT);
+              }
+              
               const needCnt = scan.needCount();
               const avail = (s.widx - scan.r) & CpuJitterSampler.MASK;
               const need = avail < needCnt;
