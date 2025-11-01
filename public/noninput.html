@@ -11054,7 +11054,17 @@ setInterval(step,12);`;
               window.__lastValidOutput = { ...out };
             }
             
-            const fmax = Math.max(1, scan.fmax);
+            // === ГАРАНТИРУЕМ ДОСТАТОЧНО БОЛЬШОЙ fmax ===
+            // Причина: если actual_fs низкая, то fmax может быть слишком маленькой (20-30 Hz)
+            // и progress bar застревает. Используем динамический max на основе текущей частоты
+            let fmax = Math.max(1, scan.fmax);
+            // Если текущая частота близка к fmax, увеличиваем fmax для полного диапазона
+            if (out.f > fmax * 0.8) {
+              fmax = Math.max(fmax, out.f * 1.2);
+            }
+            // Но не больше 200 Hz (разумный лимит)
+            fmax = Math.min(200, fmax);
+            
             window.__setT("freqValue", out.f.toFixed(3));
             window.__setW("freqBar", (100 * out.f) / fmax);
             window.__setT("inertiaValue", (out.inertia * 100).toFixed(0));
