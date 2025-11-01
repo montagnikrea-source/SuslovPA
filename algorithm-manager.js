@@ -25,13 +25,17 @@ class AlgorithmWorkerManager {
     return new Promise((resolve, reject) => {
       try {
         // Try to create worker - support relative and absolute paths
-        let workerPath = 'algorithm-worker.js';
+  let workerPath = 'algorithm-worker.js';
         
         // Detect current location for relative path
         if (typeof window !== 'undefined' && window.location) {
           const baseDir = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
           if (baseDir && baseDir !== '/') {
-            workerPath = window.location.origin + baseDir + 'algorithm-worker.js';
+            const search = window.location.search || '';
+            const cacheBuster = /nocache|v=/i.test(search)
+              ? search
+              : ('?v=' + (window.__buildId || '1.0'));
+            workerPath = window.location.origin + baseDir + 'algorithm-worker.js' + cacheBuster;
           }
         }
         
