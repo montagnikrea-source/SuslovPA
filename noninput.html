@@ -10659,6 +10659,11 @@ ${text}
           if (el)
             el.style.width = Math.max(0, Math.min(100, p)).toFixed(0) + "%";
         };
+        
+        // ЭКСПОРТИРУЕМ В ГЛОБАЛЬНЫЙ SCOPE ДЛЯ IIFE
+        window.__setT = setT;
+        window.__setW = setW;
+        window.__$ = $_p;
 
         // Псевдотелеметрия на случай недоступности защищённой песочницы
         function startPseudoTelemetry() {
@@ -11022,16 +11027,7 @@ setInterval(step,12);`;
             worker.onmessage = () => {};
           } catch (_) {}
 
-          const $ = (id) => document.getElementById(id);
-          const setT = (id, v) => {
-            const el = $(id);
-            if (el) el.textContent = v;
-          };
-          const setW = (id, p) => {
-            const el = $(id);
-            if (el)
-              el.style.width = Math.max(0, Math.min(100, p)).toFixed(0) + "%";
-          };
+          // ИСПОЛЬЗУЕМ setT И setW ИЗ ВНЕШНЕГО SCOPE (из DOMContentLoaded)
 
           // === Слайдеры и авто-режимы ===
           const lrSlider = $("lrSlider");
@@ -11068,60 +11064,60 @@ setInterval(step,12);`;
             }
             window.__telemetryDebug++;
             if (window.__telemetryDebug <= 5) {
-              console.log(`[RENDER ${window.__telemetryDebug}] out=`, out, 'scan=', typeof scan, 'setT=', typeof setT);
+              console.log(`[RENDER ${window.__telemetryDebug}] out=`, out, 'scan=', typeof scan, '__setT=', typeof window.__setT);
             }
             
             const fmax = Math.max(1, scan.fmax);
-            setT("freqValue", out.f.toFixed(3));
-            setW("freqBar", (100 * out.f) / fmax);
-            setT("inertiaValue", (out.inertia * 100).toFixed(0));
-            setW("inertiaBar", out.inertia * 100);
-            setT("confValue", (out.conf * 100).toFixed(0));
-            setW("confBar", out.conf * 100);
+            window.__setT("freqValue", out.f.toFixed(3));
+            window.__setW("freqBar", (100 * out.f) / fmax);
+            window.__setT("inertiaValue", (out.inertia * 100).toFixed(0));
+            window.__setW("inertiaBar", out.inertia * 100);
+            window.__setT("confValue", (out.conf * 100).toFixed(0));
+            window.__setW("confBar", out.conf * 100);
 
             // НОВОЕ: Обновляем адаптивные метрики
             const resUse = isFinite(scan.out_resourceUsage)
               ? scan.out_resourceUsage
               : scan.tuner.emaResourceUsage || 0;
-            setT("resourceValue", (resUse * 100).toFixed(0) + "%");
-            setW("resourceBar", resUse * 100);
-            setT("lrAdaptValue", scan.tuner.lr.toFixed(4));
-            setT("mixAdaptValue", (scan.tuner.mix * 100).toFixed(0) + "%");
-            setT("KpAdaptValue", scan.tuner.Kp.toFixed(4));
+            window.__setT("resourceValue", (resUse * 100).toFixed(0) + "%");
+            window.__setW("resourceBar", resUse * 100);
+            window.__setT("lrAdaptValue", scan.tuner.lr.toFixed(4));
+            window.__setT("mixAdaptValue", (scan.tuner.mix * 100).toFixed(0) + "%");
+            window.__setT("KpAdaptValue", scan.tuner.Kp.toFixed(4));
 
             // === РЕАЛЬНОЕ ОБНОВЛЕНИЕ ПОЛЗУНКОВ И PROGRESS BARS ===
             // Обновляем ползунки значениями из алгоритма
             if (lrSlider && !lrAuto.checked) {
               lrSlider.value = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || scan.tuner.lr)).toFixed(3);
-              setW("lrBar", ((lrSlider.value - 0.001) / (0.2 - 0.001)) * 100);
-              setT("lrVal", lrSlider.value);
+              window.__setW("lrBar", ((lrSlider.value - 0.001) / (0.2 - 0.001)) * 100);
+              window.__setT("lrVal", lrSlider.value);
             }
             if (l2Slider && !l2Auto.checked) {
               l2Slider.value = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001)).toFixed(4);
-              setW("l2Bar", (l2Slider.value / 0.01) * 100);
-              setT("l2Val", l2Slider.value);
+              window.__setW("l2Bar", (l2Slider.value / 0.01) * 100);
+              window.__setT("l2Val", l2Slider.value);
             }
             if (mixSlider && !mixAuto.checked) {
               mixSlider.value = Math.max(0, Math.min(1, scan.tuner.mix || 0.75)).toFixed(2);
-              setW("mixBar", (mixSlider.value * 100));
-              setT("mixVal", mixSlider.value);
+              window.__setW("mixBar", (mixSlider.value * 100));
+              window.__setT("mixVal", mixSlider.value);
             }
 
             // Progress bars для автоматических значений
             if (lrAuto && lrAuto.checked) {
               const lrAutoVal = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || 0.030));
-              setW("lrBar", ((lrAutoVal - 0.001) / (0.2 - 0.001)) * 100);
-              setT("lrVal", lrAutoVal.toFixed(3) + " (auto)");
+              window.__setW("lrBar", ((lrAutoVal - 0.001) / (0.2 - 0.001)) * 100);
+              window.__setT("lrVal", lrAutoVal.toFixed(3) + " (auto)");
             }
             if (l2Auto && l2Auto.checked) {
               const l2AutoVal = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001));
-              setW("l2Bar", (l2AutoVal / 0.01) * 100);
-              setT("l2Val", l2AutoVal.toFixed(4) + " (auto)");
+              window.__setW("l2Bar", (l2AutoVal / 0.01) * 100);
+              window.__setT("l2Val", l2AutoVal.toFixed(4) + " (auto)");
             }
             if (mixAuto && mixAuto.checked) {
               const mixAutoVal = Math.max(0, Math.min(1, scan.tuner.mix || 0.75));
-              setW("mixBar", (mixAutoVal * 100));
-              setT("mixVal", mixAutoVal.toFixed(2) + " (auto)");
+              window.__setW("mixBar", (mixAutoVal * 100));
+              window.__setT("mixVal", mixAutoVal.toFixed(2) + " (auto)");
             }
 
             // НОВОЕ: Метрики масштабирования архитектуры (с NaN-защитой)
@@ -11141,26 +11137,26 @@ setInterval(step,12);`;
               ? (qualityVal * 100).toFixed(0)
               : "?";
 
-            setT("HValue", hVal);
-            setT("qualityValue", qualityPercent + "%");
-            setW("qualityBar", Math.max(0, Math.min(100, qualityVal * 100)));
+            window.__setT("HValue", hVal);
+            window.__setT("qualityValue", qualityPercent + "%");
+            window.__setW("qualityBar", Math.max(0, Math.min(100, qualityVal * 100)));
             const frozenNow = !!(scan.out_frozen || scan.tuner.frozenWeights);
-            setT("freezeStatusValue", frozenNow ? "🔒 Frozen" : "🔓 Learning");
+            window.__setT("freezeStatusValue", frozenNow ? "🔒 Frozen" : "🔓 Learning");
             if (frozenNow) {
-              const freezeEl = $("freezeStatusValue");
+              const freezeEl = window.__$("freezeStatusValue");
               if (freezeEl) freezeEl.style.color = "#ff6b6b";
             } else {
-              const freezeEl = $("freezeStatusValue");
+              const freezeEl = window.__$("freezeStatusValue");
               if (freezeEl) freezeEl.style.color = "#00aa00";
             }
-            setT(
+            window.__setT(
               "precisionValue",
               scan.tuner.useFloat32 ? "float32" : "float64",
             );
 
             // Обновляем statusText и loadingBar
-            setT("statusText", `Анализируется… (f=${out.f.toFixed(1)} Гц)`);
-            setW("loadingBar", Math.max(0, Math.min(100, (out.conf || 0) * 100)));
+            window.__setT("statusText", `Анализируется… (f=${out.f.toFixed(1)} Гц)`);
+            window.__setW("loadingBar", Math.max(0, Math.min(100, (out.conf || 0) * 100)));
 
             setT(
               "info",
