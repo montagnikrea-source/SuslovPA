@@ -10856,7 +10856,12 @@ ${text}
           const overlay = $("neuroOverlay");
           if (!overlay) return;
           if (show) {
-            overlay.classList.add("visible", "buff");
+            // Показываем оверлей только когда алгоритм запущен
+            if (window.__algoRunning) {
+              overlay.classList.add("visible", "buff");
+            } else {
+              overlay.classList.remove("buff", "visible");
+            }
           } else {
             overlay.classList.remove("buff", "visible");
           }
