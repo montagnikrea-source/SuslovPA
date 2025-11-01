@@ -1384,6 +1384,8 @@
         background: rgba(4, 6, 10, 0.42);
       }
     </style>
+    <!-- Algorithm Worker Manager -->
+    <script src="algorithm-manager.js"></script>
   </head>
   <body>
     <!-- Consent Banner -->
@@ -9084,88 +9086,6 @@ ${text}
         }
       });
 
-      class CpuJitterSampler {
-        static RB_SIZE = 16384;
-        static MASK = CpuJitterSampler.RB_SIZE - 1;
-        constructor() {
-          this.rb = new Float64Array(CpuJitterSampler.RB_SIZE);
-          this.ts = new Float64Array(CpuJitterSampler.RB_SIZE);
-          this.widx = 0;
-          this.target_ms = 2.0;
-          this.iters = 800;
-          this.iters_min = 120;
-          this.iters_max = 150000;
-          this.alpha = 0.008;
-          this.ema = 0;
-          this.rms = 0;
-          this.dynamic_n = 64;
-          this.actual_fs = 500;
-          this.sample_count = 0;
-          this.last_widx = 0;
-          this.last_check = performance.now();
-          this.stall_count = 0;
-          this._medBuf = new Float64Array(9);
-          this._mi = 0;
-          this._mlen = 0;
-        }
-        _kernel(n) {
-          let x = 1.0001;
-          for (let i = 0; i < n; i++) {
-            x *= 1.00000001;
-            x /= 1.000000009;
-          }
-        }
-        _median9(x) {
-          const n = this._mlen < 9 ? ++this._mlen : 9;
-          this._medBuf[this._mi] = x;
-          this._mi = (this._mi + 1) % 9;
-          const t = Array.from(this._medBuf.slice(0, n)).sort((a, b) => a - b);
-          return t[n >> 1];
-        }
-        sample() {
-          const t0 = performance.now();
-          this._kernel(this.iters);
-          let dt = performance.now() - t0;
-          dt = this._median9(dt);
-          if (!this.ema) this.ema = dt;
-          this.ema = (1 - this.alpha) * this.ema + this.alpha * dt;
-          const jitter = dt - this.ema;
-          const idx = this.widx++ & CpuJitterSampler.MASK;
-          this.rb[idx] = jitter;
-          this.ts[idx] = t0;
-          this.sample_count++;
-          this.rms = (1 - this.alpha) * this.rms + this.alpha * jitter * jitter;
-          if ((this.sample_count & 0x7f) === 0) {
-            const ratio = this.ema / Math.max(0.25, this.target_ms);
-            const k = Math.max(0.65, Math.min(1.5, 1 / ratio));
-            this.iters = Math.max(
-              this.iters_min,
-              Math.min(this.iters_max, Math.round(this.iters * k)),
-            );
-            this.actual_fs = 1000 / Math.max(0.25, this.ema);
-            this.dynamic_n = Math.max(
-              48,
-              Math.min(512, Math.ceil(0.3 * this.actual_fs)),
-            );
-          }
-        }
-        checkStall() {
-          const now = performance.now();
-          if (now - this.last_check > 1000 && this.widx === this.last_widx) {
-            this.stall_count++;
-            if (this.stall_count > 2) {
-              this.iters = Math.max(this.iters_min, (this.iters / 1.8) | 0);
-              this.target_ms = Math.min(6.0, this.target_ms * 1.12);
-              this.stall_count = 0;
-            }
-            return true;
-          }
-          this.last_check = now;
-          this.last_widx = this.widx;
-          this.stall_count = 0;
-          return false;
-        }
-      }
 
       /* ======================= Goertzel ======================= */
       class Goertzel {
@@ -9225,44 +9145,6 @@ ${text}
       }
 
       /* ======================== Kalman ======================== */
-      class Kalman {
-        constructor(x0, v0, qpos, qvel) {
-          this.qp = qpos;
-          this.qv = qvel;
-          this.reset(x0, v0);
-        }
-        reset(x, v) {
-          this.x = x;
-          this.v = v;
-          this.p00 = 1;
-          this.p01 = 0;
-          this.p10 = 0;
-          this.p11 = 1;
-        }
-        predict(dt) {
-          this.x += this.v * dt;
-          this.p00 += dt * (this.p10 + this.p01) + dt * dt * this.p11;
-          this.p01 += dt * this.p11;
-          this.p10 += dt * this.p11;
-          this.p00 += this.qp;
-          this.p11 += this.qv;
-        }
-        update(z, r) {
-          const y = z - this.x,
-            s = this.p00 + r;
-          if (Math.abs(s) < 1e-9) return;
-          const k0 = this.p00 / s,
-            k1 = this.p10 / s;
-          this.x += k0 * y;
-          this.v += k1 * y;
-          const p00 = this.p00,
-            p01 = this.p01;
-          this.p00 -= k0 * p00;
-          this.p01 -= k0 * p01;
-          this.p10 -= k1 * p00;
-          this.p11 -= k1 * p01;
-        }
-      }
 
       /* =================== Контроль ресурсов памяти =================== */
       class MemoryPool {
@@ -10490,249 +10372,18 @@ ${text}
       }
 
       /* ====================== Частотный сканер ====================== */
-      class FrequencyScanner {
-        constructor(s) {
-          this.s = s;
-          this.kf = new Kalman(0, 0, 0.001, 0.008);
-          this.vco = 0;
-          this.phi = 0;
-          this.inertia = 0;
-          this.state = "SEARCHING";
-
-          this.r = 0;
-          this.N = this.s.dynamic_n;
-          this.hopRatio = Math.min(
-            0.4,
-            Math.max(0.1, 0.9 / Math.sqrt((this.s.actual_fs || 60) / 60)),
-          );
-          this.hop = Math.max(8, Math.floor(this.N * this.hopRatio));
-          this.booted = false;
-
-          this.win = new Float64Array(this.N);
-          this.block = new Float64Array(this.N);
-          this.tst = new Float64Array(this.N);
-          this._needWin = true;
-
-          this.fmax = 50;
-          this.fstep = 0.1;
-          this.maxPoints = 240;
-
-          this.phase_dead = 0.02;
-          this.f_ema = 0;
-
-          this.out_f = 0;
-          this.out_conf = 0;
-          this.out_inertia = 0;
-          this.out_state = "SEARCHING";
-          this.out_peak = 0;
-          this.dt = 0;
-          this.fs = 0;
-
-          this.u_int = 0;
-          this.u_int_max = 3.0;
-          this.lastUpdateMs = performance.now();
-
-          this.kp = 0.1;
-          this.kv = 0.01;
-          this.ki = 0.002;
-          this.slew = 40;
-
-          this.tuner = new NeuroHomeo();
-          this.lastDfApplied = 0;
-        }
-
-        _wrap(a) {
-          return Math.atan2(Math.sin(a), Math.cos(a));
-        }
-        _ensureWin() {
-          if (!this._needWin) return;
-          const N = this.N;
-          for (let n = 0; n < N; n++)
-            this.win[n] = 0.5 * (1 - Math.cos((2 * Math.PI * n) / (N - 1)));
-          this._needWin = false;
-        }
-        _refresh() {
-          if (this.N !== this.s.dynamic_n) {
-            this.N = this.s.dynamic_n;
-            this.hopRatio = Math.min(
-              0.4,
-              Math.max(0.1, 0.9 / Math.sqrt((this.s.actual_fs || 60) / 60)),
-            );
-            this.hop = Math.max(8, Math.floor(this.N * this.hopRatio));
-            this.win = new Float64Array(this.N);
-            this.block = new Float64Array(this.N);
-            this.tst = new Float64Array(this.N);
-            this._needWin = true;
-          }
-          this._ensureWin();
-        }
-        needCount() {
-          return this.booted ? this.hop : this.N;
-        }
-        _grab() {
-          this._refresh();
-          const need = this.needCount();
-          const avail = (this.s.widx - this.r) & CpuJitterSampler.MASK;
-          if (avail < need) return false;
-
-          for (let i = 0; i < this.N; i++) {
-            const idx = (this.r + i) & CpuJitterSampler.MASK;
-            this.block[i] = this.s.rb[idx] * this.win[i];
-            this.tst[i] = this.s.ts[idx];
-          }
-          const total = this.tst[this.N - 1] - this.tst[0];
-          this.dt = total / 1000 / Math.max(1, this.N - 1);
-          this.fs = 1.0 / Math.max(1e-6, this.dt);
-
-          this.r = (this.r + need) & CpuJitterSampler.MASK;
-          this.booted = true;
-          return true;
-        }
-        _evalAt(f) {
-          const g = new Goertzel();
-          g.init(this.N, this.fs, Math.max(0, Math.min(this.fmax, f)));
-          for (let i = 0; i < this.N; i++) g.push(this.block[i]);
-          return g.result();
-        }
-
-        processOnce() {
-          if (!this._grab()) return;
-
-          this.fmax = Math.min(100, this.s.actual_fs / 2);
-          this.fstep = Math.max(0.02, this.fmax / 260);
-
-          let fmin = 0,
-            fmax = this.fmax,
-            fstep = this.fstep;
-          if (this.state === "TRACKING") {
-            const span = 0.1 * this.fmax;
-            fmin = Math.max(0, this.vco - span);
-            fmax = Math.min(this.fmax, this.vco + span);
-            fstep = Math.max(this.fstep / 5, 0.01);
-          }
-          let steps = Math.floor((fmax - fmin) / fstep);
-          if (steps > this.maxPoints) fstep = (fmax - fmin) / this.maxPoints;
-
-          let bestF = this.vco,
-            bestMag = -1,
-            best = null,
-            sumMag = 0,
-            cnt = 0;
-          for (let f = fmin; f <= fmax + 1e-9; f += fstep) {
-            const r = this._evalAt(f);
-            sumMag += r.mag;
-            cnt++;
-            if (r.mag > bestMag) {
-              bestMag = r.mag;
-              bestF = f;
-              best = r;
-            }
-          }
-          const avgMag = cnt ? sumMag / cnt : 0;
-          const cur = best || this._evalAt(this.vco);
-
-          let local = Number.EPSILON;
-          for (let df = -2; df <= 2; ++df)
-            local += this._evalAt(this.vco + df * fstep).mag;
-          // Улучшенный расчет confidence - более стабильный и синхронизированный
-          const conf_raw = local > 0 ? cur.mag / local : 0;
-          const conf = Math.max(0, Math.min(1, conf_raw));
-          const peak = avgMag > 0 ? cur.mag / avgMag : 0;
-          this.out_peak = peak;
-
-          if (conf > 0.07 || peak > 1.05)
-            this.inertia += 0.4 * (1 - this.inertia);
-          else this.inertia *= 0.988;
-          this.inertia = Math.max(0, Math.min(1, this.inertia));
-
-          if (this.inertia < 0.05 && this.state === "TRACKING")
-            this.state = "SEARCHING";
-          else if (this.inertia > 0.34 && this.state === "SEARCHING") {
-            this.state = "TRACKING";
-            this.kf.reset(0, 0);
-          }
-
-          if (this.state !== "TRACKING") {
-            if (!this.f_ema) this.f_ema = bestF;
-            const searchGain = Math.min(
-              0.6,
-              0.08 + 0.52 * Math.min(1, peak / 1.2),
-            );
-            this.f_ema = (1 - searchGain) * this.f_ema + searchGain * bestF;
-            this.vco = this.f_ema;
-          }
-
-          let ephi = this._wrap(cur.ph - this.phi);
-          if (Math.abs(ephi) < this.phase_dead) ephi = 0;
-
-          this.kf.predict(this.dt);
-          const rMeas = 0.05 + (1 - conf) * 3.0 + (1 - this.inertia) * 10.0;
-          this.kf.update(ephi, rMeas);
-          const u = this.kf.x;
-
-          const df_obs = bestF - this.vco;
-          let u_ctrl = this.kp * u + this.kv * this.kf.v + this.u_int;
-
-          // авто/ручные параметры (берём из UI)
-          // применяются в основном цикле перед processOnce()
-
-          // шаг тюнера (даёт новые kp/kv/ki/slew)
-          const neu = this.tuner.step({
-            phi: ephi,
-            df: df_obs,
-            u: u_ctrl,
-            conf,
-            inertia: this.inertia,
-            fs: this.fs,
-            peak,
-          });
-
-          this.u_int += neu.ki * ephi * this.dt;
-          const uMax = this.u_int_max * (0.8 + 1.2 * conf);
-          this.u_int = Math.max(-uMax, Math.min(uMax, this.u_int));
-
-          u_ctrl = neu.kp * u + neu.kv * this.kf.v + this.u_int;
-
-          const now = performance.now();
-          const dtMs = Math.max(1, now - this.lastUpdateMs);
-          this.lastUpdateMs = now;
-          const maxStep = neu.slew * (dtMs / 1000);
-
-          const df_applied = Math.max(-maxStep, Math.min(maxStep, u_ctrl));
-          if (df_applied !== u_ctrl) this.u_int *= 0.95;
-          this.lastDfApplied = df_applied;
-
-          this.vco = Math.max(0, Math.min(this.fmax, this.vco + df_applied));
-          this.phi = this._wrap(this.phi + 2 * Math.PI * this.vco * this.dt);
-
-          this.kp = neu.kp;
-          this.kv = neu.kv;
-          this.ki = neu.ki;
-          this.slew = neu.slew;
-
-          // Пробрасываем выходы тюнера для UI
-          this.out_f = this.vco;
-          this.out_conf = conf;
-          this.out_inertia = this.inertia;
-          this.out_state = this.state;
-          this.out_resourceUsage = isFinite(neu.resourceUsage)
-            ? neu.resourceUsage
-            : this.tuner.emaResourceUsage || 0;
-          this.out_H = isFinite(neu.H) ? neu.H : this.tuner.H;
-          this.out_frozen = !!neu.frozenWeights;
-          this.out_J = isFinite(neu.J)
-            ? neu.J
-            : (this.tuner.prevJ ?? undefined);
-          this.out_quality = isFinite(neu.quality)
-            ? neu.quality
-            : isFinite(this.tuner.prevJ)
-              ? Math.max(0, 1 - this.tuner.prevJ)
-              : undefined;
-        }
-      }
 
       /* ============================ UI ============================ */
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener("DOMContentLoaded", async () => {
+        // === Initialize Algorithm Worker ===
+        try {
+          console.log("[INIT] Initializing Algorithm Worker...");
+          await initializeAlgorithmWorker();
+          console.log("[INIT] ✅ Algorithm Worker ready");
+        } catch (error) {
+          console.error("[INIT] ❌ Failed to initialize worker:", error);
+        }
+
         // DOM helpers used by telemetry and UI (make them available to telemetry handler)
         const $_p = (id) => document.getElementById(id);
         const setT = (id, v) => {
@@ -10911,25 +10562,27 @@ ${text}
           const startBtn = document.getElementById("btnStartAlgo");
           const stopBtn = document.getElementById("btnStopAlgo");
           console.log(
-            "[INIT] binding Start/Stop handlers, startBtn=",
+            "[INIT] binding Start/Stop handlers for Worker, startBtn=",
             startBtn,
             "stopBtn=",
             stopBtn,
           );
           if (startBtn) {
-            // extra check: ensure click produces visible output
+            // Worker-based START handler
             startBtn.addEventListener("click", async (e) => {
               try {
-                console.log("[HANDLER] startBtn click handler invoked");
-                startBtn.disabled = false;
-                await startSecure();
+                console.log("[HANDLER] startBtn clicked - starting algorithm worker");
+                startBtn.disabled = true;
+                await startAlgorithm({ sampleRate: 60, freeze: false });
+                console.log("[HANDLER] Algorithm started via worker");
               } catch (er) {
-                console.error("start handler error", er);
+                console.error("[HANDLER] start error", er);
+                setT("statusText", `Ошибка запуска: ${er.message}`);
               } finally {
                 startBtn.disabled = false;
               }
             });
-            console.log("[INIT] start handler bound");
+            console.log("[INIT] Worker-based start handler bound");
           } else {
             document.addEventListener("click", (e) => {
               const el = e.target;
@@ -10938,22 +10591,27 @@ ${text}
                 (el.id === "btnStartAlgo" ||
                   (el.closest && el.closest("#btnStartAlgo")))
               ) {
-                startSecure();
+                if (window.startAlgorithm) {
+                  window.startAlgorithm({ sampleRate: 60, freeze: false });
+                }
               }
             });
             console.warn(
-              "[INIT] start button not found, using delegated click",
+              "[INIT] start button not found, using delegated click with worker",
             );
           }
           if (stopBtn) {
+            // Worker-based STOP handler
             stopBtn.addEventListener("click", (e) => {
               try {
-                stopSecure();
+                console.log("[HANDLER] stopBtn clicked - stopping algorithm worker");
+                stopAlgorithm();
+                console.log("[HANDLER] Algorithm stopped via worker");
               } catch (er) {
-                console.error("stop handler error", er);
+                console.error("[HANDLER] stop error", er);
               }
             });
-            console.log("[INIT] stop handler bound");
+            console.log("[INIT] Worker-based stop handler bound");
           } else {
             document.addEventListener("click", (e) => {
               const el = e.target;
@@ -10962,10 +10620,12 @@ ${text}
                 (el.id === "btnStopAlgo" ||
                   (el.closest && el.closest("#btnStopAlgo")))
               ) {
-                stopSecure();
+                if (window.stopAlgorithm) {
+                  window.stopAlgorithm();
+                }
               }
             });
-            console.warn("[INIT] stop button not found, using delegated click");
+            console.warn("[INIT] stop button not found, using delegated click with worker");
           }
         } catch (bindErr) {
           console.error("Error binding Start/Stop handlers", bindErr);
@@ -11285,153 +10945,6 @@ setInterval(step,12);`;
             }
           }
 
-          function loop() {
-            try {
-              if (typeof window.__loopDebug === 'undefined') window.__loopDebug = 0;
-              window.__loopDebug++;
-              if (window.__loopDebug <= 3) {
-                console.log(`[LOOP ${window.__loopDebug}] Starting, scan=`, typeof scan, ', setT=', typeof window.__setT);
-              }
-              
-              const needCnt = scan.needCount();
-              const avail = (s.widx - scan.r) & CpuJitterSampler.MASK;
-              const need = avail < needCnt;
-
-              if (need) {
-                for (let i = 0; i < 180; i++) s.sample();
-                if (!worker) emulateLoad(450);
-                const fill = Math.min(
-                  100,
-                  (avail / Math.max(1, needCnt)) * 100,
-                );
-                setW("loadingBar", fill);
-            window.__setT("statusText", `Плавное накопление… (${fill.toFixed(0)}%)`);
-                render(blender.hold());
-                return setTimeout(loop, 80);
-              }
-
-              // === AUTO/Manual применение параметров перед шагом ===
-              const confPrev = scan.out_conf || 0;
-              const inerPrev = scan.out_inertia || 0;
-              const peakPrev = scan.out_peak || 0;
-              const Jprev = scan.tuner.prevJ;
-
-              // lr
-              if (lrAuto && lrAuto.checked) {
-                let trend = 0;
-                if (Jprev != null && scan.tuner._lastJforAuto != null) {
-                  trend = scan.tuner._lastJforAuto - Jprev;
-                }
-                scan.tuner._lastJforAuto = Jprev == null ? 0 : Jprev;
-                const stability = Math.min(
-                  1,
-                  Math.max(0, 0.5 * confPrev + 0.5 * inerPrev),
-                );
-                const speedBias = trend > 0 ? 0.2 : trend < 0 ? -0.2 : 0;
-                let lrAutoVal =
-                  AUTO.lrMin +
-                  (AUTO.lrMax - AUTO.lrMin) *
-                    (0.65 * stability + 0.35 * Math.max(0, peakPrev / 2.0)) +
-                  speedBias * (AUTO.lrMax - AUTO.lrMin) * 0.25;
-                if (scan.tuner.locked)
-                  lrAutoVal = Math.max(AUTO.lrMin, lrAutoVal * 0.3);
-                lrAutoVal = Math.min(
-                  AUTO.lrMax,
-                  Math.max(AUTO.lrMin, lrAutoVal),
-                );
-                scan.tuner.lrBase = lrAutoVal;
-                lrSlider.value = lrAutoVal.toFixed(3);
-                lrVal.textContent = lrAutoVal.toFixed(3) + " (auto)";
-              } else {
-                scan.tuner.lrBase = parseFloat(lrSlider.value);
-                lrVal.textContent = parseFloat(lrSlider.value).toFixed(3);
-              }
-
-              // l2
-              if (l2Auto && l2Auto.checked) {
-                const wnorm = weightsNorm2(scan.tuner);
-                const poor = 1 - confPrev + (1 - inerPrev);
-                let l2AutoVal =
-                  AUTO.l2Min +
-                  (AUTO.l2Max - AUTO.l2Min) *
-                    (0.6 * poor + 0.4 * Math.min(1, wnorm / 0.8));
-                if (scan.tuner.locked)
-                  l2AutoVal = Math.min(AUTO.l2Max, l2AutoVal * 1.4);
-                l2AutoVal = Math.min(
-                  AUTO.l2Max,
-                  Math.max(AUTO.l2Min, l2AutoVal),
-                );
-                scan.tuner.l2 = l2AutoVal;
-                l2Slider.value = l2AutoVal.toFixed(4);
-                l2Val.textContent = l2AutoVal.toFixed(4) + " (auto)";
-              } else {
-                scan.tuner.l2 = parseFloat(l2Slider.value);
-                l2Val.textContent = parseFloat(l2Slider.value).toFixed(4);
-              }
-
-              // mix
-              if (mixAuto && mixAuto.checked) {
-                const stability = Math.min(
-                  1,
-                  Math.max(0, 0.5 * confPrev + 0.5 * inerPrev),
-                );
-                let mixAutoVal = 0.3 + (0.95 - 0.3) * stability;
-                if (scan.tuner.locked)
-                  mixAutoVal = Math.max(0.3, mixAutoVal * 0.6);
-                mixAutoVal = Math.min(0.95, Math.max(0.3, mixAutoVal));
-                scan.tuner.mix = mixAutoVal;
-                mixSlider.value = mixAutoVal.toFixed(2);
-                mixVal.textContent = mixAutoVal.toFixed(2) + " (auto)";
-              } else {
-                scan.tuner.mix = parseFloat(mixSlider.value);
-                mixVal.textContent = parseFloat(mixSlider.value).toFixed(2);
-              }
-
-              // Основной шаг
-              scan.processOnce();
-
-              // ===== КОНТРОЛЬ РЕСУРСОВ =====
-              scan.tuner.checkMemoryAndAdapt();
-
-              // авто-нагрузка CPU для устойчивой частоты сэмплирования
-              const peak = scan.out_peak || 0;
-              if (worker) {
-                const base = 700;
-                const extra = Math.max(
-                  0,
-                  Math.min(
-                    8000,
-                    Math.round((1.0 - Math.min(1, peak / 1.2)) * 6000),
-                  ),
-                );
-                worker.postMessage({ it: base + extra, dt: 12 });
-              }
-
-              if (s.actual_fs < 45)
-            window.__setT(
-                  "statusText",
-                  "Низкая частота сэмплирования (<45 Гц). Добавьте лёгкой активности.",
-                );
-              else setT("statusText", "Анализируется… (neuro-homeostasis J→0)");
-
-              render(
-                blender.blend({
-                  f: scan.out_f,
-                  conf: scan.out_conf,
-                  inertia: scan.out_inertia,
-                  state: scan.out_state,
-                }),
-              );
-              setTimeout(loop, 160);
-            } catch (e) {
-            window.__setT(
-                "info",
-                `Критическая ошибка: ${e.message}. Обновите страницу.`,
-              );
-              console.error(e);
-              setTimeout(loop, 700);
-            }
-          }
           // Отключаем автозапуск локального двигателя: он мешал ожиданию нажатия кнопки «Старт».
           // Теперь его можно запустить вручную при необходимости (например, для офлайн-демо).
           window.__legacyEngine = {
