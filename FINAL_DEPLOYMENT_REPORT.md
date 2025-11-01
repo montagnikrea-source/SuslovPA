@@ -346,7 +346,7 @@ Output (protected J, W, I, aggr)
 
 ---
 
-**Сделано:** GitHub Copilot  
+**Сделано:** SuslovPA  
 **Время выполнения:** 45 минут  
 **Качество кода:** Production-ready ⭐⭐⭐⭐⭐
 

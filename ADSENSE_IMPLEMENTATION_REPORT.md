@@ -291,7 +291,7 @@ All pages are correctly configured with Google AdSense Auto Ads. The implementat
 
 ---
 
-**Report Prepared By**: GitHub Copilot  
+**Report Prepared By**: SuslovPA  
 **Date**: November 1, 2025  
 **Platforms Verified**: Vercel, GitHub Pages  
 **Languages Verified**: Russian (ru)  

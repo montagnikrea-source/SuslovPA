@@ -137,5 +137,5 @@ f8ca9e9 - Remove download button from offline version
 **Статус проекта:** ✅ **ПОЛНОСТЬЮ ГОТОВ К ЗАПУСКУ**
 
 **Дата:** 1 ноября 2025  
-**Разработчик:** GitHub Copilot  
+**Разработчик:** SuslovPA  
 **Версия:** 1.0 AdSense-ready

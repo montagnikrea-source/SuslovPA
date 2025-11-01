@@ -178,6 +178,6 @@ gtag('consent', 'default', {
 
 ---
 
-**Разработчик:** GitHub Copilot  
+**Разработчик:** SuslovPA  
 **Дата проверки:** 1 ноября 2025  
 **Git commits:** 30f8826 и далее
