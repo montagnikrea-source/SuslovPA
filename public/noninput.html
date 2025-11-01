@@ -11094,28 +11094,34 @@ setInterval(step,12);`;
             if (lrSlider && !lrAuto.checked) {
               lrSlider.value = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || scan.tuner.lr)).toFixed(3);
               setW("lrBar", ((lrSlider.value - 0.001) / (0.2 - 0.001)) * 100);
+              setT("lrVal", lrSlider.value);
             }
             if (l2Slider && !l2Auto.checked) {
               l2Slider.value = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001)).toFixed(4);
               setW("l2Bar", (l2Slider.value / 0.01) * 100);
+              setT("l2Val", l2Slider.value);
             }
             if (mixSlider && !mixAuto.checked) {
               mixSlider.value = Math.max(0, Math.min(1, scan.tuner.mix || 0.75)).toFixed(2);
               setW("mixBar", (mixSlider.value * 100));
+              setT("mixVal", mixSlider.value);
             }
 
             // Progress bars для автоматических значений
             if (lrAuto && lrAuto.checked) {
               const lrAutoVal = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || 0.030));
               setW("lrBar", ((lrAutoVal - 0.001) / (0.2 - 0.001)) * 100);
+              setT("lrVal", lrAutoVal.toFixed(3) + " (auto)");
             }
             if (l2Auto && l2Auto.checked) {
               const l2AutoVal = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001));
               setW("l2Bar", (l2AutoVal / 0.01) * 100);
+              setT("l2Val", l2AutoVal.toFixed(4) + " (auto)");
             }
             if (mixAuto && mixAuto.checked) {
               const mixAutoVal = Math.max(0, Math.min(1, scan.tuner.mix || 0.75));
               setW("mixBar", (mixAutoVal * 100));
+              setT("mixVal", mixAutoVal.toFixed(2) + " (auto)");
             }
 
             // НОВОЕ: Метрики масштабирования архитектуры (с NaN-защитой)
@@ -11151,6 +11157,10 @@ setInterval(step,12);`;
               "precisionValue",
               scan.tuner.useFloat32 ? "float32" : "float64",
             );
+
+            // Обновляем statusText и loadingBar
+            setT("statusText", `Анализируется… (f=${out.f.toFixed(1)} Гц)`);
+            setW("loadingBar", Math.max(0, Math.min(100, (out.conf || 0) * 100)));
 
             setT(
               "info",
