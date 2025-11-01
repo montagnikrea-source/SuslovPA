@@ -168,22 +168,33 @@ class AlgorithmWorkerManager {
       return;
     }
 
-    // Track peak frequency
-    if (typeof window.__peakFrequency === 'undefined') {
-      window.__peakFrequency = data.freq || 50;
-    }
-    if (data.freq > window.__peakFrequency) {
-      window.__peakFrequency = data.freq;
-    }
+    // Maintain a short history of observed frequencies to compute an adaptive scale
+    if (!Array.isArray(window.__peakFrequencyHistory)) window.__peakFrequencyHistory = [];
+    window.__peakFrequencyHistory.push(data.freq || 0);
+    if (window.__peakFrequencyHistory.length > 32) window.__peakFrequencyHistory.shift();
 
-    // Calculate fmax with headroom
-    let fmax = Math.max(50, window.__peakFrequency * 1.1);
-    fmax = Math.min(200, fmax);
+    // Compute a robust peak (max of history) but guard against outliers by using trimmed max
+    const hist = window.__peakFrequencyHistory.slice();
+    hist.sort((a, b) => a - b);
+    // take value at 90th percentile to avoid single-sample spikes
+    const idx90 = Math.max(0, Math.floor(hist.length * 0.9) - 1);
+    const peak90 = hist[Math.min(hist.length - 1, Math.max(0, idx90))] || (data.freq || 50);
+    window.__peakFrequency = Math.max(30, peak90);
+
+    // Adaptive fmax: a bit of headroom relative to recent peak, but not too large
+    let fmax = Math.max(40, window.__peakFrequency * 1.25, (data.freq || 0) * 1.5);
+    fmax = Math.min(220, Math.max(fmax, 60));
 
     // === FREQUENCY BAR ===
-    const freqPercent = Math.min(100, Math.max(0, (100 * data.freq) / fmax));
-    window.__setW('freqBar', freqPercent);
-    window.__setT('freqValue', data.freq.toFixed(3) + ` (fmax=${fmax.toFixed(0)})`);
+  // Smooth percent changes to avoid jitter
+  const rawPercent = Math.min(100, Math.max(0, (100 * (data.freq || 0)) / fmax));
+  if (typeof window.__lastFreqPercent === 'undefined') window.__lastFreqPercent = rawPercent;
+  // simple exponential smoothing
+  const alpha = 0.25; // adjust responsiveness (0..1)
+  const smoothed = window.__lastFreqPercent * (1 - alpha) + rawPercent * alpha;
+  window.__lastFreqPercent = smoothed;
+  window.__setW('freqBar', smoothed);
+  window.__setT('freqValue', (data.freq || 0).toFixed(2) + ` Hz`);
 
     // === STABILITY BAR (INERTIA) ===
     const inertiaPercent = Math.min(100, Math.max(0, data.inertia * 100));
