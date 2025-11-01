@@ -10987,6 +10987,9 @@ ${text}
         (function () {
           /* legacy local engine disabled (isolated scope) */
 
+          // DOM helper - получаем element по id
+          const $ = (id) => document.getElementById(id);
+
           const s = new CpuJitterSampler();
           const scan = new FrequencyScanner(s);
           const blender = new OutputBlender();
