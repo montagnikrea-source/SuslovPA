@@ -1311,73 +1311,6 @@
     </style>
     <!-- Algorithm Worker Manager -->
     <script src="algorithm-manager.js" defer></script>
-    
-    <!-- Initialize Worker as soon as possible -->
-    <script>
-      // Define functions FIRST, before using them
-      async function initWorkerWhenReady() {
-        // Wait a tiny bit for algorithm-manager.js to define functions
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-        if (typeof initializeAlgorithmWorker === 'function') {
-          try {
-            console.log('[INIT] Initializing Web Worker...');
-            await initializeAlgorithmWorker();
-            console.log('[INIT] ✅ Web Worker initialized successfully');
-            
-            // NOW bind button handlers - after worker is ready
-            bindWorkerButtonHandlers();
-          } catch (e) {
-            console.error('[INIT] ❌ Web Worker initialization failed:', e);
-          }
-        } else {
-          console.warn('[INIT] initializeAlgorithmWorker not available yet');
-        }
-      }
-      
-      function bindWorkerButtonHandlers() {
-        // Find and bind the START and STOP buttons
-        const startBtn = document.getElementById("btnStartAlgo");
-        const stopBtn = document.getElementById("btnStopAlgo");
-        
-        console.log('[INIT] Binding button handlers - startBtn:', !!startBtn, 'stopBtn:', !!stopBtn);
-        
-        if (startBtn && typeof startAlgorithm === 'function') {
-          startBtn.addEventListener('click', async (e) => {
-            try {
-              console.log('[BUTTON] START clicked');
-              await startAlgorithm({ sampleRate: 60, freeze: false });
-              console.log('[BUTTON] ✅ Algorithm started');
-            } catch (er) {
-              console.error('[BUTTON] ❌ Error starting algorithm:', er);
-            }
-          });
-          console.log('[INIT] ✅ START button handler bound');
-        }
-        
-        if (stopBtn && typeof stopAlgorithm === 'function') {
-          stopBtn.addEventListener('click', (e) => {
-            try {
-              console.log('[BUTTON] STOP clicked');
-              stopAlgorithm();
-              console.log('[BUTTON] ✅ Algorithm stopped');
-            } catch (er) {
-              console.error('[BUTTON] ❌ Error stopping algorithm:', er);
-            }
-          });
-          console.log('[INIT] ✅ STOP button handler bound');
-        }
-      }
-      
-      // NOW call the function after it's defined
-      if (document.readyState === 'loading') {
-        // DOM still loading, wait for DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', initWorkerWhenReady);
-      } else {
-        // DOM already loaded (e.g., script loaded late)
-        initWorkerWhenReady();
-      }
-    </script>
   </head>
   <body>
     <!-- Consent Banner -->
@@ -11113,5 +11046,64 @@ setInterval(step,12);`;
         <div class="buff-wave"></div>
       </div>
     </div>
+    <!-- Initialize Worker AFTER algorithm-manager.js loads -->
+    <script>
+      // Now algorithm-manager.js is loaded and functions are defined
+      // Define and immediately initialize
+      async function initWorkerWhenReady() {
+        // No need to wait - script is at end of document
+        if (typeof initializeAlgorithmWorker === 'function') {
+          try {
+            console.log('[INIT] Initializing Web Worker...');
+            await initializeAlgorithmWorker();
+            console.log('[INIT] ✅ Web Worker initialized successfully');
+            
+            // NOW bind button handlers - after worker is ready
+            bindWorkerButtonHandlers();
+          } catch (e) {
+            console.error('[INIT] ❌ Web Worker initialization failed:', e);
+          }
+        } else {
+          console.warn('[INIT] initializeAlgorithmWorker not available yet');
+        }
+      }
+      
+      function bindWorkerButtonHandlers() {
+        // Find and bind the START and STOP buttons
+        const startBtn = document.getElementById("btnStartAlgo");
+        const stopBtn = document.getElementById("btnStopAlgo");
+        
+        console.log('[INIT] Binding button handlers - startBtn:', !!startBtn, 'stopBtn:', !!stopBtn);
+        
+        if (startBtn && typeof startAlgorithm === 'function') {
+          startBtn.addEventListener('click', async (e) => {
+            try {
+              console.log('[BUTTON] START clicked');
+              await startAlgorithm({ sampleRate: 60, freeze: false });
+              console.log('[BUTTON] ✅ Algorithm started');
+            } catch (er) {
+              console.error('[BUTTON] ❌ Error starting algorithm:', er);
+            }
+          });
+          console.log('[INIT] ✅ START button handler bound');
+        }
+        
+        if (stopBtn && typeof stopAlgorithm === 'function') {
+          stopBtn.addEventListener('click', (e) => {
+            try {
+              console.log('[BUTTON] STOP clicked');
+              stopAlgorithm();
+              console.log('[BUTTON] ✅ Algorithm stopped');
+            } catch (er) {
+              console.error('[BUTTON] ❌ Error stopping algorithm:', er);
+            }
+          });
+          console.log('[INIT] ✅ STOP button handler bound');
+        }
+      }
+      
+      // Execute immediately - no timeout needed
+      initWorkerWhenReady();
+    </script>
   </body>
 </html>

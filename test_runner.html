@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Runner</title>
+    <script>
+        window.testResults = [];
+        
+        function log(msg, type = 'log') {
+            console.log(msg);
+            window.testResults.push({ msg, type, time: new Date().toISOString() });
+        }
+        
+        window.onerror = function(msg, url, lineNo, colNo, error) {
+            log("❌ ERROR: " + msg + " at line " + lineNo, 'error');
+            return false;
+        };
+    </script>
+</head>
+<body>
+    <h1>Web Worker Test</h1>
+    <pre id="output"></pre>
+    
+    <script src="algorithm-manager.js" defer></script>
+    
+    <script>
+        async function runTests() {
+            const delay = ms => new Promise(r => setTimeout(r, ms));
+            
+            log("=== WEB WORKER TEST ===");
+            
+            // Wait for scripts to load
+            await delay(100);
+            
+            // Test 1: Check worker manager
+            log("\n1️⃣ Checking worker manager...");
+            if (window.__algorithmWorker) {
+                log("✅ Worker manager exists");
+                log("   - initialized: " + window.__algorithmWorker.initialized);
+                log("   - running: " + window.__algorithmWorker.running);
+                log("   - worker object: " + (!!window.__algorithmWorker.worker));
+            } else {
+                log("❌ Worker manager NOT found");
+            }
+            
+            // Test 2: Check functions
+            log("\n2️⃣ Checking functions...");
+            log("   - startAlgorithm: " + typeof startAlgorithm);
+            log("   - stopAlgorithm: " + typeof stopAlgorithm);
+            log("   - initializeAlgorithmWorker: " + typeof initializeAlgorithmWorker);
+            
+            // Test 3: Check UI helpers
+            log("\n3️⃣ Checking UI helpers...");
+            log("   - window.__setT: " + typeof window.__setT);
+            log("   - window.__setW: " + typeof window.__setW);
+            
+            // Test 4: Try to initialize worker
+            if (typeof initializeAlgorithmWorker !== 'function') {
+                log("⏳ Waiting for algorithm-manager.js to load...");
+                await delay(500);
+            }
+            
+            // Test 5: Initialize
+            log("\n4️⃣ Initializing worker...");
+            try {
+                if (typeof initializeAlgorithmWorker === 'function') {
+                    await initializeAlgorithmWorker();
+                    log("✅ Worker initialized");
+                } else {
+                    log("❌ initializeAlgorithmWorker not defined");
+                }
+            } catch (e) {
+                log("❌ Init error: " + e.message);
+            }
+            
+            // Test 6: Start algorithm
+            log("\n5️⃣ Starting algorithm...");
+            try {
+                if (typeof startAlgorithm === 'function') {
+                    startAlgorithm({ sampleRate: 60 });
+                    log("✅ startAlgorithm() called");
+                    
+                    // Wait and check
+                    await delay(1000);
+                    
+                    const stats = window.__algorithmWorker?.getStats?.();
+                    if (stats) {
+                        log("✅ Stats received: " + JSON.stringify(stats));
+                    } else {
+                        log("⏳ No stats yet");
+                    }
+                    
+                    const measure = window.__algorithmWorker?.getLastMeasurement?.();
+                    if (measure) {
+                        log("✅ Measurement: freq=" + measure.freq?.toFixed(2) + " Hz");
+                    } else {
+                        log("⏳ No measurements yet");
+                    }
+                } else {
+                    log("❌ startAlgorithm not a function: " + typeof startAlgorithm);
+                }
+            } catch (e) {
+                log("❌ Start error: " + e.message);
+            }
+            
+            log("\n=== TEST COMPLETE ===");
+            document.getElementById('output').textContent = window.testResults.map(r => r.msg).join('\n');
+        }
+        
+        // Run tests when DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', runTests);
+        } else {
+            runTests();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web Worker Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        pre { background: white; padding: 20px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; font-size: 14px; cursor: pointer; }
+        .status { margin-top: 20px; padding: 10px; background: white; border-radius: 5px; }
+        .ok { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🧵 Web Worker Test Runner</h1>
+    
+    <button onclick="runTest()">▶ Run Test</button>
+    <button onclick="clearResults()">🗑️ Clear</button>
+    
+    <pre id="output">Click "Run Test" to start...</pre>
+    
+    <!-- Load algorithm-manager like noninput.html does -->
+    <script src="algorithm-manager.js" defer></script>
+    
+    <script>
+        async function runTest() {
+            const output = document.getElementById('output');
+            const results = [];
+            
+            const log = (msg) => {
+                results.push(msg);
+                output.textContent = results.join('\n');
+                console.log(msg);
+            };
+            
+            log("=== WEB WORKER TEST ===\n");
+            
+            // Wait for scripts
+            await new Promise(r => setTimeout(r, 100));
+            
+            // Check 1: Worker Manager
+            log("1️⃣ Checking worker manager...");
+            if (window.__algorithmWorker) {
+                log("   ✅ Worker manager EXISTS");
+                log("      - initialized: " + window.__algorithmWorker.initialized);
+                log("      - running: " + window.__algorithmWorker.running);
+                log("      - worker: " + (!!window.__algorithmWorker.worker));
+            } else {
+                log("   ❌ Worker manager NOT found!");
+            }
+            
+            // Check 2: Functions
+            log("\n2️⃣ Checking functions...");
+            log("   - initializeAlgorithmWorker: " + (typeof initializeAlgorithmWorker));
+            log("   - startAlgorithm: " + (typeof startAlgorithm));
+            log("   - stopAlgorithm: " + (typeof stopAlgorithm));
+            
+            // Check 3: UI Helpers
+            log("\n3️⃣ Checking UI helpers...");
+            log("   - window.__setT: " + (typeof window.__setT));
+            log("   - window.__setW: " + (typeof window.__setW));
+            
+            // Wait for deferred scripts
+            if (typeof initializeAlgorithmWorker !== 'function') {
+                log("\n⏳ Waiting for algorithm-manager.js...");
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
+            // Check 4: Try init
+            log("\n4️⃣ Initializing worker...");
+            try {
+                if (typeof initializeAlgorithmWorker === 'function') {
+                    await initializeAlgorithmWorker();
+                    log("   ✅ Worker initialized!");
+                } else {
+                    log("   ❌ initializeAlgorithmWorker still not a function!");
+                }
+            } catch (e) {
+                log("   ❌ Error: " + e.message);
+            }
+            
+            // Check 5: Start
+            log("\n5️⃣ Starting algorithm...");
+            try {
+                if (typeof startAlgorithm === 'function') {
+                    startAlgorithm({ sampleRate: 60 });
+                    log("   ✅ startAlgorithm() called");
+                    
+                    // Wait for measurement
+                    await new Promise(r => setTimeout(r, 2000));
+                    
+                    if (window.__algorithmWorker) {
+                        log("   - running: " + window.__algorithmWorker.running);
+                        
+                        const stats = window.__algorithmWorker.getStats?.();
+                        if (stats) {
+                            log("   ✅ Stats:");
+                            log("      - messages: " + stats.messagesReceived);
+                            log("      - errors: " + stats.errorsReceived);
+                        }
+                        
+                        const measure = window.__algorithmWorker.getLastMeasurement?.();
+                        if (measure) {
+                            log("   ✅ Measurement:");
+                            log("      - freq: " + measure.freq?.toFixed(3) + " Hz");
+                            log("      - conf: " + (measure.conf * 100)?.toFixed(0) + "%");
+                        } else {
+                            log("   ⏳ No measurements yet");
+                        }
+                    }
+                } else {
+                    log("   ❌ startAlgorithm not a function: " + typeof startAlgorithm);
+                }
+            } catch (e) {
+                log("   ❌ Error: " + e.message);
+            }
+            
+            log("\n=== TEST COMPLETE ===");
+        }
+        
+        function clearResults() {
+            document.getElementById('output').textContent = 'Results cleared. Click "Run Test" to start...';
+        }
+    </script>
+</body>
+</html>
