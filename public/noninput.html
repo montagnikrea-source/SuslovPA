@@ -11083,11 +11083,21 @@ setInterval(step,12);`;
             fmax = Math.min(200, fmax);
             
             window.__setT("freqValue", out.f.toFixed(3) + ` (fmax=${fmax.toFixed(0)})`);
-            window.__setW("freqBar", Math.min(100, (100 * out.f) / fmax));
-            window.__setT("inertiaValue", (out.inertia * 100).toFixed(0));
-            window.__setW("inertiaBar", out.inertia * 100);
-            window.__setT("confValue", (out.conf * 100).toFixed(0));
-            window.__setW("confBar", out.conf * 100);
+            window.__setW("freqBar", Math.min(100, Math.max(0, (100 * out.f) / fmax)));
+            
+            // === СТАБИЛЬНОСТЬ (INERTIA) ===
+            // Значение: 0-1, показывает насколько стабильна текущая оценка частоты
+            // Bar% = inertia * 100 (преобразуем из 0-1 в 0-100)
+            const inertiaPercent = Math.min(100, Math.max(0, out.inertia * 100));
+            window.__setT("inertiaValue", inertiaPercent.toFixed(0));
+            window.__setW("inertiaBar", inertiaPercent);
+            
+            // === УВЕРЕННОСТЬ (CONFIDENCE) ===
+            // Значение: 0-1, показывает уверенность алгоритма в измерении
+            // Bar% = confidence * 100 (преобразуем из 0-1 в 0-100)
+            const confPercent = Math.min(100, Math.max(0, out.conf * 100));
+            window.__setT("confValue", confPercent.toFixed(0));
+            window.__setW("confBar", confPercent);
 
             // НОВОЕ: Обновляем адаптивные метрики
             const resUse = isFinite(scan.out_resourceUsage)
