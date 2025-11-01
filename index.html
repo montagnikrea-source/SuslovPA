@@ -6,7 +6,17 @@
     <title>SuslovPA</title>
     <script>
         // Redirect to noninput.html
-        window.location.href = '/SuslovPA/noninput.html';
+        // Определяем текущий хост и редиректим правильно
+        if (window.location.hostname.includes('vercel')) {
+            // На Vercel используем простой путь
+            window.location.href = '/noninput.html';
+        } else if (window.location.hostname.includes('github.io')) {
+            // На GitHub Pages используем путь с префиксом /SuslovPA/
+            window.location.href = '/SuslovPA/noninput.html';
+        } else {
+            // Для локальных запусков
+            window.location.href = '/noninput.html';
+        }
     </script>
 </head>
 <body>
