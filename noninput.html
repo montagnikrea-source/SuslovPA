@@ -3674,6 +3674,10 @@
         // Реальный подсчет посещений (использует API на Vercel)
         async recordVisit() {
           try {
+            // На статическом хостинге (GitHub Pages) серверных роутов нет — используем локальную симуляцию
+            if (this.isStaticHost) {
+              return await this.simulateGlobalCounterLocal();
+            }
             const response = await fetch('/api/counter?action=increment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -3730,6 +3734,11 @@
         // Получить текущее значение счетчика с API
         async getVisitCount() {
           try {
+            // На статическом хостинге не делаем запросов к /api — берём локальное значение
+            if (this.isStaticHost) {
+              const localCount = parseInt(localStorage.getItem('real_page_visits_counter') || '1215');
+              return isFinite(localCount) ? localCount : 1215;
+            }
             const response = await fetch('/api/counter?action=get', {
               method: 'GET'
             });
