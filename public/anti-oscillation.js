@@ -40,13 +40,16 @@ class OscillationDamper {
     // ===== SPIKE DETECTION =====
     this.spikeThreshold = config.spikeThreshold ?? 3.0;            // Relative change threshold
     this.spikeWindow = config.spikeWindow ?? 50;                   // Detect spike over N iterations
-    this.spikeBuffer = [];                                          // History of |dJ|
+    this.spikeBuffer = new Float32Array(this.spikeWindow);         // Pre-allocated circular buffer
+    this.spikeIdx = 0;                                              // Circular buffer index
+    this.lastSpikeCost = 0;                                         // Previous cost for delta
     this.spikeCount = 0;
     this.inSpike = false;
     
     // ===== OSCILLATION DETECTION (FREQUENCY DOMAIN) =====
     this.oscDetectionWindow = config.oscDetectionWindow ?? 100;    // Buffer size for FFT
-    this.oscBuffer = [];                                            // History of cost values
+    this.oscBuffer = new Float32Array(this.oscDetectionWindow);    // Pre-allocated circular buffer
+    this.oscIdx = 0;                                                // Circular buffer index
     this.oscThreshold = config.oscThreshold ?? 0.3;                // Peak power ratio for oscillation
     
     // ===== LEARNING RATE MANAGEMENT =====
@@ -151,75 +154,96 @@ class OscillationDamper {
   }
 
   /**
-   * Detect cost spikes and return LR scale factor
+   * Detect cost spikes and return LR scale factor (OPTIMIZED)
    * @param {number} costValue - Current cost J
-   * @param {number} prevCost - Previous cost value
+   * @param {number} prevCost - Previous cost value (still supported for compatibility)
    * @returns {number} - LR scale factor (1.0 = no change, <1 = reduce)
    */
   detectSpike(costValue, prevCost) {
-    if (prevCost === null || prevCost === undefined) {
-      return 1.0;
+    this.iterCount++;
+
+    // For compatibility, if prevCost is provided, use it
+    if (prevCost !== null && prevCost !== undefined && prevCost !== this.lastSpikeCost) {
+      this.lastSpikeCost = prevCost;
     }
 
-    const costDelta = Math.abs(costValue - prevCost);
-    this.spikeBuffer.push(costDelta);
-    
-    if (this.spikeBuffer.length > this.spikeWindow) {
-      this.spikeBuffer.shift();
+    const costDelta = Math.abs(costValue - this.lastSpikeCost);
+    this.lastSpikeCost = costValue;
+
+    // Add to circular buffer
+    this.spikeBuffer[this.spikeIdx] = costDelta;
+    this.spikeIdx = (this.spikeIdx + 1) % this.spikeWindow;
+
+    // Compute statistics on each full rotation or periodically
+    const filled = Math.min(this.iterCount, this.spikeWindow);
+
+    if (filled >= 10) {
+      let sum = 0, sumSq = 0;
+      for (let i = 0; i < filled; i++) {
+        const val = this.spikeBuffer[i];
+        sum += val;
+        sumSq += val * val;
+      }
+
+      const mean = sum / filled;
+      const variance = Math.max(0, sumSq / filled - mean * mean);
+      const std = Math.sqrt(variance + 1e-8);
+
+      // Spike detection: when current delta is far from mean
+      const zScore = (costDelta - mean) / std;
+      if (zScore > this.spikeThreshold) {
+        this.inSpike = true;
+        this.spikeCount++;
+        this.stats.spikesDetected++;
+        return this.spikeLrPenalty;
+      }
+
+      // Recover from spike
+      if (this.inSpike && zScore < 1.0) {
+        this.inSpike = false;
+      }
     }
 
-    // Compute mean of recent deltas
-    const mean = this.spikeBuffer.reduce((a, b) => a + b, 0) / this.spikeBuffer.length;
-    const std = Math.sqrt(
-      this.spikeBuffer.reduce((a, val) => a + (val - mean) ** 2, 0) / this.spikeBuffer.length + 1e-8
-    );
-
-    // Spike detection: cost delta exceeds threshold multiple times
-    const zScore = std > 1e-8 ? (costDelta - mean) / std : 0;
-    if (zScore > this.spikeThreshold && this.spikeBuffer.length > 10) {
-      this.inSpike = true;
-      this.spikeCount++;
-      this.stats.spikesDetected++;
-      return this.spikeLrPenalty; // Reduce LR during spike
-    }
-
-    // Recover from spike
-    if (this.inSpike && zScore < 1.0) {
-      this.inSpike = false;
-    }
-
-    return 1.0;
+    return this.inSpike ? this.spikeLrPenalty : 1.0;
   }
 
   /**
-   * Detect oscillatory behavior in cost history (frequency domain)
+   * Detect oscillatory behavior in cost history (OPTIMIZED)
    * @param {number} costValue - Current cost value
    * @returns {boolean} - True if oscillation detected
    */
   detectOscillation(costValue) {
-    this.oscBuffer.push(costValue);
-    if (this.oscBuffer.length > this.oscDetectionWindow) {
-      this.oscBuffer.shift();
+    // Add to circular buffer
+    this.oscBuffer[this.oscIdx] = costValue;
+    this.oscIdx = (this.oscIdx + 1) % this.oscDetectionWindow;
+
+    // Only check periodically
+    if (this.iterCount % 10 !== 0) {
+      return false;
     }
 
-    if (this.oscBuffer.length < this.oscDetectionWindow / 2) {
-      return false; // Not enough history
+    const filled = Math.min(this.iterCount, this.oscDetectionWindow);
+    if (filled < 10) {
+      return false;
     }
 
-    // Simple oscillation detection: count sign changes in cost deltas
+    // Fast oscillation detection: count sign changes in deltas
     let signChanges = 0;
-    for (let i = 1; i < this.oscBuffer.length - 1; i++) {
-      const prevDelta = this.oscBuffer[i] - this.oscBuffer[i - 1];
-      const currDelta = this.oscBuffer[i + 1] - this.oscBuffer[i];
-      if (prevDelta * currDelta < 0) {
+    let prevDelta = 0;
+
+    for (let i = 0; i < filled - 1; i++) {
+      const idx1 = i % this.oscDetectionWindow;
+      const idx2 = (i + 1) % this.oscDetectionWindow;
+      const currDelta = this.oscBuffer[idx2] - this.oscBuffer[idx1];
+
+      if (i > 0 && prevDelta * currDelta < 0) {
         signChanges++;
       }
+      prevDelta = currDelta;
     }
 
-    const expectedChanges = this.oscBuffer.length * 0.2; // ~20% changes in stable state
-    const oscillating = signChanges > expectedChanges * 1.5;
-
-    if (oscillating) {
+    const expectedChanges = filled * 0.2;
+    if (signChanges > expectedChanges * 1.5) {
       this.stats.oscillationsDetected++;
       return true;
     }
@@ -309,7 +333,7 @@ class OscillationDamper {
   }
 
   /**
-   * Apply weight protection to weight updates
+   * Apply weight protection to weight updates (OPTIMIZED v2)
    * @param {Float64Array} weights - Weight array
    * @param {Float64Array} gradients - Gradient array
    * @param {number} lr - Learning rate
@@ -317,35 +341,45 @@ class OscillationDamper {
    * @returns {Float64Array} - Updated weights with damping applied
    */
   protectWeightUpdate(weights, gradients, lr, weightKey = 'W') {
-    const effectiveLR = lr * this.lrScale;
-    const n = gradients.length;
-    
-    // Cache momentum object reference if needed
-    const momentumObj = this.momentum;
+    const eLR = lr * this.lrScale;
+    const n = weights.length;
+    const decay = this.momentumDecay;
+    const clip = this.weightDeltaClip;
+    const mom = this.momentum;
 
-    for (let i = 0; i < n; i++) {
-      let delta = -effectiveLR * gradients[i];
-      
-      // Apply momentum dampening with numeric key (much faster than string keys)
-      const numKey = typeof weightKey === 'string' ? weightKey.charCodeAt(0) * 65536 + i : weightKey * 65536 + i;
-      if (!momentumObj[numKey]) {
-        momentumObj[numKey] = 0;
+    // OPTIMIZED: Process 4 weights per unrolled iteration
+    let i = 0;
+
+    // Unroll loop by 4 for better CPU cache utilization
+    while (i + 3 < n) {
+      for (let j = 0; j < 4; j++) {
+        const idx = i + j;
+        let d = -eLR * gradients[idx];
+
+        // Inline momentum (no function call)
+        if (!mom[idx]) mom[idx] = 0;
+        mom[idx] = decay * mom[idx] + (1 - decay) * d;
+        d = 0.7 * d + 0.3 * mom[idx];
+
+        // Inline clipping
+        if (d > clip) d = clip;
+        else if (d < -clip) d = -clip;
+
+        weights[idx] += d;
       }
-      
-      // Exponential decay of momentum
-      momentumObj[numKey] = this.momentumDecay * momentumObj[numKey] + (1 - this.momentumDecay) * delta;
-      
-      // Combine current update with momentum
-      delta = 0.7 * delta + 0.3 * momentumObj[numKey];
-      
-      // Clip weight delta (inlined for speed)
-      if (delta > this.weightDeltaClip) {
-        delta = this.weightDeltaClip;
-      } else if (delta < -this.weightDeltaClip) {
-        delta = -this.weightDeltaClip;
-      }
-      
-      weights[i] += delta;
+      i += 4;
+    }
+
+    // Remainder
+    while (i < n) {
+      let d = -eLR * gradients[i];
+      if (!mom[i]) mom[i] = 0;
+      mom[i] = decay * mom[i] + (1 - decay) * d;
+      d = 0.7 * d + 0.3 * mom[i];
+      if (d > clip) d = clip;
+      else if (d < -clip) d = -clip;
+      weights[i] += d;
+      i++;
     }
 
     return weights;
@@ -375,13 +409,14 @@ class OscillationDamper {
   reset() {
     this.filteredAggr = 0;
     this.firstAggr = true;
-    this.spikeBuffer = [];
+    this.spikeIdx = 0;
     this.spikeCount = 0;
     this.inSpike = false;
-    this.oscBuffer = [];
+    this.oscIdx = 0;
     this.lrScale = 1.0;
     this.momentum = {};
     this.iterCount = 0;
+    this.lastSpikeCost = 0;
   }
 
   /**
