@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telemetry Glitch Detector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #001a00;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #000;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00ffff;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            padding: 15px;
+            background: #001100;
+        }
+        .panel h3 {
+            color: #00ffff;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+        }
+        .log-box {
+            background: #000;
+            border: 1px solid #003300;
+            border-radius: 3px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 11px;
+            line-height: 1.4;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+        }
+        .log-set { color: #00ff00; }
+        .log-reset { color: #ff0000; background: #300000; }
+        .log-jump { color: #ffff00; background: #333300; }
+        .log-normal { color: #00ff00; }
+        .log-time { color: #00cccc; }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .metric-box {
+            background: #001100;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .metric-label {
+            color: #00ffff;
+            font-size: 11px;
+        }
+        .metric-value {
+            color: #00ff00;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        button {
+            background: #003300;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-right: 5px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #005500;
+        }
+        .controls {
+            margin-top: 10px;
+        }
+        .warning {
+            background: #330000;
+            border: 1px solid #ff0000;
+            color: #ff0000;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+        .success {
+            background: #003300;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+        table td {
+            border: 1px solid #003300;
+            padding: 5px;
+            text-align: left;
+        }
+        table th {
+            background: #003300;
+            border: 1px solid #00ff00;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Telemetry Glitch Detector - Диагностика дёргания значений</h1>
+        
+        <div class="controls">
+            <button onclick="startMonitoring()">▶️ Начать мониторинг</button>
+            <button onclick="stopMonitoring()">⏸️ Остановить</button>
+            <button onclick="clearLogs()">🗑️ Очистить логи</button>
+            <button onclick="exportData()">📥 Экспортировать данные</button>
+        </div>
+        
+        <div class="grid">
+            <div class="panel">
+                <h3>📊 Статистика Сброса (Resets)</h3>
+                <div class="metrics">
+                    <div class="metric-box">
+                        <div class="metric-label">Всего сбросов:</div>
+                        <div class="metric-value" id="totalResets">0</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Сбросов/сек:</div>
+                        <div class="metric-value" id="resetsPerSec">0</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Последний сброс:</div>
+                        <div class="metric-value" id="lastResetTime">--:--:--</div>
+                    </div>
+                </div>
+                <div id="resetAnalysis"></div>
+            </div>
+            
+            <div class="panel">
+                <h3>🎚️ Статистика Скачков (Jumps)</h3>
+                <div class="metrics">
+                    <div class="metric-box">
+                        <div class="metric-label">Всего скачков:</div>
+                        <div class="metric-value" id="totalJumps">0</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Макс скачок:</div>
+                        <div class="metric-value" id="maxJump">0</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Средний скачок:</div>
+                        <div class="metric-value" id="avgJump">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>📈 Текущие Значения</h3>
+                <div class="metrics">
+                    <div class="metric-box">
+                        <div class="metric-label">freqValue:</div>
+                        <div class="metric-value" id="currentFreq">-</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">setT_calls:</div>
+                        <div class="metric-value" id="currentSetT">0</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">setW_calls:</div>
+                        <div class="metric-value" id="currentSetW">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>⚠️ Анализ Проблемы</h3>
+                <div id="analysisResult"></div>
+            </div>
+        </div>
+        
+        <div class="panel" style="grid-column: 1/-1;">
+            <h3>📋 События (последние 50)</h3>
+            <div class="log-box" id="logContainer"></div>
+            <table>
+                <tr>
+                    <th>Событие</th>
+                    <th>Значение</th>
+                    <th>Предыдущее</th>
+                    <th>Разница</th>
+                    <th>Время</th>
+                </tr>
+                <tbody id="eventTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let monitoring = false;
+        let logs = [];
+        let events = [];
+        let previousValues = {};
+        let resetCount = 0;
+        let jumpCount = 0;
+        let jumpValues = [];
+        let startTime = Date.now();
+        
+        const RESET_THRESHOLD = 0.001;  // Считаем 0.001 как "почти ноль"
+        const JUMP_THRESHOLD = 0.5;    // Считаем >0.5 как скачок
+        
+        function addLog(type, message) {
+            const time = new Date().toLocaleTimeString();
+            logs.push({ type, message, time });
+            if (logs.length > 50) logs.shift();
+            updateLogDisplay();
+        }
+        
+        function updateLogDisplay() {
+            const container = document.getElementById('logContainer');
+            container.innerHTML = logs.map(log => {
+                let className = 'log-normal';
+                if (log.type === 'reset') className = 'log-reset';
+                else if (log.type === 'jump') className = 'log-jump';
+                else if (log.type === 'set') className = 'log-set';
+                
+                return `<div class="log-entry ${className}">
+                    <span class="log-time">[${log.time}]</span> ${log.message}
+                </div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function checkForGlitches() {
+            const freqEl = document.getElementById('freqValue');
+            const lrValEl = document.getElementById('lrVal');
+            const l2ValEl = document.getElementById('l2Val');
+            const mixValEl = document.getElementById('mixVal');
+            
+            if (!freqEl) return;
+            
+            const freqValue = parseFloat(freqEl.textContent) || 0;
+            const lrValue = parseFloat(lrValEl?.textContent) || 0;
+            const l2Value = parseFloat(l2ValEl?.textContent) || 0;
+            const mixValue = parseFloat(mixValEl?.textContent) || 0;
+            
+            // Проверка на сброс к 0
+            if (freqValue <= RESET_THRESHOLD && previousValues.freq > RESET_THRESHOLD) {
+                resetCount++;
+                addLog('reset', `🔴 СБРОС freqValue: ${previousValues.freq.toFixed(3)} → ${freqValue.toFixed(3)}`);
+            }
+            
+            // Проверка на скачки
+            if (previousValues.freq !== undefined && Math.abs(freqValue - previousValues.freq) > JUMP_THRESHOLD) {
+                jumpCount++;
+                const diff = freqValue - previousValues.freq;
+                jumpValues.push(Math.abs(diff));
+                addLog('jump', `⚡ СКАЧОК freqValue: ${previousValues.freq.toFixed(3)} → ${freqValue.toFixed(3)} (Δ=${diff.toFixed(3)})`);
+            }
+            
+            // Обновление текущих значений
+            document.getElementById('currentFreq').textContent = freqValue.toFixed(3);
+            document.getElementById('currentSetT').textContent = window.__setT_calls || 0;
+            document.getElementById('currentSetW').textContent = window.__setW_calls || 0;
+            
+            // Обновление счетчиков
+            document.getElementById('totalResets').textContent = resetCount;
+            document.getElementById('totalJumps').textContent = jumpCount;
+            
+            if (jumpValues.length > 0) {
+                const maxJump = Math.max(...jumpValues);
+                const avgJump = jumpValues.reduce((a,b) => a+b) / jumpValues.length;
+                document.getElementById('maxJump').textContent = maxJump.toFixed(3);
+                document.getElementById('avgJump').textContent = avgJump.toFixed(3);
+            }
+            
+            // Обновление таблицы событий
+            updateEventTable();
+            
+            // Анализ проблемы
+            analyzeGlitches();
+            
+            previousValues = {
+                freq: freqValue,
+                lr: lrValue,
+                l2: l2Value,
+                mix: mixValue
+            };
+        }
+        
+        function updateEventTable() {
+            const tbody = document.getElementById('eventTable');
+            tbody.innerHTML = events.slice(-10).reverse().map(evt => `
+                <tr>
+                    <td>${evt.event}</td>
+                    <td>${evt.value.toFixed(4)}</td>
+                    <td>${evt.previous.toFixed(4)}</td>
+                    <td>${(evt.value - evt.previous).toFixed(4)}</td>
+                    <td>${evt.time}</td>
+                </tr>
+            `).join('');
+        }
+        
+        function analyzeGlitches() {
+            const analysis = document.getElementById('analysisResult');
+            let result = '';
+            
+            // Проверка на частые сброс
+            if (resetCount > 5) {
+                result += '<div class="warning">⚠️ <strong>Слишком много сбросов!</strong><br>' +
+                    'Возможные причины:<br>' +
+                    '• Алгоритм выдает 0 периодически<br>' +
+                    '• Интерфейс сбрасывает значение<br>' +
+                    '• Данные теряются при синхронизации</div>';
+            }
+            
+            // Проверка на частые скачки
+            if (jumpCount > 3) {
+                result += '<div class="warning">⚠️ <strong>Частые скачки значений!</strong><br>' +
+                    'Возможные причины:<br>' +
+                    '• render() вызывается с неправильными данными<br>' +
+                    '• Есть glitch в blender.blend()<br>' +
+                    '• Несинхронизированное обновление</div>';
+            }
+            
+            if (resetCount === 0 && jumpCount === 0) {
+                result += '<div class="success">✅ Проблем не обнаружено - значения стабильны</div>';
+            }
+            
+            // Проверка source данных
+            if (window.scan) {
+                result += '<div class="success">✅ scan объект доступен</div>';
+                result += `<p style="font-size: 11px; color: #00cccc; margin-top: 5px;">
+                    scan.out_f = ${window.scan.out_f?.toFixed(3) || 'N/A'}<br>
+                    scan.out_conf = ${window.scan.out_conf?.toFixed(3) || 'N/A'}<br>
+                    scan.out_inertia = ${window.scan.out_inertia?.toFixed(3) || 'N/A'}
+                </p>`;
+            }
+            
+            analysis.innerHTML = result;
+        }
+        
+        function startMonitoring() {
+            monitoring = true;
+            logs = [];
+            previousValues = {};
+            resetCount = 0;
+            jumpCount = 0;
+            jumpValues = [];
+            startTime = Date.now();
+            addLog('info', '▶️ Мониторинг начат');
+            
+            const interval = setInterval(() => {
+                if (!monitoring) {
+                    clearInterval(interval);
+                    return;
+                }
+                checkForGlitches();
+            }, 100);
+        }
+        
+        function stopMonitoring() {
+            monitoring = false;
+            addLog('info', '⏸️ Мониторинг остановлен');
+        }
+        
+        function clearLogs() {
+            logs = [];
+            events = [];
+            updateLogDisplay();
+            addLog('info', '🗑️ Логи очищены');
+        }
+        
+        function exportData() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                totalResets: resetCount,
+                totalJumps: jumpCount,
+                maxJump: jumpValues.length > 0 ? Math.max(...jumpValues) : 0,
+                avgJump: jumpValues.length > 0 ? jumpValues.reduce((a,b) => a+b) / jumpValues.length : 0,
+                logs: logs,
+                events: events
+            };
+            
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `telemetry-glitch-report-${Date.now()}.json`;
+            a.click();
+            
+            addLog('info', '📥 Данные экспортированы');
+        }
+        
+        // Auto-start on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                startMonitoring();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

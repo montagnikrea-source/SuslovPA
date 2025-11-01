@@ -11102,6 +11102,21 @@ setInterval(step,12);`;
               console.log(`[RENDER ${window.__telemetryDebug}] out=`, out, 'scan=', typeof scan, 'setT=', typeof setT);
             }
             
+            // === ЗАЩИТА ОТ НУЛЕВЫХ ЗНАЧЕНИЙ ===
+            // Не обновляем основные значения если они нулевые (это признак того, что алгоритм еще готовит данные)
+            // Вместо этого используем последние валидные значения
+            if (out.f === 0 && out.conf === 0 && out.inertia === 0) {
+              // Это фаза инициализации/накопления - обновляем только статус, не основные телеметрию
+              if (typeof window.__lastValidOutput === 'undefined') {
+                window.__lastValidOutput = { f: 0.001, conf: 0, inertia: 0, state: "INIT" };
+              }
+              // Используем последнее валидное значение вместо нулей
+              out = window.__lastValidOutput;
+            } else {
+              // Сохраняем валидное значение для следующих раз
+              window.__lastValidOutput = { ...out };
+            }
+            
             const fmax = Math.max(1, scan.fmax);
             window.__setT("freqValue", out.f.toFixed(3));
             window.__setW("freqBar", (100 * out.f) / fmax);
