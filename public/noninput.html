@@ -10691,7 +10691,7 @@ ${text}
         // Глобальное состояние анимации (обновляется телеметрией)
         let __animState = { f: 0, conf: 0, inertia: 0, fs: 60 };
         // Контекст частиц "волшебной пыли"
-        let __dustCtx = null;
+  let __dustCtx = null;
 
         function initMagicDustCanvas() {
           const canvas = document.getElementById("magicDust");
@@ -10715,6 +10715,12 @@ ${text}
             particles: [],
             raf: 0,
             running: false,
+            emitterRunning: false,
+            emissionRate: 0, // particles/sec
+            speedScale: 1,
+            hueBase: 200,
+            lastTs: 0,
+            emitAcc: 0,
           };
         }
 
@@ -10812,6 +10818,92 @@ ${text}
           }
         }
 
+        function startMagicDustEmitter() {
+          try {
+            const reduceMotion =
+              window.matchMedia &&
+              window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            if (reduceMotion) return;
+            if (!__dustCtx) __dustCtx = initMagicDustCanvas();
+            const d = __dustCtx;
+            if (!d) return;
+            if (d.emitterRunning) return;
+            d.emitterRunning = true;
+            d.lastTs = performance.now();
+            const loop = (ts) => {
+              if (!d.emitterRunning) return;
+              const { canvas, ctx } = d;
+              const dt = Math.min(50, ts - d.lastTs);
+              d.lastTs = ts;
+
+              // Эмиссия новых частиц по телеметрии
+              d.emitAcc += (d.emissionRate / 1000) * dt; // rate is particles/sec
+              let toEmit = Math.floor(d.emitAcc);
+              d.emitAcc -= toEmit;
+              const cx = canvas.width / 2;
+              const cy = canvas.height / 2;
+              while (toEmit-- > 0) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = (0.5 + Math.random() * 1.2) * d.speedScale * d.dpr;
+                const life = 750 + Math.random() * 900;
+                const size = 0.7 + Math.random() * 2.0 * d.dpr;
+                const hueJitter = Math.random() * 36 - 18;
+                const sat = 65 + Math.floor((__animState.conf || 0) * 35);
+                const light = 60 - Math.floor((__animState.inertia || 0) * 30);
+                d.particles.push({
+                  x: cx + (Math.random() - 0.5) * 8 * d.dpr,
+                  y: cy + (Math.random() - 0.5) * 8 * d.dpr,
+                  vx: Math.cos(angle) * speed,
+                  vy: Math.sin(angle) * speed,
+                  life,
+                  maxLife: life,
+                  size,
+                  color: `hsl(${Math.round(d.hueBase + hueJitter)}, ${sat}%, ${light}%)`,
+                });
+              }
+
+              // Обновление/отрисовка
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              for (let i = d.particles.length - 1; i >= 0; i--) {
+                const p = d.particles[i];
+                p.life -= dt;
+                if (p.life <= 0) {
+                  d.particles.splice(i, 1);
+                  continue;
+                }
+                const drag = 0.985 - 0.12 * (1 - Math.max(0, Math.min(1, __animState.inertia || 0)));
+                p.vx *= drag;
+                p.vy *= drag;
+                p.x += p.vx;
+                p.y += p.vy;
+
+                const alpha = Math.max(0, p.life / p.maxLife);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+              }
+
+              d.raf = requestAnimationFrame(loop);
+            };
+            d.raf = requestAnimationFrame(loop);
+          } catch (_) {}
+        }
+
+        function stopMagicDustEmitter() {
+          try {
+            if (!__dustCtx) return;
+            const d = __dustCtx;
+            d.emitterRunning = false;
+            if (d.raf) cancelAnimationFrame(d.raf);
+            d.raf = 0;
+            d.emitAcc = 0;
+            d.particles = [];
+            d.ctx && d.ctx.clearRect(0, 0, d.canvas.width, d.canvas.height);
+          } catch (_) {}
+        }
+
         function updateNeuroAnimFromTelemetry(m) {
           try {
             const overlay = document.getElementById("neuroOverlay");
@@ -10828,8 +10920,13 @@ ${text}
 
             // Скорость "течения" по путям зависит от частоты
             const norm = Math.min(1.5, f / 60); // нормализация ~до 90 Гц
-            const pathDur = Math.max(0.8, Math.min(5.0, 2.4 + (1.0 - norm) * 1.6));
+            const pathDur = Math.max(0.6, Math.min(6.0, 2.2 + (1.0 - norm) * 2.0));
             paths.forEach((p) => (p.style.animationDuration = pathDur.toFixed(2) + "s"));
+
+            // Плотность штриховки по уверенности → больше conf → мельче штрихи (визуально больше "элементов")
+            const dashLen = Math.max(3, 12 - Math.floor(conf * 8));
+            const gapLen = Math.max(6, 20 - Math.floor(conf * 12));
+            paths.forEach((p) => (p.style.strokeDasharray = `${dashLen} ${gapLen}`));
 
             // Скорость радужного сдвига — выше уверенность → спокойнее (дольше)
             if (svg) svg.style.animationDuration = (3 + (1 - conf) * 6).toFixed(2) + "s";
@@ -10839,6 +10936,13 @@ ${text}
 
             // Пульсация бафа — выше инерция → медленнее
             if (buff) buff.style.animationDuration = (0.9 + inertia * 1.6).toFixed(2) + "s";
+
+            // Обновляем параметры эмиттера частиц от телеметрии (если запущен)
+            if (__dustCtx) {
+              __dustCtx.emissionRate = 25 + conf * 120 + Math.min(50, f * 0.6); // элементы/сек
+              __dustCtx.speedScale = 0.6 + 1.1 * (1 - inertia) + Math.min(0.8, f / 120);
+              __dustCtx.hueBase = ((f % 60) / 60) * 360;
+            }
           } catch (_) {}
         }
 
@@ -10859,11 +10963,14 @@ ${text}
             // Показываем оверлей только когда алгоритм запущен
             if (window.__algoRunning) {
               overlay.classList.add("visible", "buff");
+              // Запускаем эмиттер частиц при показе
+              startMagicDustEmitter();
             } else {
               overlay.classList.remove("buff", "visible");
             }
           } else {
             overlay.classList.remove("buff", "visible");
+            stopMagicDustEmitter();
           }
         }
 
@@ -11116,6 +11223,8 @@ ${text}
           magicDustBurst();
           // Применить текущие параметры телеметрии сразу
           updateNeuroAnimFromTelemetry(__animState);
+          // Параллельно запустить постоянный эмиттер
+          startMagicDustEmitter();
           // Force restart of CSS animations in case browser suppressed them
           requestAnimationFrame(() => {
             try {
@@ -11174,6 +11283,7 @@ ${text}
           if (!overlay) return;
           overlay.classList.remove("visible", "buff");
           overlay.setAttribute("aria-hidden", "true");
+          stopMagicDustEmitter();
         }
         // инициализируем состояние тумблера после рендера DOM
         _initOverlayToggle();
