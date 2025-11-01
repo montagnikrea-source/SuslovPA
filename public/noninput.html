@@ -11046,38 +11046,49 @@ setInterval(step,12);`;
             window.__setT("KpAdaptValue", scan.tuner.Kp.toFixed(4));
 
             // === РЕАЛЬНОЕ ОБНОВЛЕНИЕ ПОЛЗУНКОВ И PROGRESS BARS ===
+            // Получаем ползунки (может быть они еще не инициализированы)
+            const lrSliderEl = lrSlider || document.getElementById("lrSlider");
+            const l2SliderEl = l2Slider || document.getElementById("l2Slider");
+            const mixSliderEl = mixSlider || document.getElementById("mixSlider");
+            const lrAutoEl = lrAuto || document.getElementById("lrAuto");
+            const l2AutoEl = l2Auto || document.getElementById("l2Auto");
+            const mixAutoEl = mixAuto || document.getElementById("mixAuto");
+            
             // Обновляем ползунки значениями из алгоритма
-            if (lrSlider && !lrAuto.checked) {
-              lrSlider.value = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || scan.tuner.lr)).toFixed(3);
-              setW("lrBar", ((lrSlider.value - 0.001) / (0.2 - 0.001)) * 100);
-              setT("lrVal", lrSlider.value);
+            if (lrSliderEl && !lrAutoEl?.checked) {
+              const lrValue = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || scan.tuner.lr)).toFixed(3);
+              lrSliderEl.value = lrValue;
+              window.__setW("lrBar", ((lrValue - 0.001) / (0.2 - 0.001)) * 100);
+              window.__setT("lrVal", lrValue);
             }
-            if (l2Slider && !l2Auto.checked) {
-              l2Slider.value = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001)).toFixed(4);
-              setW("l2Bar", (l2Slider.value / 0.01) * 100);
-              setT("l2Val", l2Slider.value);
+            if (l2SliderEl && !l2AutoEl?.checked) {
+              const l2Value = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001)).toFixed(4);
+              l2SliderEl.value = l2Value;
+              window.__setW("l2Bar", (l2Value / 0.01) * 100);
+              window.__setT("l2Val", l2Value);
             }
-            if (mixSlider && !mixAuto.checked) {
-              mixSlider.value = Math.max(0, Math.min(1, scan.tuner.mix || 0.75)).toFixed(2);
-              setW("mixBar", (mixSlider.value * 100));
-              setT("mixVal", mixSlider.value);
+            if (mixSliderEl && !mixAutoEl?.checked) {
+              const mixValue = Math.max(0, Math.min(1, scan.tuner.mix || 0.75)).toFixed(2);
+              mixSliderEl.value = mixValue;
+              window.__setW("mixBar", (mixValue * 100));
+              window.__setT("mixVal", mixValue);
             }
 
             // Progress bars для автоматических значений
-            if (lrAuto && lrAuto.checked) {
+            if (lrAutoEl?.checked) {
               const lrAutoVal = Math.max(0.001, Math.min(0.2, scan.tuner.lrBase || 0.030));
-              setW("lrBar", ((lrAutoVal - 0.001) / (0.2 - 0.001)) * 100);
-              setT("lrVal", lrAutoVal.toFixed(3) + " (auto)");
+              window.__setW("lrBar", ((lrAutoVal - 0.001) / (0.2 - 0.001)) * 100);
+              window.__setT("lrVal", lrAutoVal.toFixed(3) + " (auto)");
             }
-            if (l2Auto && l2Auto.checked) {
+            if (l2AutoEl?.checked) {
               const l2AutoVal = Math.max(0, Math.min(0.01, scan.tuner.l2 || 0.0001));
-              setW("l2Bar", (l2AutoVal / 0.01) * 100);
-              setT("l2Val", l2AutoVal.toFixed(4) + " (auto)");
+              window.__setW("l2Bar", (l2AutoVal / 0.01) * 100);
+              window.__setT("l2Val", l2AutoVal.toFixed(4) + " (auto)");
             }
-            if (mixAuto && mixAuto.checked) {
+            if (mixAutoEl?.checked) {
               const mixAutoVal = Math.max(0, Math.min(1, scan.tuner.mix || 0.75));
-              setW("mixBar", (mixAutoVal * 100));
-              setT("mixVal", mixAutoVal.toFixed(2) + " (auto)");
+              window.__setW("mixBar", (mixAutoVal * 100));
+              window.__setT("mixVal", mixAutoVal.toFixed(2) + " (auto)");
             }
 
             // НОВОЕ: Метрики масштабирования архитектуры (с NaN-защитой)
