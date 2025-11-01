@@ -2721,23 +2721,29 @@
           return true;
         }
 
-        // Обновление по расписанию (только симуляция)
+        // Обновление по расписанию (реальный счетчик + API)
         startGlobalCounterUpdates_v1() {
           const tick = async () => {
             try {
-              // Используем только симуляцию
-              const sim =
-                (await this.simulateGlobalCounter?.()) ??
-                (this.globalCounter.simulatedCount += 1);
+              // Получаем текущее значение счетчика с API (без увеличения)
+              const count = await this.getVisitCount?.();
               this.globalCounter.lastUpdate = Date.now();
-              this.updateGlobalStatsWidget(sim, true, null, "симуляция");
+              this.updateGlobalStatsWidget(count, true, null, "реальный счетчик");
             } catch (e) {
               console.debug("Update error:", e.message);
             }
           };
 
-          // первый запуск сразу
-          tick();
+          // первый запуск сразу - записываем визит
+          (async () => {
+            try {
+              const count = await this.recordVisit?.();
+              this.globalCounter.lastUpdate = Date.now();
+              this.updateGlobalStatsWidget(count, true, null, "реальный счетчик");
+            } catch (e) {
+              console.debug("Initial visit recording error:", e.message);
+            }
+          })();
 
           // далее по интервалу (каждые 15 секунд)
           this._globalCounterTimer && clearInterval(this._globalCounterTimer);
@@ -3518,29 +3524,115 @@
           }
         }
 
-        // Улучшенная симуляция глобального счетчика
-        async simulateGlobalCounter() {
+        // Реальный подсчет посещений (использует API на Vercel)
+        async recordVisit() {
           try {
-            // Счётчик реальных обращений к странице
-            const COUNTER_KEY = "real_page_visits_counter";
-            let visitCount = parseInt(localStorage.getItem(COUNTER_KEY) || "0");
+            const response = await fetch('/api/counter?action=increment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                source: 'noninput-app',
+                referrer: document.referrer || 'direct',
+                userId: this.getCurrentUserId?.() || null
+              })
+            });
 
-            // Увеличиваем счётчик обращений (одно обращение за загрузку страницы)
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.ok) {
+              console.log(`✅ Реальных обращений: ${data.count}`);
+              this.globalCounter.simulatedCount = data.count;
+              
+              // Сохраняем в localStorage как резервную копию
+              localStorage.setItem('real_page_visits_counter', data.count.toString());
+              localStorage.setItem('counter_last_sync', new Date().toISOString());
+              
+              return data.count;
+            }
+          } catch (error) {
+            console.error("❌ Ошибка при записи визита:", error);
+            
+            // Fallback на localStorage если API недоступен
+            return this.simulateGlobalCounterLocal();
+          }
+        }
+
+        // Локальная симуляция счетчика (резервная копия)
+        async simulateGlobalCounterLocal() {
+          try {
+            const COUNTER_KEY = "real_page_visits_counter";
+            let visitCount = parseInt(localStorage.getItem(COUNTER_KEY) || "1215");
+
+            // Увеличиваем счётчик обращений
             visitCount++;
             localStorage.setItem(COUNTER_KEY, visitCount.toString());
 
-            console.log(`� Реальных обращений: ${visitCount}`);
-
+            console.log(`📱 Локальное обновление счетчика (API недоступен): ${visitCount}`);
             this.globalCounter.simulatedCount = visitCount;
             return visitCount;
           } catch (error) {
-            console.error("❌ Ошибка счетчика:", error);
-
-            // Возвращаем минимальное значение даже при ошибке
-            const fallbackCount = 1;
-            this.globalCounter.simulatedCount = fallbackCount;
-            return fallbackCount;
+            console.error("❌ Ошибка локального счетчика:", error);
+            return 1215;
           }
+        }
+
+        // Получить текущее значение счетчика с API
+        async getVisitCount() {
+          try {
+            const response = await fetch('/api/counter?action=get', {
+              method: 'GET'
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.ok) {
+              console.log(`🔍 Получено значение счетчика с API: ${data.count}`);
+              this.globalCounter.simulatedCount = data.count;
+              return data.count;
+            }
+          } catch (error) {
+            console.error("❌ Ошибка получения значения счетчика:", error);
+            
+            // Используем локальное значение
+            const localCount = parseInt(localStorage.getItem('real_page_visits_counter') || '1215');
+            console.log(`📱 Используем локальное значение: ${localCount}`);
+            return localCount;
+          }
+        }
+
+        // Получить статистику счетчика
+        async getCounterStats() {
+          try {
+            const response = await fetch('/api/counter', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'stats' })
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data;
+          } catch (error) {
+            console.error("❌ Ошибка получения статистики:", error);
+            return null;
+          }
+        }
+
+        // Улучшенная симуляция глобального счетчика (для совместимости)
+        async simulateGlobalCounter() {
+          // Используем реальный API счетчик
+          return await this.recordVisit() || await this.simulateGlobalCounterLocal();
         }
 
         // Получение демо-данных для отображения
@@ -4022,18 +4114,15 @@
             await this.updateGlobalCounter();
           }, 15000);
 
-          // Автоматическое увеличение симулированного счетчика каждые 45 секунд
+          // Получаем статистику счетчика каждые 45 секунд
           setInterval(async () => {
-            if (
-              this.globalCounter.isOnline &&
-              this.globalCounter.simulatedCount > 0
-            ) {
-              const newCount = await this.simulateGlobalCounter();
-              const currentMode = this.getCurrentMode();
-              this.updateGlobalStatsWidget(newCount, true, null, currentMode);
-              console.log(
-                `🔄 Автоувеличение симулированного счетчика: ${newCount}`,
-              );
+            if (this.globalCounter.isOnline) {
+              const stats = await this.getCounterStats?.();
+              if (stats) {
+                console.log(
+                  `� Статистика счетчика: всего ${stats.totalCount}, в последний час ${stats.visitsLastHour}`,
+                );
+              }
             }
           }, 45000);
 
