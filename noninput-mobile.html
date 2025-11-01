@@ -1389,15 +1389,7 @@
     
     <!-- Initialize Worker as soon as possible -->
     <script>
-      // Initialize worker immediately when algorithm-manager.js loads
-      if (document.readyState === 'loading') {
-        // DOM still loading, wait for DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', initWorkerWhenReady);
-      } else {
-        // DOM already loaded (e.g., script loaded late)
-        initWorkerWhenReady();
-      }
-      
+      // Define functions FIRST, before using them
       async function initWorkerWhenReady() {
         // Wait a tiny bit for algorithm-manager.js to define functions
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -1450,6 +1442,15 @@
           });
           console.log('[INIT] ✅ STOP button handler bound');
         }
+      }
+      
+      // NOW call the function after it's defined
+      if (document.readyState === 'loading') {
+        // DOM still loading, wait for DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', initWorkerWhenReady);
+      } else {
+        // DOM already loaded (e.g., script loaded late)
+        initWorkerWhenReady();
       }
     </script>
   </head>
