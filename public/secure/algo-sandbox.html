@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Algorithm Sandbox</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Algorithm Sandbox</h1>
+        <div class="status">
+            <p>✅ Sandbox initialized successfully</p>
+            <p>This is a secure environment for algorithm testing and execution.</p>
+        </div>
+    </div>
+    <script>
+        console.log('Algorithm Sandbox loaded');
+        window.parent.postMessage({ 
+            type: 'sandbox:ready',
+            status: 'initialized'
+        }, '*');
+    </script>
+</body>
+</html>
