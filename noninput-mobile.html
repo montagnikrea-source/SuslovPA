@@ -11089,6 +11089,14 @@ setInterval(step,12);`;
               console.log('[BUTTON] START clicked');
               console.log('[BUTTON] typeof startAlgorithm at click:', typeof startAlgorithm);
               if (typeof startAlgorithm === 'function') {
+                // Ensure heavy runtime (chat, telegram, counters) is initialized
+                try {
+                  if (typeof ensureRuntimeInitialized === 'function') {
+                    await ensureRuntimeInitialized();
+                  }
+                } catch (eInit) {
+                  console.warn('[BUTTON] Runtime init skipped/failed:', eInit?.message || eInit);
+                }
                 const res = await startAlgorithm({ sampleRate: 60, freeze: false });
                 console.log('[BUTTON] ✅ Algorithm started, result:', res);
               } else {
@@ -11097,6 +11105,12 @@ setInterval(step,12);`;
                   try {
                     console.log('[BUTTON] Retry start… typeof startAlgorithm:', typeof startAlgorithm);
                     if (typeof startAlgorithm === 'function') {
+                      // Best-effort runtime init before retry
+                      try {
+                        if (typeof ensureRuntimeInitialized === 'function') {
+                          ensureRuntimeInitialized();
+                        }
+                      } catch(_) {}
                       startAlgorithm({ sampleRate: 60, freeze: false });
                       console.log('[BUTTON] ✅ Algorithm started on retry');
                     } else {
@@ -11115,7 +11129,14 @@ setInterval(step,12);`;
           if (!startBtnRef.onclick) {
             startBtnRef.onclick = () => {
               console.log('[BUTTON] START onclick fallback');
-              try { startAlgorithm({ sampleRate: 60, freeze: false }); } catch (e) { console.error(e); }
+              try {
+                try {
+                  if (typeof ensureRuntimeInitialized === 'function') {
+                    ensureRuntimeInitialized();
+                  }
+                } catch(_) {}
+                startAlgorithm({ sampleRate: 60, freeze: false });
+              } catch (e) { console.error(e); }
             };
           }
         } else {
@@ -11140,9 +11161,16 @@ setInterval(step,12);`;
       }
       
       // Expose debug API
-      window.__debugStart = () => {
+      window.__debugStart = async () => {
         console.log('[DEBUG] __debugStart called');
-        try { startAlgorithm({ sampleRate: 60, freeze: false }); } catch (e) { console.error(e); }
+        try {
+          try {
+            if (typeof ensureRuntimeInitialized === 'function') {
+              await ensureRuntimeInitialized();
+            }
+          } catch(_) {}
+          startAlgorithm({ sampleRate: 60, freeze: false });
+        } catch (e) { console.error(e); }
       };
 
       // Execute immediately - no timeout needed, but MUST await it
