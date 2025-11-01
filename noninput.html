@@ -10666,60 +10666,8 @@ ${text}
         window.__$ = $_p;
 
         // Псевдотелеметрия на случай недоступности защищённой песочницы
-        function startPseudoTelemetry() {
-          const t0 = performance.now();
-          let frozen = false;
-          let flip = 0;
-          function tick() {
-            const t = (performance.now() - t0) / 1000;
-            const f = 20 + 8 * Math.sin(t * 0.7) + 3 * Math.cos(t * 0.23);
-            const conf = 0.55 + 0.35 * Math.sin(t * 0.37);
-            const iner = 0.25 + 0.6 * Math.max(0, Math.cos(t * 0.31));
-            setT("freqValue", f.toFixed(3));
-            setW("freqBar", Math.max(0, Math.min(100, f)));
-            setT("confValue", (conf * 100).toFixed(0));
-            setW("confBar", conf * 100);
-            setT("inertiaValue", (iner * 100).toFixed(0));
-            setW("inertiaBar", iner * 100);
-            // Вторичные метрики
-            const res = 0.2 + 0.6 * Math.abs(Math.sin(t * 0.21));
-            setT("resourceValue", (res * 100).toFixed(0) + "%");
-            setW("resourceBar", res * 100);
-            setT(
-              "lrAdaptValue",
-              (0.01 + 0.03 * Math.abs(Math.sin(t * 0.33))).toFixed(4),
-            );
-            setT(
-              "mixAdaptValue",
-              (30 + 65 * Math.max(0, Math.cos(t * 0.27))).toFixed(0) + "%",
-            );
-            setT(
-              "KpAdaptValue",
-              (0.1 + 0.3 * Math.abs(Math.cos(t * 0.29))).toFixed(4),
-            );
-            setT("HValue", 4 + (Math.sin(t * 0.13) > 0 ? 4 : 0));
-            const quality = Math.max(0, Math.min(1, conf * 0.6 + iner * 0.4));
-            setT("qualityValue", (quality * 100).toFixed(0) + "%");
-            setW("qualityBar", quality * 100);
-            if (++flip % 40 === 0) frozen = !frozen;
-            setT("freezeStatusValue", frozen ? "🔒 Frozen" : "🔓 Learning");
-            const fsEl = $_p("freezeStatusValue");
-            if (fsEl) fsEl.style.color = frozen ? "#ff6b6b" : "#00aa00";
-            setT(
-              "precisionValue",
-              Math.sin(t * 0.5) > 0 ? "float32" : "float64",
-            );
-            setT("statusText", "Анализируется… (pseudo)");
-            setT(
-              "info",
-              `Псевдо-режим • f=${f.toFixed(2)} Гц | conf=${(conf * 100).toFixed(0)}% | inertia=${(iner * 100).toFixed(0)}% | fs≈60`,
-            );
-            requestAnimationFrame(tick);
-          }
-          requestAnimationFrame(tick);
-        }
-        // Используем общие $ / setT / setW, объявленные выше в DOMContentLoaded
-
+        // � Псевдо-режим полностью удален - используется ТОЛЬКО реальный алгоритм!
+        
         // ===== Управление нейро-анимацией (оверлей) =====
         const OVERLAY_KEY = "neuroOverlayEnabled";
         function isOverlayEnabled() {
@@ -10812,11 +10760,12 @@ ${text}
               console.error("Secure start failed", e);
               safeSetStartStatus("Ошибка запуска, запуск локального двигателя");
               if (isOverlayEnabled()) showNeuroBuff();
-              // Запускаем реальный локальный алгоритм вместо псевдо-телеметрии
+              // Запускаем ТОЛЬКО реальный локальный алгоритм
               if (window.__legacyEngine && window.__legacyEngine.start) {
                 window.__legacyEngine.start();
               } else {
-                startPseudoTelemetry();
+                console.error("CRITICAL: Legacy engine not available!");
+                safeSetStartStatus("❌ Критическая ошибка: алгоритм недоступен");
               }
             }
           } else {
@@ -10824,11 +10773,12 @@ ${text}
             if (isOverlayEnabled()) showNeuroBuff();
             const changelog = document.getElementById("algoChangeLog");
             if (changelog) changelog.textContent = "Локальный двигатель: запущено";
-            // Запускаем реальный локальный алгоритм вместо псевдо-телеметрии
+            // Запускаем ТОЛЬКО реальный локальный алгоритм
             if (window.__legacyEngine && window.__legacyEngine.start) {
               window.__legacyEngine.start();
             } else {
-              startPseudoTelemetry();
+              console.error("CRITICAL: Legacy engine not available!");
+              safeSetStartStatus("❌ Критическая ошибка: алгоритм недоступен");
             }
           }
         }
