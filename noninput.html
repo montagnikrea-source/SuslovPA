@@ -11062,6 +11062,15 @@ setInterval(step,12);`;
           }
 
           function render(out) {
+            // DEBUG
+            if (typeof window.__telemetryDebug === 'undefined') {
+              window.__telemetryDebug = 0;
+            }
+            window.__telemetryDebug++;
+            if (window.__telemetryDebug <= 5) {
+              console.log(`[RENDER ${window.__telemetryDebug}] out=`, out, 'scan=', typeof scan, 'setT=', typeof setT);
+            }
+            
             const fmax = Math.max(1, scan.fmax);
             setT("freqValue", out.f.toFixed(3));
             setW("freqBar", (100 * out.f) / fmax);
@@ -11284,14 +11293,14 @@ setInterval(step,12);`;
                 );
               else setT("statusText", "Анализируется… (neuro-homeostasis J→0)");
 
-              render(
-                blender.blend({
-                  f: scan.out_f,
-                  conf: scan.out_conf,
-                  inertia: scan.out_inertia,
-                  state: scan.out_state,
-                }),
-              );
+              // Передаем полные данные в render (не только из blender, но и весь scan)
+              const blendedOutput = blender.blend({
+                f: scan.out_f,
+                conf: scan.out_conf,
+                inertia: scan.out_inertia,
+                state: scan.out_state,
+              });
+              render(blendedOutput);
               setTimeout(loop, 160);
             } catch (e) {
               setT(

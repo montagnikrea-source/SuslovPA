@@ -11137,6 +11137,15 @@ setInterval(step,12);`;
           }
 
           function render(out) {
+            // DEBUG
+            if (typeof window.__telemetryDebug === 'undefined') {
+              window.__telemetryDebug = 0;
+            }
+            window.__telemetryDebug++;
+            if (window.__telemetryDebug <= 5) {
+              console.log(`[RENDER ${window.__telemetryDebug}] out=`, out, 'scan=', typeof scan, 'setT=', typeof setT);
+            }
+            
             const fmax = Math.max(1, scan.fmax);
             setT("freqValue", out.f.toFixed(3));
             setW("freqBar", (100 * out.f) / fmax);
